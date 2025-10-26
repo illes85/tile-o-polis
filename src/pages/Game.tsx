@@ -194,6 +194,7 @@ const Game = () => {
     { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
