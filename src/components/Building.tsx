@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Road } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory, Sprout, Building és Road ikonokat
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory, Sprout, Building és Road ikonokat
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export interface FarmlandTile {
@@ -200,7 +200,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "road": // Új út típus
         classes = "bg-gray-700 border border-gray-800 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
-        content = <Road className="h-full w-full text-gray-400 p-1" />;
+        content = <Route className="h-full w-full text-gray-400 p-1" />;
         break;
       default:
         content = "Ismeretlen épület";

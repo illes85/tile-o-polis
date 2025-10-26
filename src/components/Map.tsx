@@ -3,7 +3,7 @@
 import React from "react";
 import Building, { FarmlandTile } from "./Building"; // Importáljuk a FarmlandTile interfészt
 import { BuildingOption } from "./BuildMenu";
-import { Sprout, Road } from "lucide-react"; // Importáljuk a Sprout és Road ikonokat
+import { Sprout, Route } from "lucide-react"; // Importáljuk a Sprout és Route ikonokat
 
 export interface BuildingData {
   id: string;
@@ -167,7 +167,7 @@ const Map: React.FC<MapProps> = ({
             height: cellSizePx,
           }}
         >
-          <Road className="h-full w-full text-gray-400 p-1" />
+          <Route className="h-full w-full text-gray-400 p-1" />
         </div>
       )}
     </div>

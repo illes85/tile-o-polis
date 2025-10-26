@@ -17,7 +17,7 @@ import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Road } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok
 
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
