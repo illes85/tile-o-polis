@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PlayerInfo from "@/components/PlayerInfo";
-import RoleSelector from "@/components/RoleSelector";
+// import RoleSelector from "@/components/RoleSelector"; // Eltávolítva
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import Map, { BuildingData } from "@/components/Map";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -11,12 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select for player switcher
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
-import PlayerSettings from "@/components/PlayerSettings"; // Import PlayerSettings
+import PlayerSettings from "@/components/PlayerSettings";
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -37,7 +37,7 @@ interface Player {
     water: number;
     clothes: number;
   };
-  role: string;
+  workplace: string; // Módosítva: role helyett workplace
 }
 
 const availableBuildingOptions: BuildingOption[] = [
@@ -65,8 +65,8 @@ const availableBuildingOptions: BuildingOption[] = [
 
 const Game = () => {
   const [players, setPlayers] = useState<Player[]>([
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, role: "Munkanélküli" },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, role: "Kertész/Farmer" },
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, workplace: "Munkanélküli" }, // Frissítve
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, workplace: "Munkanélküli" }, // Frissítve
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -248,14 +248,7 @@ const Game = () => {
     );
   };
 
-  const handleRoleChange = (newRole: string) => {
-    setPlayers(prevPlayers =>
-      prevPlayers.map(p =>
-        p.id === currentPlayerId ? { ...p, role: newRole } : p
-      )
-    );
-    console.log(`Szerepkör megváltoztatva: ${newRole}`);
-  };
+  // handleRoleChange függvény eltávolítva
 
   const handleBuildingClick = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
@@ -319,6 +312,11 @@ const Game = () => {
         b.id === selectedBuilding.id
           ? { ...b, employeeIds: [...b.employeeIds, currentPlayerId], occupancy: b.occupancy + 1 }
           : b
+      )
+    );
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p // Frissítve
       )
     );
     showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.id} irodába! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
@@ -461,10 +459,10 @@ const Game = () => {
         playerName={currentPlayer.name}
         money={currentPlayer.money}
         inventory={currentPlayer.inventory}
-        role={currentPlayer.role}
+        workplace={currentPlayer.workplace} // Módosítva: role helyett workplace
         onPlayerNameChange={updatePlayerName}
       />
-      <RoleSelector currentRole={currentPlayer.role} onRoleChange={handleRoleChange} />
+      {/* RoleSelector eltávolítva */}
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}

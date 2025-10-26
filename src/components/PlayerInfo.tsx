@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil } from "lucide-react"; // Importáljuk a Pencil ikont
-import { Input } from "@/components/ui/input"; // Import Input
-import { Button } from "@/components/ui/button"; // Import Button
+import { DollarSign, Wheat, Droplet, Shirt, User, Pencil } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface PlayerInfoProps {
   playerName: string;
@@ -14,17 +14,17 @@ interface PlayerInfoProps {
     water: number;
     clothes: number;
   };
-  role: string;
-  onPlayerNameChange: (newName: string) => void; // Új prop a név frissítéséhez
+  workplace: string; // Módosítva: role helyett workplace
+  onPlayerNameChange: (newName: string) => void;
 }
 
-const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, role, onPlayerNameChange }) => {
+const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, workplace, onPlayerNameChange }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
   const handleEditToggle = () => {
     setIsEditingName(prev => !prev);
-    if (isEditingName) { // Ha befejeztük a szerkesztést
+    if (isEditingName) {
       onPlayerNameChange(editedName);
     }
   };
@@ -92,12 +92,11 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, r
             <li className="flex items-center">
               <Shirt className="mr-2 h-3 w-3 text-gray-400" /> Ruha: {inventory.clothes}
             </li>
-            {/* Add more inventory items here */}
           </ul>
         </div>
         <div className="flex items-center">
-          <span className="font-medium mr-2">Szerepkör:</span>
-          <span className="text-primary-foreground">{role}</span>
+          <span className="font-medium mr-2">Alkalmazott:</span> {/* Módosítva: Szerepkör helyett Alkalmazott */}
+          <span className="text-primary-foreground">{workplace}</span>
         </div>
       </CardContent>
     </Card>
