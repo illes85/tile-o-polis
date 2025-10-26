@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Tree as TreeIcon } from "lucide-react"; // Importáljuk a Tree ikont TreeIcon néven
+import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf } from "lucide-react"; // Importáljuk a Leaf ikont
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -94,7 +94,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
               <Shirt className="mr-2 h-3 w-3 text-gray-400" /> Ruha: {inventory.clothes}
             </li>
             <li className="flex items-center">
-              <TreeIcon className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood} {/* Új: fa */}
+              <Leaf className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood} {/* Új: fa */}
             </li>
           </ul>
         </div>

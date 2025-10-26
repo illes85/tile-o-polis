@@ -4,7 +4,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Hammer, Users, Briefcase, Tree as TreeIcon } from "lucide-react"; // Importáljuk a Users, Briefcase és Tree ikonokat TreeIcon néven
+import { DollarSign, Hammer, Users, Briefcase, Leaf } from "lucide-react"; // Importáljuk a Leaf ikont
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Importáljuk a Tabs komponenseket
 
 export interface BuildingOption {
@@ -57,7 +57,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
           </p>
           {building.woodCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <TreeIcon className="h-4 w-4 mr-1 text-yellow-700" /> {building.woodCost} fa
+              <Leaf className="h-4 w-4 mr-1 text-yellow-700" /> {building.woodCost} fa
             </p>
           )}
           <p className="text-sm text-muted-foreground flex items-center">
