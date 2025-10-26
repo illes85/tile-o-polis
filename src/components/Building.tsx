@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Tree } from "lucide-react"; // Importáljuk a Tree ikont
+import { User, Home, Hammer, Briefcase, Tree as TreeIcon } from "lucide-react"; // Importáljuk a Tree ikont TreeIcon néven
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 interface BuildingProps {
