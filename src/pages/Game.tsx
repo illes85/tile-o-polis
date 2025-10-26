@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import BuildMenu from "@/components/BuildMenu";
-import MusicPlayer from "@/components/MusicPlayer"; // Import MusicPlayer
+import MusicPlayer from "@/components/MusicPlayer";
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -49,69 +49,81 @@ const Game = () => {
   const [buildProgress, setBuildProgress] = useState(0);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
 
-  useEffect(() => {
-    const newBuildings: BuildingData[] = [];
-    const occupiedCells = new Set<string>();
+  // Segédfüggvény a foglalt cellák meghatározásához
+  const getOccupiedCells = (currentBuildings: BuildingData[]) => {
+    const occupied = new Set<string>();
+    currentBuildings.forEach(b => {
+      for (let x = b.x; x < b.x + b.width; x++) {
+        for (let y = b.y; y < b.y + b.height; y++) {
+          occupied.add(`${x},${y}`);
+        }
+      }
+    });
+    return occupied;
+  };
+
+  // tryPlaceBuilding függvény kiemelve a useEffect-ből
+  const tryPlaceBuilding = (
+    currentBuildings: BuildingData[], // Átadjuk a jelenlegi épületeket az ütközésellenőrzéshez
+    buildingId: string,
+    buildingType: "house",
+    buildingWidth: number,
+    buildingHeight: number,
+    price: number,
+    maxResidents: number,
+    isOwned: boolean = false,
+    maxAttempts = 200
+  ): BuildingData | null => {
+    const occupiedCells = getOccupiedCells(currentBuildings); // Friss foglalt cellák lekérése
 
     const isCellOccupied = (x: number, y: number) => occupiedCells.has(`${x},${y}`);
 
-    const tryPlaceBuilding = (
-      buildingId: string,
-      buildingType: "house",
-      buildingWidth: number,
-      buildingHeight: number,
-      price: number,
-      maxResidents: number,
-      isOwned: boolean = false,
-      maxAttempts = 200
-    ): BuildingData | null => {
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingWidth + 1));
-        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingHeight + 1));
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingWidth + 1));
+      const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingHeight + 1));
 
-        let overlaps = false;
-        for (let x = randomX; x < randomX + buildingWidth; x++) {
-          for (let y = randomY; y < randomY + buildingHeight; y++) {
-            if (isCellOccupied(x, y)) {
-              overlaps = true;
-              break;
-            }
+      let overlaps = false;
+      for (let x = randomX; x < randomX + buildingWidth; x++) {
+        for (let y = randomY; y < randomY + buildingHeight; y++) {
+          if (isCellOccupied(x, y)) {
+            overlaps = true;
+            break;
           }
-          if (overlaps) break;
         }
-
-        if (!overlaps) {
-          for (let x = randomX; x < randomX + buildingWidth; x++) {
-            for (let y = randomY; y < randomY + buildingHeight; y++) {
-              occupiedCells.add(`${x},${y}`);
-            }
-          }
-          return {
-            id: buildingId,
-            x: randomX,
-            y: randomY,
-            width: buildingWidth,
-            height: buildingHeight,
-            type: buildingType,
-            rentalPrice: price,
-            maxResidents: maxResidents,
-            currentResidents: 0,
-            isRentedByPlayer: false,
-            isOwnedByPlayer: isOwned,
-          };
-        }
+        if (overlaps) break;
       }
-      console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
-      return null;
-    };
 
-    for (let i = 0; i < 4; i++) {
-      const house = tryPlaceBuilding(`house-${i + 1}`, "house", 2, 2, 10, 2, false);
-      if (house) {
-        newBuildings.push(house);
+      if (!overlaps) {
+        // Nem kell itt hozzáadni az occupiedCells-hez, mert a getOccupiedCells mindig frissen számolja
+        return {
+          id: buildingId,
+          x: randomX,
+          y: randomY,
+          width: buildingWidth,
+          height: buildingHeight,
+          type: buildingType,
+          rentalPrice: price,
+          maxResidents: maxResidents,
+          currentResidents: 0,
+          isRentedByPlayer: false,
+          isOwnedByPlayer: isOwned,
+        };
       }
     }
-    setBuildings(newBuildings);
+    console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
+    return null;
+  };
+
+  useEffect(() => {
+    const initialBuildings: BuildingData[] = [];
+    // Helyezzünk el 4 házat
+    for (let i = 0; i < 4; i++) {
+      const house = tryPlaceBuilding(initialBuildings, `house-${i + 1}`, "house", 2, 2, 10, 2, false);
+      if (house) {
+        initialBuildings.push(house); // Hozzáadjuk az ideiglenes listához az ütközésellenőrzéshez
+      }
+    }
+    setBuildings(initialBuildings);
   }, []);
 
   useEffect(() => {
@@ -223,7 +235,9 @@ const Game = () => {
       setIsBuildingInProgress(false);
       setBuildProgress(0);
 
+      // tryPlaceBuilding hívása a jelenlegi buildings állapottal
       const newBuilding = tryPlaceBuilding(
+        buildings, // Átadjuk a jelenlegi buildings listát
         `player-${buildingOption.type}-${Date.now()}`,
         buildingOption.type as "house",
         buildingOption.width,
@@ -267,7 +281,7 @@ const Game = () => {
           Építés
         </Button>
       </div>
-      <MusicPlayer /> {/* Hozzáadva a MusicPlayer komponens */}
+      <MusicPlayer />
       <div className="mt-auto">
         <MadeWithDyad />
       </div>
