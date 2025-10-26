@@ -12,12 +12,28 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast"; // Import toast utilities
+import BuildMenu from "@/components/BuildMenu"; // Import BuildMenu
 
 const MAP_GRID_SIZE = 20; // 20x20-as rács
 const CELL_SIZE_PX = 40; // Minden cella 40x40 pixel
 const RENT_INTERVAL_MS = 30000; // 30 másodperc = 1 játékperc
 const BUILD_HOUSE_COST = 500;
 const BUILD_HOUSE_DURATION_MS = 10000; // 10 másodperc
+
+// Építhető épületek definíciója
+const availableBuildingOptions = [
+  {
+    type: "house",
+    name: "Házikó",
+    cost: BUILD_HOUSE_COST,
+    duration: BUILD_HOUSE_DURATION_MS,
+    width: 2,
+    height: 2,
+    rentalPrice: 10,
+    maxResidents: 2,
+  },
+  // Ide jöhetnek majd a további épület típusok
+];
 
 const Game = () => {
   const [playerName, setPlayerName] = useState("Játékos");
@@ -32,6 +48,7 @@ const Game = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
   const [isBuildingInProgress, setIsBuildingInProgress] = useState(false);
   const [buildProgress, setBuildProgress] = useState(0);
+  const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false); // Új állapot az építési menünek
 
   useEffect(() => {
     const newBuildings: BuildingData[] = [];
@@ -41,12 +58,12 @@ const Game = () => {
 
     const tryPlaceBuilding = (
       buildingId: string,
-      buildingType: "house",
+      buildingType: "house", // Lehetne BuildingType is, ha több van
       buildingWidth: number,
       buildingHeight: number,
       price: number,
       maxResidents: number,
-      isOwned: boolean = false, // Új paraméter alapértelmezett false értékkel
+      isOwned: boolean = false,
       maxAttempts = 200
     ): BuildingData | null => {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -81,7 +98,7 @@ const Game = () => {
             maxResidents: maxResidents,
             currentResidents: 0,
             isRentedByPlayer: false,
-            isOwnedByPlayer: isOwned, // Hozzárendeljük az isOwned paramétert
+            isOwnedByPlayer: isOwned,
           };
         }
       }
@@ -91,7 +108,7 @@ const Game = () => {
 
     // Helyezzünk el 4 házat
     for (let i = 0; i < 4; i++) {
-      const house = tryPlaceBuilding(`house-${i + 1}`, "house", 2, 2, 10, 2, false); // Kezdeti házak nem a játékos tulajdonában
+      const house = tryPlaceBuilding(`house-${i + 1}`, "house", 2, 2, 10, 2, false);
       if (house) {
         newBuildings.push(house);
       }
@@ -175,19 +192,27 @@ const Game = () => {
     }
   };
 
-  const handleBuildHouse = () => {
-    if (playerMoney < BUILD_HOUSE_COST) {
-      showError(`Nincs elég pénzed házépítéshez! Szükséges: ${BUILD_HOUSE_COST} pénz.`);
+  const handleBuildBuilding = (buildingType: string) => {
+    const buildingOption = availableBuildingOptions.find(opt => opt.type === buildingType);
+
+    if (!buildingOption) {
+      showError("Ismeretlen épület típus!");
       return;
     }
 
+    if (playerMoney < buildingOption.cost) {
+      showError(`Nincs elég pénzed ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.cost} pénz.`);
+      return;
+    }
+
+    setIsBuildMenuOpen(false); // Bezárjuk az építési menüt
     setIsBuildingInProgress(true);
-    setPlayerMoney(prevMoney => prevMoney - BUILD_HOUSE_COST);
-    const toastId = showLoading("Ház építése folyamatban...");
+    setPlayerMoney(prevMoney => prevMoney - buildingOption.cost);
+    const toastId = showLoading(`${buildingOption.name} építése folyamatban...`);
 
     let progress = 0;
     const interval = setInterval(() => {
-      progress += (100 / (BUILD_HOUSE_DURATION_MS / 100)); // Update every 100ms
+      progress += (100 / (buildingOption.duration / 100)); // Update every 100ms
       if (progress >= 100) {
         progress = 100;
         clearInterval(interval);
@@ -201,25 +226,25 @@ const Game = () => {
       setIsBuildingInProgress(false);
       setBuildProgress(0);
 
-      const newHouse = tryPlaceBuilding(
-        `player-house-${Date.now()}`,
-        "house",
-        2,
-        2,
-        10, // Bérleti díj
-        2,  // Max lakók
+      const newBuilding = tryPlaceBuilding(
+        `player-${buildingOption.type}-${Date.now()}`,
+        buildingOption.type as "house", // Type assertion for now
+        buildingOption.width,
+        buildingOption.height,
+        buildingOption.rentalPrice,
+        buildingOption.maxResidents,
         true // A játékos tulajdonában van
       );
 
-      if (newHouse) {
-        setBuildings(prevBuildings => [...prevBuildings, newHouse]);
-        showSuccess("Új ház sikeresen felépült!");
+      if (newBuilding) {
+        setBuildings(prevBuildings => [...prevBuildings, newBuilding]);
+        showSuccess(`Új ${buildingOption.name} sikeresen felépült!`);
       } else {
-        showError("Nem sikerült új házat építeni, nincs szabad hely a térképen.");
-        // Visszaadjuk a pénzt, ha nem sikerült elhelyezni a házat
-        setPlayerMoney(prevMoney => prevMoney + BUILD_HOUSE_COST);
+        showError(`Nem sikerült új ${buildingOption.name} építeni, nincs szabad hely a térképen.`);
+        // Visszaadjuk a pénzt, ha nem sikerült elhelyezni az épületet
+        setPlayerMoney(prevMoney => prevMoney + buildingOption.cost);
       }
-    }, BUILD_HOUSE_DURATION_MS);
+    }, buildingOption.duration);
   };
 
   const sidebarContent = (
@@ -239,11 +264,11 @@ const Game = () => {
       <RoleSelector currentRole={playerRole} onRoleChange={handleRoleChange} />
       <div className="mt-4">
         <Button
-          onClick={handleBuildHouse}
-          disabled={isBuildingInProgress || playerMoney < BUILD_HOUSE_COST}
+          onClick={() => setIsBuildMenuOpen(true)} // Megnyitja az építési menüt
+          disabled={isBuildingInProgress}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
-          Ház építése ({BUILD_HOUSE_COST} pénz)
+          Építés
         </Button>
       </div>
       <div className="mt-auto">
@@ -306,6 +331,15 @@ const Game = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      <BuildMenu
+        isOpen={isBuildMenuOpen}
+        onClose={() => setIsBuildMenuOpen(false)}
+        onSelectBuilding={handleBuildBuilding}
+        availableBuildings={availableBuildingOptions}
+        playerMoney={playerMoney}
+        isBuildingInProgress={isBuildingInProgress}
+      />
     </div>
   );
 
