@@ -25,7 +25,7 @@ interface MapProps {
 
 const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx, onBuildingClick }) => {
   const mapWidthPx = gridSize * cellSizePx;
-  const mapHeightPx = gridSize * cellSize * 1.5; // Növeljük a térkép magasságát, hogy jobban látszódjon
+  const mapHeightPx = gridSize * cellSizePx * 1.5; // Kijavítva: cellSize helyett cellSizePx
 
   return (
     <div
