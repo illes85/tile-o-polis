@@ -1,8 +1,14 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory } from "lucide-react"; // Importáljuk a Leaf, Tent és Factory ikonokat
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory és Sprout ikonokat
 import { Progress } from "@/components/ui/progress"; // Import Progress component
+
+export interface FarmlandTile {
+  x: number;
+  y: number;
+  ownerId: string;
+}
 
 interface BuildingProps {
   id: string;
@@ -11,7 +17,7 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm"; // Új típus
+  type: "house" | "office" | "forestry" | "farm" | "farmland"; // Új típus: farmland
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -26,6 +32,7 @@ interface BuildingProps {
   buildProgress?: number; // Új prop
   currentPlayerId: string; // Új: az aktuális játékos ID-ja
   rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
+  farmlandTiles?: FarmlandTile[]; // Új: szántóföld csempék (csak farmokhoz)
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -48,6 +55,7 @@ const Building: React.FC<BuildingProps> = ({
   buildProgress = 0,
   currentPlayerId,
   rotation,
+  farmlandTiles,
 }) => {
   const style: React.CSSProperties = {
     position: "absolute",
@@ -163,8 +171,31 @@ const Building: React.FC<BuildingProps> = ({
             {isPlayerEmployedHere && (
               <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
             )}
+            {farmlandTiles && farmlandTiles.length > 0 && (
+              <div className="absolute inset-0 flex flex-wrap opacity-70">
+                {farmlandTiles.map((tile, index) => (
+                  <div
+                    key={index}
+                    className="bg-yellow-800/50 border border-yellow-900"
+                    style={{
+                      position: 'absolute',
+                      left: (tile.x - x) * cellSizePx,
+                      top: (tile.y - y) * cellSizePx,
+                      width: cellSizePx,
+                      height: cellSizePx,
+                    }}
+                  >
+                    <Sprout className="h-full w-full text-green-300 p-1" />
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         );
+        break;
+      case "farmland": // Szántóföld csempe
+        classes = "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+        content = <Sprout className="h-full w-full text-green-300 p-1" />;
         break;
       default:
         content = "Ismeretlen épület";

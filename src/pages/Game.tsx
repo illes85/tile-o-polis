@@ -16,8 +16,9 @@ import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout } from "lucide-react"; // Importáljuk a Sprout ikont is
 import { useNavigate, useLocation } from "react-router-dom";
+import MoneyHistory, { Transaction } from "@/components/MoneyHistory"; // Importáljuk a MoneyHistory komponenst és a Transaction interfészt
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -33,6 +34,7 @@ const BUILD_FORESTRY_HOUSE_WOOD_COST = 5;
 const BUILD_FORESTRY_HOUSE_DURATION_MS = 12000;
 const FORESTRY_HOUSE_SALARY_PER_INTERVAL = 8;
 const FORESTRY_HOUSE_MAX_EMPLOYEES = 1;
+const FARMLAND_COST_PER_TILE = 3;
 
 interface Player {
   id: string;
@@ -46,6 +48,7 @@ interface Player {
     brick: number;
   };
   workplace: string;
+  workplaceSalary: number; // Új: munkahelyi fizetés
 }
 
 const availableBuildingOptions: BuildingOption[] = [
@@ -170,11 +173,11 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli" },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3 }, workplace: "Munkanélküli" },
-    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8 }, workplace: "Munkanélküli" },
-    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli" },
-    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli" },
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -183,11 +186,21 @@ const Game = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
   const [isBuildingInProgress, setIsBuildingInProgress] = useState(false);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
+  const [isMoneyHistoryOpen, setIsMoneyHistoryOpen] = useState(false); // Új: pénzmozgás előzmények dialógus állapota
 
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
   const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
   const [currentBuildingRotation, setCurrentBuildingRotation] = useState<number>(0);
+
+  const [isPlacingFarmland, setIsPlacingFarmland] = useState(false); // Új: szántóföld építési mód
+  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null); // Új: a kiválasztott farm ID-ja
+
+  const [transactions, setTransactions] = useState<Transaction[]>([]); // Új: tranzakciók naplója
+
+  const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
+    setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
+  };
 
   const getOccupiedCells = (currentBuildings: BuildingData[]) => {
     const occupied = new Set<string>();
@@ -299,6 +312,7 @@ const Game = () => {
               isUnderConstruction: false,
               buildProgress: 100,
               rotation: rotation,
+              farmlandTiles: buildingType === "farm" ? [] : undefined,
             };
           }
         }
@@ -336,6 +350,7 @@ const Game = () => {
         let newMoney = player.money;
         let totalRent = 0;
         let totalSalary = 0;
+        let currentWorkplaceSalary = 0;
 
         const playerRentedBuildings = buildings.filter(b => b.renterId === player.id && b.ownerId !== player.id);
         playerRentedBuildings.forEach(building => {
@@ -344,16 +359,18 @@ const Game = () => {
           }
         });
 
-        const playerEmployedOffices = buildings.filter(b => b.employeeIds.includes(player.id));
-        playerEmployedOffices.forEach(building => {
+        const playerEmployedBuildings = buildings.filter(b => b.employeeIds.includes(player.id));
+        playerEmployedBuildings.forEach(building => {
           if (building.salary) {
             totalSalary += building.salary;
+            currentWorkplaceSalary = building.salary; // Feltételezzük, hogy egy játékosnak egy munkahelye van
           }
         });
 
         if (totalRent > 0) {
           if (newMoney >= totalRent) {
             newMoney -= totalRent;
+            addTransaction(player.id, "expense", "Bérleti díj fizetése", totalRent);
             if (player.id === currentPlayerId) showSuccess(`Levonva ${totalRent} pénz bérleti díjként.`);
           } else {
             if (player.id === currentPlayerId) showError(`Nincs elég pénz a bérleti díjra (${totalRent} pénz). A bérelt házak kiürültek.`);
@@ -369,10 +386,11 @@ const Game = () => {
 
         if (totalSalary > 0) {
           newMoney += totalSalary;
+          addTransaction(player.id, "income", `Fizetés (${player.workplace})`, totalSalary);
           if (player.id === currentPlayerId) showSuccess(`Jóváírva ${totalSalary} pénz fizetésként.`);
         }
 
-        return { ...player, money: newMoney };
+        return { ...player, money: newMoney, workplaceSalary: currentWorkplaceSalary };
       }));
     }, RENT_INTERVAL_MS);
 
@@ -390,6 +408,9 @@ const Game = () => {
   const handleBuildingClick = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     setSelectedBuilding(building || null);
+    // Kilépés a szántóföld építési módból, ha más épületre kattintunk
+    setIsPlacingFarmland(false);
+    setSelectedFarmId(null);
   };
 
   const handleRentBuilding = () => {
@@ -440,6 +461,7 @@ const Game = () => {
         p.id === currentPlayerId ? { ...p, money: p.money - selectedBuilding.rentalPrice! } : p
       )
     );
+    addTransaction(currentPlayerId, "expense", `Bérleti díj (${selectedBuilding.name})`, selectedBuilding.rentalPrice);
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
@@ -474,7 +496,7 @@ const Game = () => {
     );
     setPlayers(prevPlayers =>
       prevPlayers.map(p =>
-        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p
+        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name, workplaceSalary: selectedBuilding.salary! } : p
       )
     );
     showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.name} épületbe! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
@@ -523,6 +545,15 @@ const Game = () => {
       const gridY = Math.floor(mouseY / CELL_SIZE_PX);
 
       setGhostBuildingCoords({ x: gridX, y: gridY });
+    } else if (isPlacingFarmland && selectedFarmId) {
+      const mapRect = event.currentTarget.getBoundingClientRect();
+      const mouseX = event.clientX - mapRect.left;
+      const mouseY = event.clientY - mapRect.top;
+
+      const gridX = Math.floor(mouseX / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseY / CELL_SIZE_PX);
+
+      setGhostBuildingCoords({ x: gridX, y: gridY });
     }
   };
 
@@ -548,6 +579,10 @@ const Game = () => {
               : p
           )
         );
+        addTransaction(currentPlayerId, "expense", `Építés: ${buildingToPlace.name}`, buildingToPlace.cost);
+        if (buildingToPlace.woodCost) addTransaction(currentPlayerId, "expense", `Fa felhasználás: ${buildingToPlace.name}`, buildingToPlace.woodCost);
+        if (buildingToPlace.brickCost) addTransaction(currentPlayerId, "expense", `Tégla felhasználás: ${buildingToPlace.name}`, buildingToPlace.brickCost);
+
         setIsBuildingInProgress(true);
 
         const newBuildingId = `${buildingToPlace.name}-${Date.now()}`;
@@ -569,6 +604,7 @@ const Game = () => {
           isUnderConstruction: true,
           buildProgress: 0,
           rotation: currentBuildingRotation,
+          farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
         };
 
         setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
@@ -608,11 +644,54 @@ const Game = () => {
     }
   };
 
+  const handleFarmlandClick = (farmId: string, x: number, y: number) => {
+    const farm = buildings.find(b => b.id === farmId);
+    if (!farm || farm.type !== "farm" || farm.ownerId !== currentPlayerId) {
+      showError("Ez nem a te farmod, vagy nem farm típusú épület!");
+      return;
+    }
+
+    // Ellenőrizzük, hogy a csempe már foglalt-e
+    const isTileOccupied = farm.farmlandTiles?.some(tile => tile.x === x && tile.y === y);
+    if (isTileOccupied) {
+      showError("Ez a szántóföld csempe már foglalt!");
+      return;
+    }
+
+    if (currentPlayer.money < FARMLAND_COST_PER_TILE) {
+      showError(`Nincs elég pénzed szántóföld létrehozásához! Szükséges: ${FARMLAND_COST_PER_TILE} pénz.`);
+      return;
+    }
+
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p
+      )
+    );
+    addTransaction(currentPlayerId, "expense", `Szántóföld létrehozása (${farm.name})`, FARMLAND_COST_PER_TILE);
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === farmId
+          ? { ...b, farmlandTiles: [...(b.farmlandTiles || []), { x, y, ownerId: currentPlayerId }] }
+          : b
+      )
+    );
+    showSuccess(`Szántóföld csempe létrehozva a ${farm.name} farmon!`);
+  };
+
   const cancelBuildingPlacement = () => {
     setIsPlacingBuilding(false);
     setBuildingToPlace(null);
     setGhostBuildingCoords(null);
     showError("Építés megszakítva.");
+  };
+
+  const cancelFarmlandPlacement = () => {
+    setIsPlacingFarmland(false);
+    setSelectedFarmId(null);
+    setGhostBuildingCoords(null);
+    showError("Szántóföld építés megszakítva.");
   };
 
   const handleNextPlayer = () => {
@@ -628,8 +707,10 @@ const Game = () => {
   };
 
   const handleGoToMenu = () => {
-    navigate('/', { state: { players: players, buildings: buildings, currentPlayerId: currentPlayerId } });
+    navigate('/', { state: { players: players, buildings: buildings, currentPlayerId: currentPlayerId, transactions: transactions } });
   };
+
+  const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm"));
 
   const sidebarContent = (
     <>
@@ -667,12 +748,14 @@ const Game = () => {
         money={currentPlayer.money}
         inventory={currentPlayer.inventory}
         workplace={currentPlayer.workplace}
+        workplaceSalary={currentPlayer.workplaceSalary}
         onPlayerNameChange={updatePlayerName}
+        ownedBusinesses={ownedBusinesses}
       />
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isPlacingBuilding}
+          disabled={isPlacingBuilding || isPlacingFarmland}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
@@ -693,6 +776,20 @@ const Game = () => {
             </Button>
           </>
         )}
+        {isPlacingFarmland && (
+          <Button
+            onClick={cancelFarmlandPlacement}
+            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+          >
+            Szántóföld építés megszakítása
+          </Button>
+        )}
+        <Button
+          onClick={() => setIsMoneyHistoryOpen(true)}
+          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white mt-2"
+        >
+          Pénzmozgások
+        </Button>
         <Button
           onClick={handleGoToMenu} // Navigálás a főmenübe, átadva az állapotot
           className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
@@ -729,6 +826,9 @@ const Game = () => {
           onMapClick={handleMapClick}
           currentPlayerId={currentPlayerId}
           currentBuildingRotation={currentBuildingRotation}
+          isPlacingFarmland={isPlacingFarmland}
+          selectedFarmId={selectedFarmId}
+          onFarmlandClick={handleFarmlandClick}
         />
       </div>
 
@@ -736,7 +836,7 @@ const Game = () => {
         <Dialog open={!!selectedBuilding} onOpenChange={() => setSelectedBuilding(null)}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle> {/* Név megjelenítése */}
+              <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle>
               <DialogDescription>
                 Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : "farm"}.
               </DialogDescription>
@@ -772,6 +872,20 @@ const Game = () => {
                     ))}
                   </ul>
                 </div>
+              )}
+
+              {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
+                <Button
+                  onClick={() => {
+                    setIsPlacingFarmland(true);
+                    setSelectedFarmId(selectedBuilding.id);
+                    setSelectedBuilding(null); // Bezárjuk a dialógust
+                    showSuccess(`Kattints a farm területére szántóföld csempe létrehozásához (${FARMLAND_COST_PER_TILE} pénz/csempe).`);
+                  }}
+                  className="w-full mt-4 bg-green-500 hover:bg-green-600"
+                >
+                  Szántóföld létrehozása
+                </Button>
               )}
 
               {selectedBuilding.renterId === currentPlayerId && selectedBuilding.ownerId !== currentPlayerId && (
@@ -827,6 +941,13 @@ const Game = () => {
         playerWood={currentPlayer.inventory.wood}
         playerBrick={currentPlayer.inventory.brick}
         isBuildingInProgress={isBuildingInProgress || isPlacingBuilding}
+      />
+
+      <MoneyHistory
+        isOpen={isMoneyHistoryOpen}
+        onClose={() => setIsMoneyHistoryOpen(false)}
+        transactions={transactions}
+        currentPlayerId={currentPlayerId}
       />
     </div>
   );

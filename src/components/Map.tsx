@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Building from "./Building";
+import Building, { FarmlandTile } from "./Building"; // Importáljuk a FarmlandTile interfészt
 import { BuildingOption } from "./BuildMenu";
 
 export interface BuildingData {
@@ -11,7 +11,7 @@ export interface BuildingData {
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house" | "office" | "forestry" | "farm"; // Új típus
+  type: "house" | "office" | "forestry" | "farm" | "farmland"; // Új típus
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
@@ -22,6 +22,7 @@ export interface BuildingData {
   isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
   buildProgress?: number; // Új: építési folyamat (0-100)
   rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
+  farmlandTiles?: FarmlandTile[]; // Új: szántóföld csempék (csak farmokhoz)
 }
 
 interface MapProps {
@@ -36,6 +37,9 @@ interface MapProps {
   onMapClick: (x: number, y: number) => void;
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
+  isPlacingFarmland: boolean; // Új: szántóföld építési mód
+  selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
+  onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
 }
 
 const Map: React.FC<MapProps> = ({
@@ -50,13 +54,39 @@ const Map: React.FC<MapProps> = ({
   onMapClick,
   currentPlayerId,
   currentBuildingRotation,
+  isPlacingFarmland,
+  selectedFarmId,
+  onFarmlandClick,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
 
   const handleMapClickInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+    const mapRect = event.currentTarget.getBoundingClientRect();
+    const mouseX = event.clientX - mapRect.left;
+    const mouseY = event.clientY - mapRect.top;
+
+    const gridX = Math.floor(mouseX / cellSizePx);
+    const gridY = Math.floor(mouseY / cellSizePx);
+
     if (isPlacingBuilding && ghostBuildingCoords) {
       onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
+    } else if (isPlacingFarmland && selectedFarmId) {
+      const selectedFarm = buildings.find(b => b.id === selectedFarmId);
+      if (selectedFarm) {
+        const effectiveFarmWidth = (selectedFarm.rotation === 90 || selectedFarm.rotation === 270) ? selectedFarm.height : selectedFarm.width;
+        const effectiveFarmHeight = (selectedFarm.rotation === 90 || selectedFarm.rotation === 270) ? selectedFarm.width : selectedFarm.height;
+
+        // Ellenőrizzük, hogy a kattintás a farmon belül történt-e
+        if (
+          gridX >= selectedFarm.x &&
+          gridX < selectedFarm.x + effectiveFarmWidth &&
+          gridY >= selectedFarm.y &&
+          gridY < selectedFarm.y + effectiveFarmHeight
+        ) {
+          onFarmlandClick(selectedFarmId, gridX, gridY);
+        }
+      }
     }
   };
 
@@ -98,6 +128,19 @@ const Map: React.FC<MapProps> = ({
           currentPlayerId={currentPlayerId}
           rotation={currentBuildingRotation} // Átadjuk a forgatást a szellem épületnek
         />
+      )}
+      {isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
+        <div
+          className="absolute bg-yellow-800/50 border border-yellow-900 opacity-70 pointer-events-none"
+          style={{
+            left: ghostBuildingCoords.x * cellSizePx,
+            top: ghostBuildingCoords.y * cellSizePx,
+            width: cellSizePx,
+            height: cellSizePx,
+          }}
+        >
+          <Sprout className="h-full w-full text-green-300 p-1" />
+        </div>
       )}
     </div>
   );

@@ -2,9 +2,10 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf, Square as BrickIcon } from "lucide-react"; // Importáljuk a Leaf és BrickIcon ikonokat
+import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf, Square as BrickIcon, Briefcase } from "lucide-react"; // Importáljuk a Leaf, BrickIcon és Briefcase ikonokat
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BuildingData } from "@/components/Map"; // Importáljuk a BuildingData interfészt
 
 interface PlayerInfoProps {
   playerName: string;
@@ -14,13 +15,15 @@ interface PlayerInfoProps {
     water: number;
     clothes: number;
     wood: number;
-    brick: number; // Új: fa
+    brick: number;
   };
   workplace: string;
+  workplaceSalary: number; // Új: munkahelyi fizetés
   onPlayerNameChange: (newName: string) => void;
+  ownedBusinesses: BuildingData[]; // Új: tulajdonában lévő vállalkozások
 }
 
-const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, workplace, onPlayerNameChange }) => {
+const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, workplace, workplaceSalary, onPlayerNameChange, ownedBusinesses }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(playerName);
 
@@ -82,6 +85,10 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
           <DollarSign className="mr-2 h-4 w-4 text-green-500" />
           <span>Pénz: {money}</span>
         </div>
+        <div className="flex items-center mb-2">
+          <Briefcase className="mr-2 h-4 w-4 text-gray-500" />
+          <span>Alkalmazott: {workplace} {workplaceSalary > 0 && `(${workplaceSalary} pénz/perc)`}</span>
+        </div>
         <div className="mb-2">
           <h3 className="font-medium mb-1">Készlet:</h3>
           <ul className="ml-4 list-disc list-inside">
@@ -98,14 +105,22 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
               <Leaf className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood}
             </li>
             <li className="flex items-center">
-              <BrickIcon className="mr-2 h-3 w-3 text-orange-500" /> Tégla: {inventory.brick} {/* Új: tégla */}
+              <BrickIcon className="mr-2 h-3 w-3 text-orange-500" /> Tégla: {inventory.brick}
             </li>
           </ul>
         </div>
-        <div className="flex items-center">
-          <span className="font-medium mr-2">Alkalmazott:</span>
-          <span className="text-primary-foreground">{workplace}</span>
-        </div>
+        {ownedBusinesses.length > 0 && (
+          <div className="mb-2">
+            <h3 className="font-medium mb-1">Vállalkozások:</h3>
+            <ul className="ml-4 list-disc list-inside">
+              {ownedBusinesses.map(business => (
+                <li key={business.id} className="flex items-center">
+                  <Briefcase className="mr-2 h-3 w-3 text-gray-500" /> {business.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
