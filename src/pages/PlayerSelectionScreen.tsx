@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Importáljuk a Select komponenseket
 import { showSuccess, showError } from "@/utils/toast";
 
 interface Player {
@@ -36,6 +37,19 @@ const PlayerSelectionScreen: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>(initialPlayers);
   const [isCreatePlayerDialogOpen, setIsCreatePlayerDialogOpen] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
+  const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal"); // Új állapot a nehézségi szinthez
+
+  const getInitialResources = (selectedDifficulty: "easy" | "normal" | "hard") => {
+    switch (selectedDifficulty) {
+      case "easy":
+        return { money: 1500, wood: 20, brick: 10 };
+      case "hard":
+        return { money: 500, wood: 0, brick: 0 };
+      case "normal":
+      default:
+        return { money: 1000, wood: 5, brick: 2 };
+    }
+  };
 
   const handleSelectPlayer = (player: Player) => {
     navigate("/game", { state: { initialPlayer: player, allPlayers: players } });
@@ -46,16 +60,19 @@ const PlayerSelectionScreen: React.FC = () => {
       showError("A játékos neve nem lehet üres!");
       return;
     }
+
+    const { money, wood, brick } = getInitialResources(difficulty);
+
     const newPlayer: Player = {
       id: `player-${Date.now()}`,
       name: newPlayerName.trim(),
-      money: 1000,
-      inventory: { potato: 0, water: 0, clothes: 0, wood: 5, brick: 2 },
+      money: money,
+      inventory: { potato: 0, water: 0, clothes: 0, wood: wood, brick: brick },
       workplace: "Munkanélküli",
     };
     const updatedPlayers = [...players, newPlayer];
     setPlayers(updatedPlayers);
-    showSuccess(`Új játékos létrehozva: ${newPlayer.name}`);
+    showSuccess(`Új játékos létrehozva: ${newPlayer.name} (${difficulty} nehézség)!`);
     setIsCreatePlayerDialogOpen(false);
     setNewPlayerName("");
     navigate("/game", { state: { initialPlayer: newPlayer, allPlayers: updatedPlayers } });
@@ -95,7 +112,7 @@ const PlayerSelectionScreen: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Új játékos létrehozása</DialogTitle>
             <DialogDescription>
-              Adj nevet az új játékosnak.
+              Adj nevet az új játékosnak és válassz nehézségi szintet.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -109,6 +126,21 @@ const PlayerSelectionScreen: React.FC = () => {
                 onChange={(e) => setNewPlayerName(e.target.value)}
                 className="col-span-3"
               />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="difficulty" className="text-right">
+                Nehézség
+              </Label>
+              <Select onValueChange={(value: "easy" | "normal" | "hard") => setDifficulty(value)} defaultValue={difficulty}>
+                <SelectTrigger id="difficulty" className="col-span-3">
+                  <SelectValue placeholder="Válassz nehézséget" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="easy">Könnyű (1500 pénz, 20 fa, 10 tégla)</SelectItem>
+                  <SelectItem value="normal">Normál (1000 pénz, 5 fa, 2 tégla)</SelectItem>
+                  <SelectItem value="hard">Nehéz (500 pénz, 0 fa, 0 tégla)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
