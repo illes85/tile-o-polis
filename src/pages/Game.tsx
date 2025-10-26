@@ -494,7 +494,7 @@ const Game = () => {
         Ez a játék világa. Itt fognak megjelenni az interakciók, a térkép és a különböző események.
       </p>
       <p className="text-md text-muted-foreground mb-6">
-        Válaszd ki a szerepkört az oldalsávon, és kezdődjön a kaland!
+        Válaszd ki a szerepköröd az oldalsávon, és kezdődjön a kaland!
       </p>
       <div className="flex-grow flex items-center justify-center">
         <Map
@@ -521,6 +521,9 @@ const Game = () => {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              {/* Tulajdonos megjelenítése */}
+              <p>Tulajdonos: <span className="font-semibold">{selectedBuilding.ownerId ? (players.find(p => p.id === selectedBuilding.ownerId)?.name || "Ismeretlen") : "Nincs"}</span></p>
+
               {selectedBuilding.type === "house" && selectedBuilding.rentalPrice !== undefined && (
                 <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice} pénz/perc</span></p>
               )}
