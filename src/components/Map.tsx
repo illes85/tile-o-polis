@@ -3,7 +3,7 @@
 import React from "react";
 import Building, { FarmlandTile } from "./Building"; // Importáljuk a FarmlandTile interfészt
 import { BuildingOption } from "./BuildMenu";
-import { Sprout } from "lucide-react"; // Importáljuk a Sprout ikont
+import { Sprout, Road } from "lucide-react"; // Importáljuk a Sprout és Road ikonokat
 
 export interface BuildingData {
   id: string;
@@ -12,7 +12,7 @@ export interface BuildingData {
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house" | "office" | "forestry" | "farm" | "farmland"; // Új típus
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road"; // Új típus: farmland és road
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
@@ -41,6 +41,7 @@ interface MapProps {
   isPlacingFarmland: boolean; // Új: szántóföld építési mód
   selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
   onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
+  isPlacingRoad: boolean; // Új: útépítés mód
   mapOffsetX: number; // Új: térkép eltolás X irányban
   mapOffsetY: number; // Új: térkép eltolás Y irányban
 }
@@ -60,6 +61,7 @@ const Map: React.FC<MapProps> = ({
   isPlacingFarmland,
   selectedFarmId,
   onFarmlandClick,
+  isPlacingRoad, // Hozzáadva
   mapOffsetX, // Hozzáadva
   mapOffsetY, // Hozzáadva
 }) => {
@@ -93,6 +95,8 @@ const Map: React.FC<MapProps> = ({
           onFarmlandClick(selectedFarmId, gridX, gridY);
         }
       }
+    } else if (isPlacingRoad && ghostBuildingCoords) { // Új: útépítés mód
+      onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
     }
   };
 
@@ -103,7 +107,7 @@ const Map: React.FC<MapProps> = ({
         width: mapWidthPx,
         height: mapHeightPx,
         transform: `translate(${mapOffsetX}px, ${mapOffsetY}px)`, // Térkép eltolása
-        cursor: isPlacingBuilding || isPlacingFarmland ? "crosshair" : "grab", // Kurzor változtatása
+        cursor: isPlacingBuilding || isPlacingFarmland || isPlacingRoad ? "crosshair" : "grab", // Kurzor változtatása
       }}
       onMouseMove={onMapMouseMove}
       onClick={handleMapClickInternal}
@@ -151,6 +155,19 @@ const Map: React.FC<MapProps> = ({
           }}
         >
           <Sprout className="h-full w-full text-green-300 p-1" />
+        </div>
+      )}
+      {isPlacingRoad && ghostBuildingCoords && ( // Új: szellem út csempe
+        <div
+          className="absolute bg-gray-700 border border-gray-800 opacity-50 pointer-events-none"
+          style={{
+            left: ghostBuildingCoords.x * cellSizePx,
+            top: ghostBuildingCoords.y * cellSizePx,
+            width: cellSizePx,
+            height: cellSizePx,
+          }}
+        >
+          <Road className="h-full w-full text-gray-400 p-1" />
         </div>
       )}
     </div>

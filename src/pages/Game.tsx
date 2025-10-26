@@ -17,7 +17,8 @@ import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins } from "lucide-react"; // Coins ikon importálása
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Road } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok
+
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
@@ -36,6 +37,7 @@ const BUILD_FORESTRY_HOUSE_DURATION_MS = 12000;
 const FORESTRY_HOUSE_SALARY_PER_INTERVAL = 8;
 const FORESTRY_HOUSE_MAX_EMPLOYEES = 1;
 const FARMLAND_COST_PER_TILE = 3;
+const ROAD_COST_PER_TILE = 5; // Új konstans az útépítés költségéhez
 
 interface Player {
   id: string;
@@ -166,6 +168,19 @@ const availableBuildingOptions: BuildingOption[] = [
     salary: 5,
     capacity: 2,
   },
+  { // Új épület: Polgármesteri Hivatal
+    type: "office",
+    category: "business",
+    name: "Polgármesteri Hivatal",
+    cost: 2500,
+    woodCost: 10,
+    brickCost: 15,
+    duration: 30000,
+    width: 4,
+    height: 3,
+    salary: 20,
+    capacity: 5,
+  },
 ];
 
 const Game = () => {
@@ -196,6 +211,8 @@ const Game = () => {
 
   const [isPlacingFarmland, setIsPlacingFarmland] = useState(false);
   const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
+
+  const [isPlacingRoad, setIsPlacingRoad] = useState(false); // Új állapot az útépítéshez
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -229,12 +246,46 @@ const Game = () => {
     return occupied;
   };
 
+  const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
+    return currentBuildings.some(b => {
+      if (b.isUnderConstruction || b.isGhost) return false;
+      const effectiveWidth = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+      const effectiveHeight = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+      return x >= b.x && x < b.x + effectiveWidth && y >= b.y && y < b.y + effectiveHeight;
+    });
+  };
+
+  const isAdjacentToRoad = (targetX: number, targetY: number, buildingWidth: number, buildingHeight: number, rotation: number, currentBuildings: BuildingData[]): boolean => {
+    const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+    const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
+    for (let x = targetX; x < targetX + effectiveWidth; x++) {
+      for (let y = targetY; y < targetY + effectiveHeight; y++) {
+        // Check all 8 surrounding cells
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue; // Skip the cell itself
+            const checkX = x + dx;
+            const checkY = y + dy;
+
+            const isRoad = currentBuildings.some(b =>
+              b.type === "road" && b.x === checkX && b.y === checkY && !b.isUnderConstruction && !b.isGhost
+            );
+            if (isRoad) return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
   const canPlaceBuilding = (
     targetX: number,
     targetY: number,
     buildingWidth: number,
     buildingHeight: number,
     rotation: number,
+    buildingType: "house" | "office" | "forestry" | "farm", // Hozzáadva a buildingType
     currentBuildings: BuildingData[]
   ): boolean => {
     const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
@@ -249,15 +300,24 @@ const Game = () => {
       return false;
     }
 
-    const occupiedCells = getOccupiedCells(currentBuildings);
-
     for (let x = targetX; x < targetX + effectiveWidth; x++) {
       for (let y = targetY; y < targetY + effectiveHeight; y++) {
-        if (occupiedCells.has(`${x},${y}`)) {
+        if (isCellOccupied(x, y, currentBuildings)) {
           return false;
         }
       }
     }
+
+    // Új szabály: épületek csak út mentén épülhetnek, kivéve Sátor és Erdészház
+    if (buildingType !== "house" || (buildingType === "house" && buildingWidth !== 2 && buildingHeight !== 1)) { // Sátor kivétel
+      if (buildingType !== "forestry") { // Erdészház kivétel
+        if (!isAdjacentToRoad(targetX, targetY, buildingWidth, buildingHeight, rotation, currentBuildings)) {
+          showError("Az épületet csak út mentén lehet elhelyezni!");
+          return false;
+        }
+      }
+    }
+    
     return true;
   };
 
@@ -270,7 +330,7 @@ const Game = () => {
       const placeInitialBuilding = (
         buildingId: string,
         buildingName: string,
-        buildingType: "house" | "office" | "forestry" | "farm",
+        buildingType: "house" | "office" | "forestry" | "farm" | "road", // Új: road típus
         buildingWidth: number,
         buildingHeight: number,
         rentalPrice?: number,
@@ -350,6 +410,12 @@ const Game = () => {
           initialBuildings.push(house);
         }
       }
+      // Kezdeti út csempe elhelyezése
+      const initialRoad = placeInitialBuilding("road-1", "Út", "road", 1, 1, undefined, undefined, 0, undefined, 0);
+      if (initialRoad) {
+        initialBuildings.push(initialRoad);
+      }
+
       setBuildings(initialBuildings);
     }
   }, [buildings.length, initialBuildingsState]);
@@ -420,6 +486,7 @@ const Game = () => {
     setSelectedBuilding(building || null);
     setIsPlacingFarmland(false);
     setSelectedFarmId(null);
+    setIsPlacingRoad(false); // Új: útépítés mód kikapcsolása
   };
 
   const handleRentBuilding = () => {
@@ -566,7 +633,17 @@ const Game = () => {
       const gridY = Math.floor(mouseY / CELL_SIZE_PX);
 
       setGhostBuildingCoords({ x: gridX, y: gridY });
-    } else if (isDragging && lastMousePos) {
+    } else if (isPlacingRoad) { // Új: útépítés mód
+      const mapRect = event.currentTarget.getBoundingClientRect();
+      const mouseX = event.clientX - mapRect.left - mapOffsetX;
+      const mouseY = event.clientY - mapRect.top - mapOffsetY;
+
+      const gridX = Math.floor(mouseX / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseY / CELL_SIZE_PX);
+
+      setGhostBuildingCoords({ x: gridX, y: gridY });
+    }
+    else if (isDragging && lastMousePos) {
       const deltaX = event.clientX - lastMousePos.x;
       const deltaY = event.clientY - lastMousePos.y;
       setMapOffsetX(prev => prev + deltaX);
@@ -576,7 +653,7 @@ const Game = () => {
   };
 
   const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isPlacingBuilding && !isPlacingFarmland) {
+    if (!isPlacingBuilding && !isPlacingFarmland && !isPlacingRoad) { // Új: útépítés mód ellenőrzése
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
     }
@@ -589,7 +666,7 @@ const Game = () => {
 
   const handleMapClick = (x: number, y: number) => {
     if (isPlacingBuilding && buildingToPlace) {
-      if (canPlaceBuilding(x, y, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildings)) {
+      if (canPlaceBuilding(x, y, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildingToPlace.type, buildings)) {
         setIsPlacingBuilding(false);
         setBuildingToPlace(null);
         setGhostBuildingCoords(null);
@@ -690,7 +767,42 @@ const Game = () => {
           }
         }, buildingToPlace.duration);
       } else {
-        showError("Nem építhetsz ide! A hely foglalt vagy a térképen kívül van.");
+        // Hibaüzenet már a canPlaceBuilding-ben megjelenik
+      }
+    } else if (isPlacingRoad) { // Új: útépítés mód kezelése
+      if (!isCellOccupied(x, y, buildings)) {
+        if (currentPlayer.money < ROAD_COST_PER_TILE) {
+          showError(`Nincs elég pénzed út építéséhez! Szükséges: ${ROAD_COST_PER_TILE} pénz.`);
+          return;
+        }
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - ROAD_COST_PER_TILE } : p
+          )
+        );
+        addTransaction(currentPlayerId, "expense", "Út építése", ROAD_COST_PER_TILE);
+
+        const newRoad: BuildingData = {
+          id: `road-${Date.now()}`,
+          name: "Út",
+          x: x,
+          y: y,
+          width: 1,
+          height: 1,
+          type: "road",
+          capacity: 0,
+          ownerId: currentPlayerId,
+          residentIds: [],
+          employeeIds: [],
+          isUnderConstruction: false,
+          buildProgress: 100,
+          rotation: 0,
+        };
+        setBuildings(prevBuildings => [...prevBuildings, newRoad]);
+        showSuccess("Út csempe sikeresen elhelyezve!");
+      } else {
+        showError("Ez a hely már foglalt!");
       }
     }
   };
@@ -750,6 +862,12 @@ const Game = () => {
     showError("Szántóföld építés megszakítva.");
   };
 
+  const cancelRoadPlacement = () => { // Új: útépítés megszakítása
+    setIsPlacingRoad(false);
+    setGhostBuildingCoords(null);
+    showError("Útépítés megszakítva.");
+  };
+
   const handleNextPlayer = () => {
     const currentIndex = players.findIndex(p => p.id === currentPlayerId);
     const nextIndex = (currentIndex + 1) % players.length;
@@ -767,6 +885,7 @@ const Game = () => {
   };
 
   const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm"));
+  const ownedMayorsOffice = buildings.find(b => b.ownerId === currentPlayerId && b.name === "Polgármesteri Hivatal");
 
   // Teszt gomb a hangeffektekhez
   const handleTestSfxPlay = (sfxKey: "construction-01" | "construction-02") => {
@@ -825,7 +944,7 @@ const Game = () => {
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isPlacingBuilding || isPlacingFarmland}
+          disabled={isPlacingBuilding || isPlacingFarmland || isPlacingRoad} // Új: útépítés mód ellenőrzése
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
@@ -852,6 +971,14 @@ const Game = () => {
             className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
           >
             Szántóföld építés megszakítása
+          </Button>
+        )}
+        {isPlacingRoad && ( // Új: útépítés megszakítása gomb
+          <Button
+            onClick={cancelRoadPlacement}
+            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+          >
+            Útépítés megszakítása
           </Button>
         )}
         <Button
@@ -910,6 +1037,7 @@ const Game = () => {
           isPlacingFarmland={isPlacingFarmland}
           selectedFarmId={selectedFarmId}
           onFarmlandClick={handleFarmlandClick}
+          isPlacingRoad={isPlacingRoad} // Átadjuk az útépítés állapotát
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
         />
@@ -921,7 +1049,7 @@ const Game = () => {
             <DialogHeader>
               <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle>
               <DialogDescription>
-                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : "farm"}.
+                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : selectedBuilding.type === "farm" ? "farm" : "út"}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -968,6 +1096,19 @@ const Game = () => {
                   className="w-full mt-4 bg-green-500 hover:bg-green-600"
                 >
                   Szántóföld létrehozása
+                </Button>
+              )}
+
+              {selectedBuilding.name === "Polgármesteri Hivatal" && selectedBuilding.ownerId === currentPlayerId && (
+                <Button
+                  onClick={() => {
+                    setIsPlacingRoad(true);
+                    setSelectedBuilding(null);
+                    showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe).`);
+                  }}
+                  className="w-full mt-4 bg-gray-500 hover:bg-gray-600"
+                >
+                  Út építése
                 </Button>
               )}
 
@@ -1023,7 +1164,7 @@ const Game = () => {
         playerMoney={currentPlayer.money}
         playerWood={currentPlayer.inventory.wood}
         playerBrick={currentPlayer.inventory.brick}
-        isBuildingInProgress={isBuildingInProgress || isPlacingBuilding}
+        isBuildingInProgress={isBuildingInProgress || isPlacingBuilding || isPlacingRoad} // Új: útépítés mód ellenőrzése
       />
 
       <MoneyHistory

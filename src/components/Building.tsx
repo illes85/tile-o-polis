@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory és Sprout ikonokat
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Road } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory, Sprout, Building és Road ikonokat
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 export interface FarmlandTile {
@@ -17,7 +17,7 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland"; // Új típus: farmland
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road"; // Új típus: farmland és road
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -115,7 +115,8 @@ const Building: React.FC<BuildingProps> = ({
         classes = classes.replace("bg-stone-400", "bg-blue-600"); // Kék szín az irodának
         content = (
           <>
-            Iroda
+            {name === "Polgármesteri Hivatal" ? <BuildingIcon className="h-4 w-4 mb-1" /> : <Briefcase className="h-4 w-4 mb-1" />}
+            <span className="text-white text-xs">{name}</span>
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
@@ -196,6 +197,10 @@ const Building: React.FC<BuildingProps> = ({
       case "farmland": // Szántóföld csempe
         classes = "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
         content = <Sprout className="h-full w-full text-green-300 p-1" />;
+        break;
+      case "road": // Új út típus
+        classes = "bg-gray-700 border border-gray-800 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+        content = <Road className="h-full w-full text-gray-400 p-1" />;
         break;
       default:
         content = "Ismeretlen épület";
