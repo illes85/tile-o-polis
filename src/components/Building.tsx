@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Users } from "lucide-react"; // Importáljuk a User ikont
+import { User, Home } from "lucide-react"; // Importáljuk a User és Home ikonokat
 
 interface BuildingProps {
   id: string;
@@ -13,12 +13,13 @@ interface BuildingProps {
   cellSizePx: number;
   rentalPrice?: number;
   onClick: (buildingId: string) => void;
-  currentResidents: number; // Új prop
-  maxResidents: number; // Új prop
-  isRentedByPlayer: boolean; // Új prop
+  currentResidents: number;
+  maxResidents: number;
+  isRentedByPlayer: boolean;
+  isOwnedByPlayer: boolean; // Új prop
 }
 
-const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer }) => {
+const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer, isOwnedByPlayer }) => {
   const style: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
@@ -45,6 +46,9 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
           )}
           {isRentedByPlayer && (
             <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
+          )}
+          {isOwnedByPlayer && (
+            <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
           )}
         </>
       );

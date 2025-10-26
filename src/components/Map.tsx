@@ -14,6 +14,7 @@ export interface BuildingData {
   maxResidents: number; // Új: maximális lakók száma
   currentResidents: number; // Új: aktuális lakók száma
   isRentedByPlayer: boolean; // Új: jelzi, ha az aktuális játékos bérelte
+  isOwnedByPlayer: boolean; // Új: jelzi, ha az aktuális játékos tulajdonában van
 }
 
 interface MapProps {
@@ -25,7 +26,7 @@ interface MapProps {
 
 const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx, onBuildingClick }) => {
   const mapWidthPx = gridSize * cellSizePx;
-  const mapHeightPx = gridSize * cellSizePx * 1.5; // Kijavítva: cellSize helyett cellSizePx
+  const mapHeightPx = gridSize * cellSizePx * 1.5;
 
   return (
     <div
