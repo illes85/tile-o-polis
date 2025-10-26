@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress"; // Import Progress componen
 
 interface BuildingProps {
   id: string;
+  name: string; // Új: épület neve
   x: number;
   y: number;
   width: number;
@@ -29,6 +30,7 @@ interface BuildingProps {
 
 const Building: React.FC<BuildingProps> = ({
   id,
+  name, // Hozzáadva a name prop
   x,
   y,
   width,
@@ -83,8 +85,8 @@ const Building: React.FC<BuildingProps> = ({
       case "house":
         content = (
           <>
-            {id.includes("Sátor") ? <Tent className="h-4 w-4 mb-1" /> : "Ház"}
-            <span className="text-white text-xs">{id.includes("Sátor") ? "Sátor" : "Ház"}</span> {/* Itt jelenítjük meg a nevet */}
+            {name === "Sátor" ? <Tent className="h-4 w-4 mb-1" /> : null} {/* Sátor ikon csak a Sátorhoz */}
+            <span className="text-white text-xs">{name}</span> {/* Az épület neve */}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (

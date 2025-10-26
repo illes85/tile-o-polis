@@ -33,7 +33,7 @@ interface MapProps {
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null;
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMapClick: (x: number, y: number) => void; // Javítva: pontosvessző helyett vessző
+  onMapClick: (x: number, y: number) => void;
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
 }

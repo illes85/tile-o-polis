@@ -50,7 +50,8 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
     const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
-    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || isBuildingInProgress;
+    // Az isBuildingInProgress ellenőrzés eltávolítva a disabled propból
+    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick;
 
     return (
       <Card key={building.name} className="flex items-center justify-between p-4">
@@ -71,6 +72,9 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
           )}
           <p className="text-sm text-muted-foreground flex items-center">
             <Hammer className="h-4 w-4 mr-1 text-gray-500" /> {building.duration / 1000} másodperc
+          </p>
+          <p className="text-sm text-muted-foreground flex items-center">
+            Méret: {building.width}x{building.height}
           </p>
           {building.type === "house" && building.rentalPrice !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">

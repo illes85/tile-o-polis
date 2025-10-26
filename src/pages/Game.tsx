@@ -167,7 +167,7 @@ const availableBuildingOptions: BuildingOption[] = [
 const Game = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { initialPlayer, allPlayers } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[] };
+  const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
     { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli" },
@@ -176,10 +176,10 @@ const Game = () => {
     { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli" },
     { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli" },
   ]);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialPlayer?.id || players[0].id);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
 
-  const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [buildings, setBuildings] = useState<BuildingData[]>(initialBuildingsState || []);
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
   const [isBuildingInProgress, setIsBuildingInProgress] = useState(false);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
@@ -239,93 +239,96 @@ const Game = () => {
   };
 
   useEffect(() => {
-    const initialBuildings: BuildingData[] = [];
-    const tempOccupiedCells = new Set<string>();
+    // Csak akkor generálunk kezdeti épületeket, ha még nincsenek betöltve (pl. új játék esetén)
+    if (buildings.length === 0 && !initialBuildingsState) {
+      const initialBuildings: BuildingData[] = [];
+      const tempOccupiedCells = new Set<string>();
 
-    const placeInitialBuilding = (
-      buildingId: string,
-      buildingName: string,
-      buildingType: "house" | "office" | "forestry" | "farm",
-      buildingWidth: number,
-      buildingHeight: number,
-      rentalPrice?: number,
-      salary?: number,
-      capacity: number = 0,
-      ownerId?: string,
-      rotation: number = 0,
-      maxAttempts = 200
-    ): BuildingData | null => {
-      const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
-      const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+      const placeInitialBuilding = (
+        buildingId: string,
+        buildingName: string,
+        buildingType: "house" | "office" | "forestry" | "farm",
+        buildingWidth: number,
+        buildingHeight: number,
+        rentalPrice?: number,
+        salary?: number,
+        capacity: number = 0,
+        ownerId?: string,
+        rotation: number = 0,
+        maxAttempts = 200
+      ): BuildingData | null => {
+        const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+        const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
 
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
-        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1));
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
+          const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1));
 
-        let overlaps = false;
-        for (let x = randomX; x < randomX + effectiveWidth; x++) {
-          for (let y = randomY; y < randomY + effectiveHeight; y++) {
-            if (tempOccupiedCells.has(`${x},${y}`)) {
-              overlaps = true;
-              break;
-            }
-          }
-          if (overlaps) break;
-        }
-
-        if (!overlaps) {
+          let overlaps = false;
           for (let x = randomX; x < randomX + effectiveWidth; x++) {
             for (let y = randomY; y < randomY + effectiveHeight; y++) {
-              tempOccupiedCells.add(`${x},${y}`);
+              if (tempOccupiedCells.has(`${x},${y}`)) {
+                overlaps = true;
+                break;
+              }
             }
+            if (overlaps) break;
           }
-          return {
-            id: buildingId,
-            name: buildingName,
-            x: randomX,
-            y: randomY,
-            width: buildingWidth,
-            height: buildingHeight,
-            type: buildingType,
-            rentalPrice: rentalPrice,
-            salary: salary,
-            capacity: capacity,
-            ownerId: ownerId,
-            renterId: undefined,
-            residentIds: [],
-            employeeIds: [],
-            isUnderConstruction: false,
-            buildProgress: 100,
-            rotation: rotation,
-          };
+
+          if (!overlaps) {
+            for (let x = randomX; x < randomX + effectiveWidth; x++) {
+              for (let y = randomY; y < randomY + effectiveHeight; y++) {
+                tempOccupiedCells.add(`${x},${y}`);
+              }
+            }
+            return {
+              id: buildingId,
+              name: buildingName,
+              x: randomX,
+              y: randomY,
+              width: buildingWidth,
+              height: buildingHeight,
+              type: buildingType,
+              rentalPrice: rentalPrice,
+              salary: salary,
+              capacity: capacity,
+              ownerId: ownerId,
+              renterId: undefined,
+              residentIds: [],
+              employeeIds: [],
+              isUnderConstruction: false,
+              buildProgress: 100,
+              rotation: rotation,
+            };
+          }
+        }
+        console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
+        return null;
+      };
+
+      // Kezdeti épületek létrehozása
+      const initialHouseOptions = availableBuildingOptions.filter(opt => opt.type === "house");
+      for (let i = 0; i < 4; i++) {
+        const houseOption = initialHouseOptions[Math.floor(Math.random() * initialHouseOptions.length)];
+        const house = placeInitialBuilding(
+          `house-${i + 1}`,
+          houseOption.name,
+          houseOption.type,
+          houseOption.width,
+          houseOption.height,
+          houseOption.rentalPrice,
+          houseOption.salary,
+          houseOption.capacity,
+          undefined,
+          0
+        );
+        if (house) {
+          initialBuildings.push(house);
         }
       }
-      console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
-      return null;
-    };
-
-    // Kezdeti épületek létrehozása
-    const initialHouseOptions = availableBuildingOptions.filter(opt => opt.type === "house");
-    for (let i = 0; i < 4; i++) {
-      const houseOption = initialHouseOptions[Math.floor(Math.random() * initialHouseOptions.length)];
-      const house = placeInitialBuilding(
-        `house-${i + 1}`,
-        houseOption.name,
-        houseOption.type,
-        houseOption.width,
-        houseOption.height,
-        houseOption.rentalPrice,
-        houseOption.salary,
-        houseOption.capacity,
-        undefined,
-        0
-      );
-      if (house) {
-        initialBuildings.push(house);
-      }
+      setBuildings(initialBuildings);
     }
-    setBuildings(initialBuildings);
-  }, []);
+  }, [buildings.length, initialBuildingsState]); // Függőségi tömb frissítve
 
   useEffect(() => {
     const gameTickTimer = setInterval(() => {
@@ -478,7 +481,7 @@ const Game = () => {
     setSelectedBuilding(null);
   };
 
-  const handleBuildBuilding = (buildingName: string) => { // Módosítva: buildingName-et kap
+  const handleBuildBuilding = (buildingName: string) => {
     const buildingOption = availableBuildingOptions.find(opt => opt.name === buildingName);
 
     if (!buildingOption) {
@@ -547,10 +550,10 @@ const Game = () => {
         );
         setIsBuildingInProgress(true);
 
-        const newBuildingId = `${buildingToPlace.name}-${Date.now()}`; // ID generálás névvel
+        const newBuildingId = `${buildingToPlace.name}-${Date.now()}`;
         const tempBuilding: BuildingData = {
           id: newBuildingId,
-          name: buildingToPlace.name, // Név beállítása
+          name: buildingToPlace.name,
           x: x,
           y: y,
           width: buildingToPlace.width,
@@ -624,6 +627,10 @@ const Game = () => {
     setCurrentPlayerId(players[prevIndex].id);
   };
 
+  const handleGoToMenu = () => {
+    navigate('/', { state: { players: players, buildings: buildings, currentPlayerId: currentPlayerId } });
+  };
+
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -687,7 +694,7 @@ const Game = () => {
           </>
         )}
         <Button
-          onClick={() => navigate('/')}
+          onClick={handleGoToMenu} // Navigálás a főmenübe, átadva az állapotot
           className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
         >
           Menü
