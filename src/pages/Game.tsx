@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PlayerInfo from "@/components/PlayerInfo";
-import { MadeWithDyad } = "@/components/made-with-dyad";
+import { MadeWithDyad } from "@/components/made-with-dyad";
 import Map, { BuildingData } from "@/components/Map";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,61 @@ const availableBuildingOptions: BuildingOption[] = [
     height: 2,
     rentalPrice: 10,
     capacity: 2,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Normál Ház",
+    cost: 750,
+    duration: 15000,
+    width: 3,
+    height: 2,
+    rentalPrice: 15,
+    capacity: 3,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Kádárkocka",
+    cost: 1200,
+    duration: 20000,
+    width: 3,
+    height: 3,
+    rentalPrice: 25,
+    capacity: 4,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Családi Ház",
+    cost: 1800,
+    duration: 25000,
+    width: 4,
+    height: 2,
+    rentalPrice: 35,
+    capacity: 5,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Villa (kétszintes)",
+    cost: 2500,
+    duration: 30000,
+    width: 3,
+    height: 3,
+    rentalPrice: 50,
+    capacity: 6,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Nagy Villa",
+    cost: 3500,
+    duration: 40000,
+    width: 4,
+    height: 4,
+    rentalPrice: 70,
+    capacity: 8,
   },
   {
     type: "office",
@@ -189,6 +244,7 @@ const Game = () => {
 
     const placeInitialBuilding = (
       buildingId: string,
+      buildingName: string,
       buildingType: "house" | "office" | "forestry" | "farm",
       buildingWidth: number,
       buildingHeight: number,
@@ -225,6 +281,7 @@ const Game = () => {
           }
           return {
             id: buildingId,
+            name: buildingName,
             x: randomX,
             y: randomY,
             width: buildingWidth,
@@ -247,8 +304,22 @@ const Game = () => {
       return null;
     };
 
+    // Kezdeti épületek létrehozása
+    const initialHouseOptions = availableBuildingOptions.filter(opt => opt.type === "house");
     for (let i = 0; i < 4; i++) {
-      const house = placeInitialBuilding(`house-${i + 1}`, "house", 2, 2, 10, undefined, 2, undefined, 0);
+      const houseOption = initialHouseOptions[Math.floor(Math.random() * initialHouseOptions.length)];
+      const house = placeInitialBuilding(
+        `house-${i + 1}`,
+        houseOption.name,
+        houseOption.type,
+        houseOption.width,
+        houseOption.height,
+        houseOption.rentalPrice,
+        houseOption.salary,
+        houseOption.capacity,
+        undefined,
+        0
+      );
       if (house) {
         initialBuildings.push(house);
       }
@@ -343,7 +414,7 @@ const Game = () => {
             : b
         )
       );
-      showSuccess(`Sikeresen beköltöztél a saját házadba!`);
+      showSuccess(`Sikeresen beköltöztél a saját ${selectedBuilding.name} házadba!`);
       setSelectedBuilding(null);
       return;
     }
@@ -373,7 +444,7 @@ const Game = () => {
           : b
       )
     );
-    showSuccess(`Sikeresen kibérelted a ${selectedBuilding.id} házat ${selectedBuilding.rentalPrice} pénz/perc áron!`);
+    showSuccess(`Sikeresen kibérelted a ${selectedBuilding.name} házat ${selectedBuilding.rentalPrice} pénz/perc áron!`);
     setSelectedBuilding(null);
   };
 
@@ -403,12 +474,12 @@ const Game = () => {
         p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p
       )
     );
-    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.id} épületbe! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
+    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.name} épületbe! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
     setSelectedBuilding(null);
   };
 
-  const handleBuildBuilding = (buildingType: "house" | "office" | "forestry" | "farm") => {
-    const buildingOption = availableBuildingOptions.find(opt => opt.type === buildingType && opt.name === (buildingType === "house" ? (opt.name === "Sátor" ? "Sátor" : "Házikó") : opt.name));
+  const handleBuildBuilding = (buildingName: string) => { // Módosítva: buildingName-et kap
+    const buildingOption = availableBuildingOptions.find(opt => opt.name === buildingName);
 
     if (!buildingOption) {
       showError("Ismeretlen épület típus!");
@@ -476,9 +547,10 @@ const Game = () => {
         );
         setIsBuildingInProgress(true);
 
-        const newBuildingId = `player-${buildingToPlace.type}-${Date.now()}`;
+        const newBuildingId = `${buildingToPlace.name}-${Date.now()}`; // ID generálás névvel
         const tempBuilding: BuildingData = {
           id: newBuildingId,
+          name: buildingToPlace.name, // Név beállítása
           x: x,
           y: y,
           width: buildingToPlace.width,
@@ -657,7 +729,7 @@ const Game = () => {
         <Dialog open={!!selectedBuilding} onOpenChange={() => setSelectedBuilding(null)}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Épület részletei: {selectedBuilding.id}</DialogTitle>
+              <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle> {/* Név megjelenítése */}
               <DialogDescription>
                 Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : "farm"}.
               </DialogDescription>

@@ -25,7 +25,7 @@ export interface BuildingOption {
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingType: "house" | "office" | "forestry" | "farm") => void;
+  onSelectBuilding: (buildingName: string) => void; // Módosítva: buildingName-et ad át
   availableBuildings: BuildingOption[];
   playerMoney: number;
   playerWood: number; // Új: játékos fa mennyisége
@@ -84,7 +84,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
           )}
         </div>
         <Button
-          onClick={() => onSelectBuilding(building.type)}
+          onClick={() => onSelectBuilding(building.name)} // Módosítva: building.name-et ad át
           disabled={isDisabled}
         >
           Épít
