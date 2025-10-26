@@ -21,22 +21,64 @@ const Game = () => {
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
 
   useEffect(() => {
-    // Helyezzünk el egy 2x2-es házat véletlenszerűen
-    const houseWidth = 2;
-    const houseHeight = 2;
+    const newBuildings: BuildingData[] = [];
+    const occupiedCells = new Set<string>(); // A foglalt rács cellák nyomon követésére
 
-    const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - houseWidth));
-    const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE - houseHeight));
+    const isCellOccupied = (x: number, y: number) => occupiedCells.has(`${x},${y}`);
 
-    const newHouse: BuildingData = {
-      id: "house-1",
-      x: randomX,
-      y: randomY,
-      width: houseWidth,
-      height: houseHeight,
-      type: "house",
+    const tryPlaceBuilding = (
+      buildingId: string,
+      buildingType: "house",
+      buildingWidth: number,
+      buildingHeight: number,
+      price: number,
+      maxAttempts = 200 // Növeltük a próbálkozások számát
+    ): BuildingData | null => {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingWidth + 1));
+        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingHeight + 1));
+
+        let overlaps = false;
+        for (let x = randomX; x < randomX + buildingWidth; x++) {
+          for (let y = randomY; y < randomY + buildingHeight; y++) {
+            if (isCellOccupied(x, y)) {
+              overlaps = true;
+              break;
+            }
+          }
+          if (overlaps) break;
+        }
+
+        if (!overlaps) {
+          // Jelöljük meg a cellákat foglaltként
+          for (let x = randomX; x < randomX + buildingWidth; x++) {
+            for (let y = randomY; y < randomY + buildingHeight; y++) {
+              occupiedCells.add(`${x},${y}`);
+            }
+          }
+          return {
+            id: buildingId,
+            x: randomX,
+            y: randomY,
+            width: buildingWidth,
+            height: buildingHeight,
+            type: buildingType,
+            rentalPrice: price,
+          };
+        }
+      }
+      console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
+      return null;
     };
-    setBuildings([newHouse]);
+
+    // Helyezzünk el 4 házat
+    for (let i = 0; i < 4; i++) {
+      const house = tryPlaceBuilding(`house-${i + 1}`, "house", 2, 2, 10);
+      if (house) {
+        newBuildings.push(house);
+      }
+    }
+    setBuildings(newBuildings);
   }, []); // Csak egyszer fusson le a komponens betöltésekor
 
   const handleRoleChange = (newRole: string) => {
