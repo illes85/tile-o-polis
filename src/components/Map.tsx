@@ -14,10 +14,10 @@ export interface BuildingData {
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
-  occupancy: number; // Aktuális lakók/dolgozók száma
   ownerId?: string; // Új: tulajdonos ID-ja
-  renterId?: string; // Új: bérlő ID-ja
-  employeeIds: string[]; // Új: dolgozók ID-i
+  renterId?: string; // Új: bérlő ID-ja (házakhoz)
+  residentIds: string[]; // Új: lakók ID-i (házakhoz)
+  employeeIds: string[]; // Új: dolgozók ID-i (irodákhoz)
   isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
   buildProgress?: number; // Új: építési folyamat (0-100)
 }
@@ -82,11 +82,11 @@ const Map: React.FC<MapProps> = ({
           type={buildingToPlace.type as "house" | "office"}
           cellSizePx={cellSizePx}
           onClick={() => {}}
-          occupancy={0}
           capacity={buildingToPlace.capacity}
           ownerId={currentPlayerId} // A szellem épület a játékos építési szándékát jelzi
           renterId={undefined}
-          employeeIds={[]}
+          residentIds={[]} // Szellem épületnek nincsenek lakói
+          employeeIds={[]} // Szellem épületnek nincsenek dolgozói
           isGhost={true}
           isUnderConstruction={false} // A szellem épület nem építés alatt áll
           buildProgress={0}

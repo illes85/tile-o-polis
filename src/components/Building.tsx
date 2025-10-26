@@ -16,9 +16,9 @@ interface BuildingProps {
   rentalPrice?: number;
   salary?: number; // Új prop irodákhoz
   capacity: number; // Max lakók/dolgozók
-  occupancy: number; // Aktuális lakók/dolgozók
   ownerId?: string; // Új: tulajdonos ID-ja
   renterId?: string; // Új: bérlő ID-ja
+  residentIds: string[]; // Új: lakók ID-i
   employeeIds: string[]; // Új: dolgozók ID-i
   isGhost?: boolean;
   isUnderConstruction?: boolean; // Új prop
@@ -35,10 +35,10 @@ const Building: React.FC<BuildingProps> = ({
   type,
   cellSizePx,
   onClick,
-  occupancy,
   capacity,
   ownerId,
   renterId,
+  residentIds,
   employeeIds,
   isGhost = false,
   isUnderConstruction = false,
@@ -53,6 +53,7 @@ const Building: React.FC<BuildingProps> = ({
     height: height * cellSizePx,
   };
 
+  const occupancy = type === "house" ? residentIds.length : employeeIds.length;
   const isRentedByPlayer = renterId === currentPlayerId;
   const isOwnedByPlayer = ownerId === currentPlayerId;
   const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
