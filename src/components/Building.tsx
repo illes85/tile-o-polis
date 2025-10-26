@@ -17,12 +17,13 @@ interface BuildingProps {
   salary?: number; // Új prop irodákhoz
   capacity: number; // Max lakók/dolgozók
   occupancy: number; // Aktuális lakók/dolgozók
-  isRentedByPlayer: boolean;
-  isOwnedByPlayer: boolean;
+  ownerId?: string; // Új: tulajdonos ID-ja
+  renterId?: string; // Új: bérlő ID-ja
+  employeeIds: string[]; // Új: dolgozók ID-i
   isGhost?: boolean;
   isUnderConstruction?: boolean; // Új prop
   buildProgress?: number; // Új prop
-  isPlayerEmployedHere?: boolean; // Új prop irodákhoz
+  currentPlayerId: string; // Új: az aktuális játékos ID-ja
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -36,12 +37,13 @@ const Building: React.FC<BuildingProps> = ({
   onClick,
   occupancy,
   capacity,
-  isRentedByPlayer,
-  isOwnedByPlayer,
+  ownerId,
+  renterId,
+  employeeIds,
   isGhost = false,
   isUnderConstruction = false,
   buildProgress = 0,
-  isPlayerEmployedHere = false,
+  currentPlayerId,
 }) => {
   const style: React.CSSProperties = {
     position: "absolute",
@@ -50,6 +52,10 @@ const Building: React.FC<BuildingProps> = ({
     width: width * cellSizePx,
     height: height * cellSizePx,
   };
+
+  const isRentedByPlayer = renterId === currentPlayerId;
+  const isOwnedByPlayer = ownerId === currentPlayerId;
+  const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
 
   let content;
   let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";

@@ -15,11 +15,11 @@ export interface BuildingData {
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
   occupancy: number; // Aktuális lakók/dolgozók száma
-  isRentedByPlayer: boolean; // Jelzi, ha az aktuális játékos bérelte (házakhoz)
-  isOwnedByPlayer: boolean; // Jelzi, ha az aktuális játékos tulajdonában van
+  ownerId?: string; // Új: tulajdonos ID-ja
+  renterId?: string; // Új: bérlő ID-ja
+  employeeIds: string[]; // Új: dolgozók ID-i
   isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
   buildProgress?: number; // Új: építési folyamat (0-100)
-  isPlayerEmployedHere: boolean; // Új: jelzi, ha a játékos itt dolgozik (irodákhoz)
 }
 
 interface MapProps {
@@ -32,6 +32,7 @@ interface MapProps {
   ghostBuildingCoords: { x: number; y: number } | null;
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMapClick: (x: number, y: number) => void;
+  currentPlayerId: string; // Új prop
 }
 
 const Map: React.FC<MapProps> = ({
@@ -44,6 +45,7 @@ const Map: React.FC<MapProps> = ({
   ghostBuildingCoords,
   onMapMouseMove,
   onMapClick,
+  currentPlayerId,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -67,6 +69,7 @@ const Map: React.FC<MapProps> = ({
           {...building}
           cellSizePx={cellSizePx}
           onClick={onBuildingClick}
+          currentPlayerId={currentPlayerId} // Átadjuk az aktuális játékos ID-ját
         />
       ))}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
@@ -81,12 +84,13 @@ const Map: React.FC<MapProps> = ({
           onClick={() => {}}
           occupancy={0}
           capacity={buildingToPlace.capacity}
-          isRentedByPlayer={false}
-          isOwnedByPlayer={true}
+          ownerId={currentPlayerId} // A szellem épület a játékos építési szándékát jelzi
+          renterId={undefined}
+          employeeIds={[]}
           isGhost={true}
           isUnderConstruction={false} // A szellem épület nem építés alatt áll
           buildProgress={0}
-          isPlayerEmployedHere={false}
+          currentPlayerId={currentPlayerId}
         />
       )}
     </div>

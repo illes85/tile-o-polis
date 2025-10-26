@@ -5,16 +5,18 @@ import MainLayout from "@/components/layout/MainLayout";
 import PlayerInfo from "@/components/PlayerInfo";
 import RoleSelector from "@/components/RoleSelector";
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import Map, { BuildingData } from "@/components/Map"; // Import BuildingData
+import Map, { BuildingData } from "@/components/Map";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Import Select for player switcher
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
+import PlayerSettings from "@/components/PlayerSettings"; // Import PlayerSettings
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -25,6 +27,18 @@ const BUILD_OFFICE_COST = 1000;
 const BUILD_OFFICE_DURATION_MS = 15000;
 const OFFICE_SALARY_PER_INTERVAL = 10;
 const OFFICE_MAX_EMPLOYEES = 4;
+
+interface Player {
+  id: string;
+  name: string;
+  money: number;
+  inventory: {
+    potato: number;
+    water: number;
+    clothes: number;
+  };
+  role: string;
+}
 
 const availableBuildingOptions: BuildingOption[] = [
   {
@@ -50,29 +64,26 @@ const availableBuildingOptions: BuildingOption[] = [
 ];
 
 const Game = () => {
-  const [playerName, setPlayerName] = useState("Játékos");
-  const [playerMoney, setPlayerMoney] = useState(1000);
-  const [playerInventory, setPlayerInventory] = useState({
-    potato: 3,
-    water: 2,
-    clothes: 1,
-  });
-  const [playerRole, setPlayerRole] = useState("Munkanélküli");
+  const [players, setPlayers] = useState<Player[]>([
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, role: "Munkanélküli" },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, role: "Kertész/Farmer" },
+  ]);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>(players[0].id);
+  const currentPlayer = players.find(p => p.id === currentPlayerId)!;
+
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
-  const [isBuildingInProgress, setIsBuildingInProgress] = useState(false); // Ez most a globális állapotot jelzi, hogy folyik-e bármilyen építés
+  const [isBuildingInProgress, setIsBuildingInProgress] = useState(false);
+  const [buildProgress, setBuildProgress] = useState(0);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
 
-  // Új állapotok az interaktív építéshez
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
   const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
 
-  // Segédfüggvény a foglalt cellák meghatározásához
   const getOccupiedCells = (currentBuildings: BuildingData[]) => {
     const occupied = new Set<string>();
     currentBuildings.forEach(b => {
-      // Csak a már felépült és nem szellem épületeket vesszük figyelembe
       if (!b.isUnderConstruction && !b.isGhost) {
         for (let x = b.x; x < b.x + b.width; x++) {
           for (let y = b.y; y < b.y + b.height; y++) {
@@ -84,7 +95,6 @@ const Game = () => {
     return occupied;
   };
 
-  // Ellenőrzi, hogy egy épület elhelyezhető-e egy adott helyen
   const canPlaceBuilding = (
     targetX: number,
     targetY: number,
@@ -92,7 +102,6 @@ const Game = () => {
     buildingHeight: number,
     currentBuildings: BuildingData[]
   ): boolean => {
-    // Ellenőrizzük, hogy a célkoordináták a térképen belül vannak-e
     if (
       targetX < 0 ||
       targetY < 0 ||
@@ -107,17 +116,16 @@ const Game = () => {
     for (let x = targetX; x < targetX + buildingWidth; x++) {
       for (let y = targetY; y < targetY + buildingHeight; y++) {
         if (occupiedCells.has(`${x},${y}`)) {
-          return false; // Ütközés van
+          return false;
         }
       }
     }
-    return true; // Nincs ütközés, elhelyezhető
+    return true;
   };
 
-  // Kezdeti épületek elhelyezése
   useEffect(() => {
     const initialBuildings: BuildingData[] = [];
-    const tempOccupiedCells = new Set<string>(); // Ideiglenes halmaz az inicializáláshoz
+    const tempOccupiedCells = new Set<string>();
 
     const placeInitialBuilding = (
       buildingId: string,
@@ -127,7 +135,7 @@ const Game = () => {
       rentalPrice?: number,
       salary?: number,
       capacity: number = 0,
-      isOwned: boolean = false,
+      ownerId?: string,
       maxAttempts = 200
     ): BuildingData | null => {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -162,11 +170,11 @@ const Game = () => {
             salary: salary,
             capacity: capacity,
             occupancy: 0,
-            isRentedByPlayer: false,
-            isOwnedByPlayer: isOwned,
+            ownerId: ownerId,
+            renterId: undefined,
+            employeeIds: [],
             isUnderConstruction: false,
             buildProgress: 100,
-            isPlayerEmployedHere: false,
           };
         }
       }
@@ -174,9 +182,8 @@ const Game = () => {
       return null;
     };
 
-    // Helyezzünk el 4 házat
     for (let i = 0; i < 4; i++) {
-      const house = placeInitialBuilding(`house-${i + 1}`, "house", 2, 2, 10, undefined, 2, false);
+      const house = placeInitialBuilding(`house-${i + 1}`, "house", 2, 2, 10, undefined, 2, undefined);
       if (house) {
         initialBuildings.push(house);
       }
@@ -184,65 +191,70 @@ const Game = () => {
     setBuildings(initialBuildings);
   }, []);
 
-  // Bérleti díj levonása és fizetés időzítővel
   useEffect(() => {
     const gameTickTimer = setInterval(() => {
-      setPlayerMoney((prevMoney) => {
-        let newMoney = prevMoney;
+      setPlayers(prevPlayers => prevPlayers.map(player => {
+        let newMoney = player.money;
         let totalRent = 0;
         let totalSalary = 0;
 
-        // Bérleti díjak levonása
-        const rentedByPlayer = buildings.filter(b => b.isRentedByPlayer);
-        rentedByPlayer.forEach(building => {
+        const playerRentedBuildings = buildings.filter(b => b.renterId === player.id);
+        playerRentedBuildings.forEach(building => {
           if (building.rentalPrice) {
             totalRent += building.rentalPrice;
+          }
+        });
+
+        const playerEmployedOffices = buildings.filter(b => b.employeeIds.includes(player.id));
+        playerEmployedOffices.forEach(building => {
+          if (building.salary) {
+            totalSalary += building.salary;
           }
         });
 
         if (totalRent > 0) {
           if (newMoney >= totalRent) {
             newMoney -= totalRent;
-            showSuccess(`Levonva ${totalRent} pénz bérleti díjként.`);
+            if (player.id === currentPlayerId) showSuccess(`Levonva ${totalRent} pénz bérleti díjként.`);
           } else {
-            showError(`Nincs elég pénz a bérleti díjra (${totalRent} pénz). A bérelt házak kiürültek.`);
+            if (player.id === currentPlayerId) showError(`Nincs elég pénz a bérleti díjra (${totalRent} pénz). A bérelt házak kiürültek.`);
             setBuildings(prevBuildings =>
               prevBuildings.map(b =>
-                b.isRentedByPlayer
-                  ? { ...b, isRentedByPlayer: false, occupancy: 0 }
+                b.renterId === player.id
+                  ? { ...b, renterId: undefined, occupancy: b.occupancy - 1 }
                   : b
               )
             );
           }
         }
 
-        // Fizetések kifizetése
-        const employedByPlayer = buildings.filter(b => b.isPlayerEmployedHere);
-        employedByPlayer.forEach(building => {
-          if (building.salary) {
-            totalSalary += building.salary;
-          }
-        });
-
         if (totalSalary > 0) {
           newMoney += totalSalary;
-          showSuccess(`Jóváírva ${totalSalary} pénz fizetésként.`);
+          if (player.id === currentPlayerId) showSuccess(`Jóváírva ${totalSalary} pénz fizetésként.`);
         }
 
-        return newMoney;
-      });
+        return { ...player, money: newMoney };
+      }));
     }, RENT_INTERVAL_MS);
 
     return () => clearInterval(gameTickTimer);
-  }, [buildings]); // Függőségként a buildings, hogy frissüljön, ha változik a bérelt/foglalkoztatott házak/irodák listája
+  }, [buildings, currentPlayerId]);
 
-  const handleRoleChange = (newRole: string) => {
-    setPlayerRole(newRole);
-    console.log(`Szerepkör megváltoztatva: ${newRole}`);
+  const updatePlayerName = (newName: string) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, name: newName } : p
+      )
+    );
   };
 
-  const handlePlayerNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPlayerName(event.target.value);
+  const handleRoleChange = (newRole: string) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, role: newRole } : p
+      )
+    );
+    console.log(`Szerepkör megváltoztatva: ${newRole}`);
   };
 
   const handleBuildingClick = (buildingId: string) => {
@@ -255,11 +267,11 @@ const Game = () => {
       return;
     }
 
-    if (selectedBuilding.isOwnedByPlayer) {
+    if (selectedBuilding.ownerId === currentPlayerId) {
       showError("Nem bérelheted ki a saját házadat!");
       return;
     }
-    if (selectedBuilding.isRentedByPlayer) {
+    if (selectedBuilding.renterId === currentPlayerId) {
       showError("Ezt a házat már kibérelted!");
       return;
     }
@@ -267,16 +279,20 @@ const Game = () => {
       showError("Ez a ház már tele van!");
       return;
     }
-    if (playerMoney < selectedBuilding.rentalPrice) {
+    if (currentPlayer.money < selectedBuilding.rentalPrice) {
       showError("Nincs elég pénzed a bérléshez!");
       return;
     }
 
-    setPlayerMoney(prevMoney => prevMoney - selectedBuilding.rentalPrice!);
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, money: p.money - selectedBuilding.rentalPrice! } : p
+      )
+    );
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
-          ? { ...b, isRentedByPlayer: true, occupancy: b.occupancy + 1 }
+          ? { ...b, renterId: currentPlayerId, occupancy: b.occupancy + 1 }
           : b
       )
     );
@@ -289,7 +305,7 @@ const Game = () => {
       return;
     }
 
-    if (selectedBuilding.isPlayerEmployedHere) {
+    if (selectedBuilding.employeeIds.includes(currentPlayerId)) {
       showError("Már dolgozol ebben az irodában!");
       return;
     }
@@ -301,7 +317,7 @@ const Game = () => {
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
-          ? { ...b, isPlayerEmployedHere: true, occupancy: b.occupancy + 1 }
+          ? { ...b, employeeIds: [...b.employeeIds, currentPlayerId], occupancy: b.occupancy + 1 }
           : b
       )
     );
@@ -317,7 +333,7 @@ const Game = () => {
       return;
     }
 
-    if (playerMoney < buildingOption.cost) {
+    if (currentPlayer.money < buildingOption.cost) {
       showError(`Nincs elég pénzed ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.cost} pénz.`);
       return;
     }
@@ -348,8 +364,12 @@ const Game = () => {
         setBuildingToPlace(null);
         setGhostBuildingCoords(null);
 
-        setPlayerMoney(prevMoney => prevMoney - buildingToPlace.cost);
-        setIsBuildingInProgress(true); // Globális építési állapot beállítása
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p
+          )
+        );
+        setIsBuildingInProgress(true);
 
         const newBuildingId = `player-${buildingToPlace.type}-${Date.now()}`;
         const tempBuilding: BuildingData = {
@@ -363,11 +383,11 @@ const Game = () => {
           salary: buildingToPlace.salary,
           capacity: buildingToPlace.capacity,
           occupancy: 0,
-          isRentedByPlayer: false,
-          isOwnedByPlayer: true,
-          isUnderConstruction: true, // Építés alatt áll
+          ownerId: currentPlayerId,
+          renterId: undefined,
+          employeeIds: [],
+          isUnderConstruction: true,
           buildProgress: 0,
-          isPlayerEmployedHere: false,
         };
 
         setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
@@ -390,7 +410,7 @@ const Game = () => {
         setTimeout(() => {
           clearInterval(interval);
           dismissToast(toastId);
-          setIsBuildingInProgress(false); // Globális építési állapot visszaállítása
+          setIsBuildingInProgress(false);
 
           setBuildings(prevBuildings =>
             prevBuildings.map(b =>
@@ -416,19 +436,35 @@ const Game = () => {
 
   const sidebarContent = (
     <>
-      <h2 className="text-2xl font-bold mb-6 text-sidebar-primary-foreground">Város Szimulátor</h2>
-      <div className="mb-4">
-        <Label htmlFor="playerName" className="text-sidebar-foreground mb-2 block">Játékos neve:</Label>
-        <Input
-          id="playerName"
-          value={playerName}
-          onChange={handlePlayerNameChange}
-          placeholder="Add meg a neved"
-          className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border"
-        />
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Város Szimulátor</h2>
+        <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
       </div>
-      <PlayerInfo playerName={playerName} money={playerMoney} inventory={playerInventory} role={playerRole} />
-      <RoleSelector currentRole={playerRole} onRoleChange={handleRoleChange} />
+
+      <div className="mb-4">
+        <Label htmlFor="player-switcher" className="text-sidebar-foreground mb-2 block">Játékos váltása:</Label>
+        <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+          <SelectTrigger id="player-switcher" className="w-full bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border">
+            <SelectValue placeholder="Válassz játékost" />
+          </SelectTrigger>
+          <SelectContent className="bg-sidebar text-sidebar-foreground border-sidebar-border">
+            {players.map((player) => (
+              <SelectItem key={player.id} value={player.id}>
+                {player.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <PlayerInfo
+        playerName={currentPlayer.name}
+        money={currentPlayer.money}
+        inventory={currentPlayer.inventory}
+        role={currentPlayer.role}
+        onPlayerNameChange={updatePlayerName}
+      />
+      <RoleSelector currentRole={currentPlayer.role} onRoleChange={handleRoleChange} />
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
@@ -473,6 +509,7 @@ const Game = () => {
           ghostBuildingCoords={ghostBuildingCoords}
           onMapMouseMove={handleMapMouseMove}
           onMapClick={handleMapClick}
+          currentPlayerId={currentPlayerId}
         />
       </div>
 
@@ -493,16 +530,16 @@ const Game = () => {
                 <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary} pénz/perc</span></p>
               )}
               <p>{selectedBuilding.type === "house" ? "Lakók" : "Dolgozók"}: <span className="font-semibold">{selectedBuilding.occupancy}/{selectedBuilding.capacity}</span></p>
-              {selectedBuilding.isRentedByPlayer && (
+              {selectedBuilding.renterId === currentPlayerId && (
                 <p className="text-blue-600 font-medium">Ezt a házat már kibérelted!</p>
               )}
-              {selectedBuilding.isOwnedByPlayer && (
+              {selectedBuilding.ownerId === currentPlayerId && (
                 <p className="text-yellow-600 font-medium">Ez az épület a te tulajdonod!</p>
               )}
-              {selectedBuilding.isPlayerEmployedHere && (
+              {selectedBuilding.employeeIds.includes(currentPlayerId) && (
                 <p className="text-green-600 font-medium">Itt dolgozol!</p>
               )}
-              {selectedBuilding.occupancy >= selectedBuilding.capacity && !selectedBuilding.isRentedByPlayer && !selectedBuilding.isPlayerEmployedHere && (
+              {selectedBuilding.occupancy >= selectedBuilding.capacity && selectedBuilding.renterId !== currentPlayerId && !selectedBuilding.employeeIds.includes(currentPlayerId) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
             </div>
@@ -510,7 +547,7 @@ const Game = () => {
               {selectedBuilding.type === "house" && (
                 <Button
                   onClick={handleRentBuilding}
-                  disabled={selectedBuilding.isRentedByPlayer || selectedBuilding.occupancy >= selectedBuilding.capacity || selectedBuilding.isOwnedByPlayer}
+                  disabled={selectedBuilding.renterId === currentPlayerId || selectedBuilding.occupancy >= selectedBuilding.capacity || selectedBuilding.ownerId === currentPlayerId}
                 >
                   Kibérlem
                 </Button>
@@ -518,7 +555,7 @@ const Game = () => {
               {selectedBuilding.type === "office" && (
                 <Button
                   onClick={handleJoinOffice}
-                  disabled={selectedBuilding.isPlayerEmployedHere || selectedBuilding.occupancy >= selectedBuilding.capacity}
+                  disabled={selectedBuilding.employeeIds.includes(currentPlayerId) || selectedBuilding.occupancy >= selectedBuilding.capacity}
                 >
                   Belépés alkalmazottként
                 </Button>
@@ -534,7 +571,7 @@ const Game = () => {
         onClose={() => setIsBuildMenuOpen(false)}
         onSelectBuilding={handleBuildBuilding}
         availableBuildings={availableBuildingOptions}
-        playerMoney={playerMoney}
+        playerMoney={currentPlayer.money}
         isBuildingInProgress={isBuildingInProgress || isPlacingBuilding}
       />
     </div>
