@@ -4,32 +4,32 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react"; // Importáljuk a Leaf és BrickIcon ikonokat
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Importáljuk a Tabs komponenseket
+import { DollarSign, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
-  type: "house" | "office" | "forestry" | "farm"; // Új típus
-  category: "residential" | "business"; // Új kategória
+  type: "house" | "office" | "forestry" | "farm";
+  category: "residential" | "business";
   name: string;
   cost: number;
-  woodCost?: number; // Új: fa költség
-  brickCost?: number; // Új: tégla költség
-  duration: number; // in ms
+  woodCost?: number;
+  brickCost?: number;
+  duration: number;
   width: number;
   height: number;
-  rentalPrice?: number; // Házakhoz
-  salary?: number; // Irodákhoz
-  capacity: number; // Max lakók/dolgozók
+  rentalPrice?: number;
+  salary?: number;
+  capacity: number;
 }
 
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingName: string) => void; // Módosítva: buildingName-et ad át
+  onSelectBuilding: (buildingName: string) => void;
   availableBuildings: BuildingOption[];
   playerMoney: number;
-  playerWood: number; // Új: játékos fa mennyisége
-  playerBrick: number; // Új: játékos tégla mennyisége
+  playerWood: number;
+  playerBrick: number;
   isBuildingInProgress: boolean;
 }
 
@@ -50,7 +50,6 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
     const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
-    // Az isBuildingInProgress ellenőrzés eltávolítva a disabled propból
     const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick;
 
     return (
@@ -88,7 +87,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
           )}
         </div>
         <Button
-          onClick={() => onSelectBuilding(building.name)} // Módosítva: building.name-et ad át
+          onClick={() => onSelectBuilding(building.name)}
           disabled={isDisabled}
         >
           Épít
@@ -109,10 +108,10 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
             <TabsTrigger value="residential">Lakóház</TabsTrigger>
             <TabsTrigger value="business">Vállalkozás</TabsTrigger>
           </TabsList>
-          <TabsContent value="residential" className="grid gap-4 py-4">
+          <TabsContent value="residential" className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
             {residentialBuildings.map(renderBuildingCard)}
           </TabsContent>
-          <TabsContent value="business" className="grid gap-4 py-4">
+          <TabsContent value="business" className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
             {businessBuildings.map(renderBuildingCard)}
           </TabsContent>
         </Tabs>
