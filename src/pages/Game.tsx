@@ -3,9 +3,8 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PlayerInfo from "@/components/PlayerInfo";
-// import RoleSelector from "@/components/RoleSelector"; // Eltávolítva
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import Map, { BuildingData } from "@/components/Map"; // Import BuildingData
+import Map, { BuildingData } from "@/components/Map";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import PlayerSettings from "@/components/PlayerSettings";
+import { RotateCw } from "lucide-react"; // Importáljuk a forgatás ikont
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -27,6 +27,11 @@ const BUILD_OFFICE_COST = 1000;
 const BUILD_OFFICE_DURATION_MS = 15000;
 const OFFICE_SALARY_PER_INTERVAL = 10;
 const OFFICE_MAX_EMPLOYEES = 4;
+const BUILD_FORESTRY_HOUSE_COST = 850;
+const BUILD_FORESTRY_HOUSE_WOOD_COST = 5; // Új: fa költség
+const BUILD_FORESTRY_HOUSE_DURATION_MS = 12000;
+const FORESTRY_HOUSE_SALARY_PER_INTERVAL = 8; // Példa fizetés
+const FORESTRY_HOUSE_MAX_EMPLOYEES = 2; // Példa kapacitás
 
 interface Player {
   id: string;
@@ -36,40 +41,55 @@ interface Player {
     potato: number;
     water: number;
     clothes: number;
+    wood: number; // Új: fa
   };
-  workplace: string; // Módosítva: role helyett workplace
+  workplace: string;
 }
 
 const availableBuildingOptions: BuildingOption[] = [
   {
     type: "house",
+    category: "residential", // Kategória hozzáadva
     name: "Házikó",
     cost: BUILD_HOUSE_COST,
     duration: BUILD_HOUSE_DURATION_MS,
     width: 2,
     height: 2,
     rentalPrice: 10,
-    capacity: 2, // Max lakók
+    capacity: 2,
   },
   {
     type: "office",
+    category: "business", // Kategória hozzáadva
     name: "Közszolgálati Iroda",
     cost: BUILD_OFFICE_COST,
     duration: BUILD_OFFICE_DURATION_MS,
     width: 3,
     height: 8,
     salary: OFFICE_SALARY_PER_INTERVAL,
-    capacity: OFFICE_MAX_EMPLOYEES, // Max dolgozók
+    capacity: OFFICE_MAX_EMPLOYEES,
+  },
+  {
+    type: "forestry",
+    category: "business", // Kategória hozzáadva
+    name: "Erdészház",
+    cost: BUILD_FORESTRY_HOUSE_COST,
+    woodCost: BUILD_FORESTRY_HOUSE_WOOD_COST, // Fa költség hozzáadva
+    duration: BUILD_FORESTRY_HOUSE_DURATION_MS,
+    width: 4, // Példa méret
+    height: 4, // Példa méret
+    salary: FORESTRY_HOUSE_SALARY_PER_INTERVAL,
+    capacity: FORESTRY_HOUSE_MAX_EMPLOYEES,
   },
 ];
 
 const Game = () => {
   const [players, setPlayers] = useState<Player[]>([
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, workplace: "Munkanélküli" },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, workplace: "Munkanélküli" },
-    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2 }, workplace: "Munkanélküli" }, // Új játékos
-    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0 }, workplace: "Munkanélküli" }, // Új játékos
-    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1 }, workplace: "Munkanélküli" }, // Új játékos
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10 }, workplace: "Munkanélküli" }, // Fa hozzáadva
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5 }, workplace: "Munkanélküli" }, // Fa hozzáadva
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15 }, workplace: "Munkanélküli" }, // Fa hozzáadva
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0 }, workplace: "Munkanélküli" }, // Fa hozzáadva
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8 }, workplace: "Munkanélküli" }, // Fa hozzáadva
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -82,13 +102,18 @@ const Game = () => {
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
   const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
+  const [currentBuildingRotation, setCurrentBuildingRotation] = useState<number>(0); // Új állapot a forgatáshoz
 
   const getOccupiedCells = (currentBuildings: BuildingData[]) => {
     const occupied = new Set<string>();
     currentBuildings.forEach(b => {
       if (!b.isUnderConstruction && !b.isGhost) {
-        for (let x = b.x; x < b.x + b.width; x++) {
-          for (let y = b.y; y < b.y + b.height; y++) {
+        // Az elforgatott épületek által elfoglalt cellák kiszámítása
+        const effectiveWidth = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+        const effectiveHeight = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+
+        for (let x = b.x; x < b.x + effectiveWidth; x++) {
+          for (let y = b.y; y < b.y + effectiveHeight; y++) {
             occupied.add(`${x},${y}`);
           }
         }
@@ -102,21 +127,26 @@ const Game = () => {
     targetY: number,
     buildingWidth: number,
     buildingHeight: number,
+    rotation: number, // Forgatás hozzáadva
     currentBuildings: BuildingData[]
   ): boolean => {
+    // Az elforgatott épület effektív szélessége és magassága
+    const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+    const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
     if (
       targetX < 0 ||
       targetY < 0 ||
-      targetX + buildingWidth > MAP_GRID_SIZE ||
-      targetY + buildingHeight > MAP_GRID_SIZE * 1.5
+      targetX + effectiveWidth > MAP_GRID_SIZE ||
+      targetY + effectiveHeight > MAP_GRID_SIZE * 1.5
     ) {
       return false;
     }
 
     const occupiedCells = getOccupiedCells(currentBuildings);
 
-    for (let x = targetX; x < targetX + buildingWidth; x++) {
-      for (let y = targetY; y < targetY + buildingHeight; y++) {
+    for (let x = targetX; x < targetX + effectiveWidth; x++) {
+      for (let y = targetY; y < targetY + effectiveHeight; y++) {
         if (occupiedCells.has(`${x},${y}`)) {
           return false;
         }
@@ -131,22 +161,26 @@ const Game = () => {
 
     const placeInitialBuilding = (
       buildingId: string,
-      buildingType: "house" | "office",
+      buildingType: "house" | "office" | "forestry",
       buildingWidth: number,
       buildingHeight: number,
       rentalPrice?: number,
       salary?: number,
       capacity: number = 0,
       ownerId?: string,
+      rotation: number = 0, // Kezdeti épületek is kapnak forgatást
       maxAttempts = 200
     ): BuildingData | null => {
+      const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+      const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
-        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingWidth + 1));
-        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - buildingHeight + 1));
+        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
+        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1));
 
         let overlaps = false;
-        for (let x = randomX; x < randomX + buildingWidth; x++) {
-          for (let y = randomY; y < randomY + buildingHeight; y++) {
+        for (let x = randomX; x < randomX + effectiveWidth; x++) {
+          for (let y = randomY; y < randomY + effectiveHeight; y++) {
             if (tempOccupiedCells.has(`${x},${y}`)) {
               overlaps = true;
               break;
@@ -156,8 +190,8 @@ const Game = () => {
         }
 
         if (!overlaps) {
-          for (let x = randomX; x < randomX + buildingWidth; x++) {
-            for (let y = randomY; y < randomY + buildingHeight; y++) {
+          for (let x = randomX; x < randomX + effectiveWidth; x++) {
+            for (let y = randomY; y < randomY + effectiveHeight; y++) {
               tempOccupiedCells.add(`${x},${y}`);
             }
           }
@@ -173,10 +207,11 @@ const Game = () => {
             capacity: capacity,
             ownerId: ownerId,
             renterId: undefined,
-            residentIds: [], // Kezdeti házaknak nincsenek lakói
+            residentIds: [],
             employeeIds: [],
             isUnderConstruction: false,
             buildProgress: 100,
+            rotation: rotation,
           };
         }
       }
@@ -185,7 +220,7 @@ const Game = () => {
     };
 
     for (let i = 0; i < 4; i++) {
-      const house = placeInitialBuilding(`house-${i + 1}`, "house", 2, 2, 10, undefined, 2, undefined);
+      const house = placeInitialBuilding(`house-${i + 1}`, "house", 2, 2, 10, undefined, 2, undefined, 0);
       if (house) {
         initialBuildings.push(house);
       }
@@ -223,7 +258,7 @@ const Game = () => {
             setBuildings(prevBuildings =>
               prevBuildings.map(b =>
                 b.renterId === player.id
-                  ? { ...b, renterId: undefined, residentIds: b.residentIds.filter(id => id !== player.id) } // Eltávolítjuk a lakók közül
+                  ? { ...b, renterId: undefined, residentIds: b.residentIds.filter(id => id !== player.id) }
                   : b
               )
             );
@@ -294,16 +329,16 @@ const Game = () => {
   };
 
   const handleJoinOffice = () => {
-    if (!selectedBuilding || selectedBuilding.type !== "office" || selectedBuilding.salary === undefined) {
+    if (!selectedBuilding || (selectedBuilding.type !== "office" && selectedBuilding.type !== "forestry") || selectedBuilding.salary === undefined) {
       return;
     }
 
     if (selectedBuilding.employeeIds.includes(currentPlayerId)) {
-      showError("Már dolgozol ebben az irodában!");
+      showError("Már dolgozol ebben az épületben!");
       return;
     }
     if (selectedBuilding.employeeIds.length >= selectedBuilding.capacity) {
-      showError("Ez az iroda már tele van!");
+      showError("Ez az épület már tele van!");
       return;
     }
 
@@ -319,11 +354,11 @@ const Game = () => {
         p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p
       )
     );
-    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.id} irodába! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
+    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.id} épületbe! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
     setSelectedBuilding(null);
   };
 
-  const handleBuildBuilding = (buildingType: "house" | "office") => {
+  const handleBuildBuilding = (buildingType: "house" | "office" | "forestry") => {
     const buildingOption = availableBuildingOptions.find(opt => opt.type === buildingType);
 
     if (!buildingOption) {
@@ -335,11 +370,20 @@ const Game = () => {
       showError(`Nincs elég pénzed ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.cost} pénz.`);
       return;
     }
+    if (buildingOption.woodCost && currentPlayer.inventory.wood < buildingOption.woodCost) {
+      showError(`Nincs elég fa ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.woodCost} fa.`);
+      return;
+    }
 
     setIsBuildMenuOpen(false);
     setBuildingToPlace(buildingOption);
     setIsPlacingBuilding(true);
-    showSuccess(`Kattints a térképre, ahova a ${buildingOption.name} épületet szeretnéd helyezni.`);
+    setCurrentBuildingRotation(0); // Alapértelmezett forgatás
+    showSuccess(`Kattints a térképre, ahova a ${buildingOption.name} épületet szeretnéd helyezni. Használd a 'Forgatás' gombot az irány megváltoztatásához.`);
+  };
+
+  const handleRotateBuilding = () => {
+    setCurrentBuildingRotation(prevRotation => (prevRotation + 90) % 360);
   };
 
   const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -357,14 +401,23 @@ const Game = () => {
 
   const handleMapClick = (x: number, y: number) => {
     if (isPlacingBuilding && buildingToPlace) {
-      if (canPlaceBuilding(x, y, buildingToPlace.width, buildingToPlace.height, buildings)) {
+      if (canPlaceBuilding(x, y, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildings)) {
         setIsPlacingBuilding(false);
         setBuildingToPlace(null);
         setGhostBuildingCoords(null);
 
         setPlayers(prevPlayers =>
           prevPlayers.map(p =>
-            p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p
+            p.id === currentPlayerId
+              ? {
+                  ...p,
+                  money: p.money - buildingToPlace.cost,
+                  inventory: {
+                    ...p.inventory,
+                    wood: p.inventory.wood - (buildingToPlace.woodCost || 0),
+                  },
+                }
+              : p
           )
         );
         setIsBuildingInProgress(true);
@@ -386,6 +439,7 @@ const Game = () => {
           employeeIds: [],
           isUnderConstruction: true,
           buildProgress: 0,
+          rotation: currentBuildingRotation, // Forgatás mentése
         };
 
         setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
@@ -462,7 +516,6 @@ const Game = () => {
         workplace={currentPlayer.workplace}
         onPlayerNameChange={updatePlayerName}
       />
-      {/* RoleSelector was removed, no longer needed */}
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
@@ -472,12 +525,20 @@ const Game = () => {
           Építés
         </Button>
         {isPlacingBuilding && (
-          <Button
-            onClick={cancelBuildingPlacement}
-            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
-          >
-            Építés megszakítása
-          </Button>
+          <>
+            <Button
+              onClick={handleRotateBuilding}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white mt-2"
+            >
+              <RotateCw className="h-4 w-4 mr-2" /> Forgatás ({currentBuildingRotation}°)
+            </Button>
+            <Button
+              onClick={cancelBuildingPlacement}
+              className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+            >
+              Építés megszakítása
+            </Button>
+          </>
         )}
       </div>
       <MusicPlayer tracks={musicTracks} />
@@ -508,6 +569,7 @@ const Game = () => {
           onMapMouseMove={handleMapMouseMove}
           onMapClick={handleMapClick}
           currentPlayerId={currentPlayerId}
+          currentBuildingRotation={currentBuildingRotation} // Átadjuk a forgatást a Map-nek
         />
       </div>
 
@@ -517,7 +579,7 @@ const Game = () => {
             <DialogHeader>
               <DialogTitle>Épület részletei: {selectedBuilding.id}</DialogTitle>
               <DialogDescription>
-                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : "iroda"}.
+                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : "erdészház"}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -527,7 +589,7 @@ const Game = () => {
               {selectedBuilding.type === "house" && selectedBuilding.rentalPrice !== undefined && (
                 <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice} pénz/perc</span></p>
               )}
-              {selectedBuilding.type === "office" && selectedBuilding.salary !== undefined && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && selectedBuilding.salary !== undefined && (
                 <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary} pénz/perc</span></p>
               )}
               <p>{selectedBuilding.type === "house" ? "Lakók" : "Dolgozók"}: <span className="font-semibold">{selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length}/{selectedBuilding.capacity}</span></p>
@@ -545,7 +607,7 @@ const Game = () => {
               )}
 
               {/* Dolgozók listázása */}
-              {selectedBuilding.type === "office" && selectedBuilding.employeeIds.length > 0 && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && selectedBuilding.employeeIds.length > 0 && (
                 <div>
                   <h4 className="font-medium mt-2">Dolgozók:</h4>
                   <ul className="list-disc list-inside ml-4">
@@ -566,7 +628,7 @@ const Game = () => {
                 <p className="text-green-600 font-medium">Itt dolgozol!</p>
               )}
               {(selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && selectedBuilding.renterId !== currentPlayerId) ||
-               (selectedBuilding.type === "office" && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
+               ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
             </div>
@@ -579,7 +641,7 @@ const Game = () => {
                   Kibérlem
                 </Button>
               )}
-              {selectedBuilding.type === "office" && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && (
                 <Button
                   onClick={handleJoinOffice}
                   disabled={selectedBuilding.employeeIds.includes(currentPlayerId) || selectedBuilding.employeeIds.length >= selectedBuilding.capacity}
@@ -599,6 +661,7 @@ const Game = () => {
         onSelectBuilding={handleBuildBuilding}
         availableBuildings={availableBuildingOptions}
         playerMoney={currentPlayer.money}
+        playerWood={currentPlayer.inventory.wood} // Átadjuk a fa mennyiségét
         isBuildingInProgress={isBuildingInProgress || isPlacingBuilding}
       />
     </div>

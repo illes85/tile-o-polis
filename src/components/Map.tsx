@@ -10,7 +10,7 @@ export interface BuildingData {
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house" | "office"; // Új típus
+  type: "house" | "office" | "forestry"; // Új típus
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
@@ -20,6 +20,7 @@ export interface BuildingData {
   employeeIds: string[]; // Új: dolgozók ID-i (irodákhoz)
   isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
   buildProgress?: number; // Új: építési folyamat (0-100)
+  rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
 }
 
 interface MapProps {
@@ -33,6 +34,7 @@ interface MapProps {
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMapClick: (x: number, y: number) => void;
   currentPlayerId: string; // Új prop
+  currentBuildingRotation: number; // Új prop a szellem épület forgatásához
 }
 
 const Map: React.FC<MapProps> = ({
@@ -46,6 +48,7 @@ const Map: React.FC<MapProps> = ({
   onMapMouseMove,
   onMapClick,
   currentPlayerId,
+  currentBuildingRotation,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -79,7 +82,7 @@ const Map: React.FC<MapProps> = ({
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as "house" | "office"}
+          type={buildingToPlace.type as "house" | "office" | "forestry"}
           cellSizePx={cellSizePx}
           onClick={() => {}}
           capacity={buildingToPlace.capacity}
@@ -91,6 +94,7 @@ const Map: React.FC<MapProps> = ({
           isUnderConstruction={false} // A szellem épület nem építés alatt áll
           buildProgress={0}
           currentPlayerId={currentPlayerId}
+          rotation={currentBuildingRotation} // Átadjuk a forgatást a szellem épületnek
         />
       )}
     </div>

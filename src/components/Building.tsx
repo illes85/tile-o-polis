@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase } from "lucide-react";
+import { User, Home, Hammer, Briefcase, Tree } from "lucide-react"; // Importáljuk a Tree ikont
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 interface BuildingProps {
@@ -10,7 +10,7 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office"; // Új típus
+  type: "house" | "office" | "forestry"; // Új típus
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -24,6 +24,7 @@ interface BuildingProps {
   isUnderConstruction?: boolean; // Új prop
   buildProgress?: number; // Új prop
   currentPlayerId: string; // Új: az aktuális játékos ID-ja
+  rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -44,6 +45,7 @@ const Building: React.FC<BuildingProps> = ({
   isUnderConstruction = false,
   buildProgress = 0,
   currentPlayerId,
+  rotation,
 }) => {
   const style: React.CSSProperties = {
     position: "absolute",
@@ -51,6 +53,8 @@ const Building: React.FC<BuildingProps> = ({
     top: y * cellSizePx,
     width: width * cellSizePx,
     height: height * cellSizePx,
+    transform: `rotate(${rotation}deg)`, // Forgatás alkalmazása
+    transformOrigin: 'center center', // Középpont körüli forgatás
   };
 
   const occupancy = type === "house" ? residentIds.length : employeeIds.length;
@@ -101,6 +105,27 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             Iroda
+            {occupancy > 0 && (
+              <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+                {Array.from({ length: occupancy }).map((_, index) => (
+                  <Briefcase key={index} className="h-3 w-3 text-white" />
+                ))}
+              </div>
+            )}
+            {isOwnedByPlayer && (
+              <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+            )}
+            {isPlayerEmployedHere && (
+              <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
+            )}
+          </>
+        );
+        break;
+      case "forestry":
+        classes = classes.replace("bg-stone-400", "bg-green-700"); // Zöld szín az erdészháznak
+        content = (
+          <>
+            Erdészház
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (

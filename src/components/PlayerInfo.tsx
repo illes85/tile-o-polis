@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil } from "lucide-react";
+import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Tree } from "lucide-react"; // Importáljuk a Tree ikont
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,8 +13,9 @@ interface PlayerInfoProps {
     potato: number;
     water: number;
     clothes: number;
+    wood: number; // Új: fa
   };
-  workplace: string; // Módosítva: role helyett workplace
+  workplace: string;
   onPlayerNameChange: (newName: string) => void;
 }
 
@@ -92,10 +93,13 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
             <li className="flex items-center">
               <Shirt className="mr-2 h-3 w-3 text-gray-400" /> Ruha: {inventory.clothes}
             </li>
+            <li className="flex items-center">
+              <Tree className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood} {/* Új: fa */}
+            </li>
           </ul>
         </div>
         <div className="flex items-center">
-          <span className="font-medium mr-2">Alkalmazott:</span> {/* Módosítva: Szerepkör helyett Alkalmazott */}
+          <span className="font-medium mr-2">Alkalmazott:</span>
           <span className="text-primary-foreground">{workplace}</span>
         </div>
       </CardContent>
