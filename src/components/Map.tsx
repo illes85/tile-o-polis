@@ -11,6 +11,9 @@ export interface BuildingData {
   height: number; // rács egységekben
   type: "house"; // vagy más típusok később
   rentalPrice?: number; // Hozzáadva: bérleti díj
+  maxResidents: number; // Új: maximális lakók száma
+  currentResidents: number; // Új: aktuális lakók száma
+  isRentedByPlayer: boolean; // Új: jelzi, ha az aktuális játékos bérelte
 }
 
 interface MapProps {
@@ -22,7 +25,7 @@ interface MapProps {
 
 const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx, onBuildingClick }) => {
   const mapWidthPx = gridSize * cellSizePx;
-  const mapHeightPx = gridSize * cellSizePx;
+  const mapHeightPx = gridSize * cellSize * 1.5; // Növeljük a térkép magasságát, hogy jobban látszódjon
 
   return (
     <div
@@ -34,7 +37,7 @@ const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx, onBuildingCl
           key={building.id}
           {...building}
           cellSizePx={cellSizePx}
-          onClick={onBuildingClick} // Átadjuk a kattintáskezelőt
+          onClick={onBuildingClick}
         />
       ))}
     </div>

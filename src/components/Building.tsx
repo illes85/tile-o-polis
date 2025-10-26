@@ -1,20 +1,24 @@
 "use client";
 
 import React from "react";
+import { User, Users } from "lucide-react"; // Importáljuk a User ikont
 
 interface BuildingProps {
-  id: string; // Hozzáadva az id a kattintás kezeléséhez
-  x: number; // rács x koordinátája
-  y: number; // rács y koordinátája
-  width: number; // rács egységekben
-  height: number; // rács egységekben
-  type: "house"; // vagy más típusok később
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: "house";
   cellSizePx: number;
-  rentalPrice?: number; // A bérleti díj adatként megmarad, de nem jelenik meg itt
-  onClick: (buildingId: string) => void; // Új prop a kattintás kezeléséhez
+  rentalPrice?: number;
+  onClick: (buildingId: string) => void;
+  currentResidents: number; // Új prop
+  maxResidents: number; // Új prop
+  isRentedByPlayer: boolean; // Új prop
 }
 
-const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick }) => {
+const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer }) => {
   const style: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
@@ -24,7 +28,7 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
   };
 
   let content;
-  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 cursor-pointer hover:bg-stone-500 transition-colors";
+  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 cursor-pointer hover:bg-stone-500 transition-colors relative";
 
   switch (type) {
     case "house":
@@ -32,7 +36,16 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
       content = (
         <>
           Ház
-          {/* A bérleti díj már nem jelenik meg itt */}
+          {currentResidents > 0 && (
+            <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+              {Array.from({ length: currentResidents }).map((_, index) => (
+                <User key={index} className="h-3 w-3 text-blue-200" />
+              ))}
+            </div>
+          )}
+          {isRentedByPlayer && (
+            <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
+          )}
         </>
       );
       break;

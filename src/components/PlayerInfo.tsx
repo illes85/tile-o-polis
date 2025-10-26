@@ -2,9 +2,10 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt } from "lucide-react";
+import { DollarSign, Wheat, Droplet, Shirt, User } from "lucide-react"; // Importáljuk a User ikont
 
 interface PlayerInfoProps {
+  playerName: string; // Új prop
   money: number;
   inventory: {
     potato: number;
@@ -15,13 +16,17 @@ interface PlayerInfoProps {
   role: string;
 }
 
-const PlayerInfo: React.FC<PlayerInfoProps> = ({ money, inventory, role }) => {
+const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, role }) => {
   return (
     <Card className="w-full bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border shadow-none">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-semibold">Játékos adatok</CardTitle>
       </CardHeader>
       <CardContent className="text-sm">
+        <div className="flex items-center mb-2">
+          <User className="mr-2 h-4 w-4 text-gray-500" />
+          <span>Név: {playerName}</span>
+        </div>
         <div className="flex items-center mb-2">
           <DollarSign className="mr-2 h-4 w-4 text-green-500" />
           <span>Pénz: {money}</span>
