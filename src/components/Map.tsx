@@ -6,11 +6,12 @@ import { BuildingOption } from "./BuildMenu";
 
 export interface BuildingData {
   id: string;
+  name: string; // Új: épület neve
   x: number; // rács x koordinátája
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house" | "office" | "forestry"; // Új típus
+  type: "house" | "office" | "forestry" | "farm"; // Új típus
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
@@ -32,7 +33,7 @@ interface MapProps {
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null;
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMapClick: (x: number, y: number) => void;
+  onMapClick: (x: number; y: number) => void;
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
 }
@@ -78,11 +79,12 @@ const Map: React.FC<MapProps> = ({
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
           id="ghost-building"
+          name={buildingToPlace.name} // Átadjuk a nevet a szellem épületnek
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as "house" | "office" | "forestry"}
+          type={buildingToPlace.type as "house" | "office" | "forestry" | "farm"}
           cellSizePx={cellSizePx}
           onClick={() => {}}
           capacity={buildingToPlace.capacity}
