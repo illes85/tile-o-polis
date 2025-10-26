@@ -14,7 +14,7 @@ import { showSuccess, showError } from "@/utils/toast"; // Import toast utilitie
 
 const MAP_GRID_SIZE = 20; // 20x20-as rács
 const CELL_SIZE_PX = 40; // Minden cella 40x40 pixel
-const RENT_INTERVAL_MS = 5000; // 5 másodperc = 1 játékperc
+const RENT_INTERVAL_MS = 30000; // 30 másodperc = 1 játékperc (korábban 5000 ms volt)
 
 const Game = () => {
   const [playerName, setPlayerName] = useState("Játékos"); // Új állapot a játékos nevének
