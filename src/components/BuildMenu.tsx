@@ -4,15 +4,16 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Hammer, Users, Briefcase, Leaf } from "lucide-react"; // Importáljuk a Leaf ikont
+import { DollarSign, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react"; // Importáljuk a Leaf és BrickIcon ikonokat
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Importáljuk a Tabs komponenseket
 
 export interface BuildingOption {
-  type: "house" | "office" | "forestry"; // Új típus
+  type: "house" | "office" | "forestry" | "farm"; // Új típus
   category: "residential" | "business"; // Új kategória
   name: string;
   cost: number;
   woodCost?: number; // Új: fa költség
+  brickCost?: number; // Új: tégla költség
   duration: number; // in ms
   width: number;
   height: number;
@@ -24,10 +25,11 @@ export interface BuildingOption {
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingType: "house" | "office" | "forestry") => void;
+  onSelectBuilding: (buildingType: "house" | "office" | "forestry" | "farm") => void;
   availableBuildings: BuildingOption[];
   playerMoney: number;
   playerWood: number; // Új: játékos fa mennyisége
+  playerBrick: number; // Új: játékos tégla mennyisége
   isBuildingInProgress: boolean;
 }
 
@@ -38,6 +40,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
   availableBuildings,
   playerMoney,
   playerWood,
+  playerBrick,
   isBuildingInProgress,
 }) => {
   const residentialBuildings = availableBuildings.filter(b => b.category === "residential");
@@ -46,10 +49,11 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
   const renderBuildingCard = (building: BuildingOption) => {
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
-    const isDisabled = !canAffordMoney || !canAffordWood || isBuildingInProgress;
+    const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
+    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || isBuildingInProgress;
 
     return (
-      <Card key={building.type} className="flex items-center justify-between p-4">
+      <Card key={building.name} className="flex items-center justify-between p-4">
         <div>
           <CardTitle className="text-lg">{building.name}</CardTitle>
           <p className="text-sm text-muted-foreground flex items-center">
@@ -60,6 +64,11 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
               <Leaf className="h-4 w-4 mr-1 text-yellow-700" /> {building.woodCost} fa
             </p>
           )}
+          {building.brickCost !== undefined && (
+            <p className="text-sm text-muted-foreground flex items-center">
+              <BrickIcon className="h-4 w-4 mr-1 text-orange-500" /> {building.brickCost} tégla
+            </p>
+          )}
           <p className="text-sm text-muted-foreground flex items-center">
             <Hammer className="h-4 w-4 mr-1 text-gray-500" /> {building.duration / 1000} másodperc
           </p>
@@ -68,7 +77,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
               <Users className="h-4 w-4 mr-1 text-gray-500" /> Max lakók: {building.capacity}
             </p>
           )}
-          {(building.type === "office" || building.type === "forestry") && building.salary !== undefined && (
+          {(building.type === "office" || building.type === "forestry" || building.type === "farm") && building.salary !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
               <Briefcase className="h-4 w-4 mr-1 text-gray-500" /> Max dolgozók: {building.capacity}
             </p>

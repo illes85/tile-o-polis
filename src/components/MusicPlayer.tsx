@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, SkipForward } from "lucide-react"; // Importáljuk a SkipForward ikont
+import { Volume2, VolumeX, SkipForward, SkipBack } from "lucide-react"; // Importáljuk a SkipBack ikont is
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface MusicPlayerProps {
@@ -22,7 +22,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
-  }, [currentTrackIndex, tracks]); // Frissül, ha a szám vagy a lejátszási lista változik
+  }, [currentTrackIndex, tracks]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -43,6 +43,11 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     setIsPlaying(true); // Automatikusan elindítja a következő számot
   };
 
+  const playPreviousTrack = () => {
+    setCurrentTrackIndex(prevIndex => (prevIndex - 1 + tracks.length) % tracks.length);
+    setIsPlaying(true); // Automatikusan elindítja az előző számot
+  };
+
   if (tracks.length === 0) {
     return null; // Ha nincs zene, ne jelenjen meg a lejátszó
   }
@@ -60,6 +65,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
           <Button
             variant="outline"
             size="icon"
+            onClick={playPreviousTrack}
+            className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
+          >
+            <SkipBack className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
             onClick={togglePlayPause}
             className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
           >
@@ -74,7 +87,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             <SkipForward className="h-4 w-4" />
           </Button>
         </div>
-        <audio ref={audioRef} loop preload="auto" controls /> {/* Hozzáadva a controls attribútum */}
+        <audio ref={audioRef} loop preload="auto" /> {/* Eltávolítva a controls attribútum */}
       </CardContent>
     </Card>
   );

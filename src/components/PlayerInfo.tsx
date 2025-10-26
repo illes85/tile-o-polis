@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf } from "lucide-react"; // Importáljuk a Leaf ikont
+import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf, Square as BrickIcon } from "lucide-react"; // Importáljuk a Leaf és BrickIcon ikonokat
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -13,7 +13,8 @@ interface PlayerInfoProps {
     potato: number;
     water: number;
     clothes: number;
-    wood: number; // Új: fa
+    wood: number;
+    brick: number; // Új: fa
   };
   workplace: string;
   onPlayerNameChange: (newName: string) => void;
@@ -94,7 +95,10 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
               <Shirt className="mr-2 h-3 w-3 text-gray-400" /> Ruha: {inventory.clothes}
             </li>
             <li className="flex items-center">
-              <Leaf className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood} {/* Új: fa */}
+              <Leaf className="mr-2 h-3 w-3 text-yellow-700" /> Fa: {inventory.wood}
+            </li>
+            <li className="flex items-center">
+              <BrickIcon className="mr-2 h-3 w-3 text-orange-500" /> Tégla: {inventory.brick} {/* Új: tégla */}
             </li>
           </ul>
         </div>

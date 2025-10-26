@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf } from "lucide-react"; // Importáljuk a Leaf ikont
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory } from "lucide-react"; // Importáljuk a Leaf, Tent és Factory ikonokat
 import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 interface BuildingProps {
@@ -10,7 +10,7 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry"; // Új típus
+  type: "house" | "office" | "forestry" | "farm"; // Új típus
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -83,7 +83,7 @@ const Building: React.FC<BuildingProps> = ({
       case "house":
         content = (
           <>
-            Ház
+            {id.includes("Sátor") ? <Tent className="h-4 w-4 mb-1" /> : "Ház"}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
@@ -126,6 +126,27 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             Erdészház
+            {occupancy > 0 && (
+              <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+                {Array.from({ length: occupancy }).map((_, index) => (
+                  <Briefcase key={index} className="h-3 w-3 text-white" />
+                ))}
+              </div>
+            )}
+            {isOwnedByPlayer && (
+              <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+            )}
+            {isPlayerEmployedHere && (
+              <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
+            )}
+          </>
+        );
+        break;
+      case "farm": // Új farm típus
+        classes = classes.replace("bg-stone-400", "bg-yellow-600"); // Sárga szín a farmnak
+        content = (
+          <>
+            Farm
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
