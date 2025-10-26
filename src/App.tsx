@@ -3,8 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Game from "./pages/Game"; // Import the new Game component
+import Game from "./pages/Game";
 import NotFound from "./pages/NotFound";
+import GameMenuScreen from "./pages/GameMenuScreen"; // Importáljuk az új GameMenuScreen komponenst
 
 const queryClient = new QueryClient();
 
@@ -15,7 +16,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Game />} /> {/* Render Game component on the root path */}
+          <Route path="/" element={<GameMenuScreen />} /> {/* A GameMenuScreen lesz a gyökér útvonal */}
+          <Route path="/game" element={<Game />} /> {/* A játék a /game útvonalon lesz elérhető */}
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

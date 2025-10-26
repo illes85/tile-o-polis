@@ -17,6 +17,7 @@ import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import PlayerSettings from "@/components/PlayerSettings";
 import { RotateCw } from "lucide-react"; // Importáljuk a forgatás ikont
+import { useNavigate } from "react-router-dom"; // Importáljuk a useNavigate hookot
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -109,6 +110,8 @@ const availableBuildingOptions: BuildingOption[] = [
 ];
 
 const Game = () => {
+  const navigate = useNavigate(); // Inicializáljuk a useNavigate hookot
+
   const [players, setPlayers] = useState<Player[]>([
     { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli" },
     { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3 }, workplace: "Munkanélküli" },
@@ -593,6 +596,12 @@ const Game = () => {
             </Button>
           </>
         )}
+        <Button
+          onClick={() => navigate('/')} // Navigálás a főmenübe
+          className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
+        >
+          Menü
+        </Button>
       </div>
       <MusicPlayer tracks={musicTracks} />
       <div className="mt-auto">
@@ -722,7 +731,7 @@ const Game = () => {
         availableBuildings={availableBuildingOptions}
         playerMoney={currentPlayer.money}
         playerWood={currentPlayer.inventory.wood}
-        playerBrick={currentPlayer.inventory.brick} // Átadjuk a tégla mennyiségét
+        playerBrick={currentPlayer.inventory.brick}
         isBuildingInProgress={isBuildingInProgress || isPlacingBuilding}
       />
     </div>
