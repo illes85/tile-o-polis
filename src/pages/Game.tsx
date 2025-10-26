@@ -16,8 +16,8 @@ import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw } from "lucide-react"; // Importáljuk a forgatás ikont
-import { useNavigate } from "react-router-dom"; // Importáljuk a useNavigate hookot
+import { RotateCw, ChevronLeft, ChevronRight } from "lucide-react"; // Importáljuk a forgatás és nyíl ikonokat
+import { useNavigate, useLocation } from "react-router-dom"; // Importáljuk a useNavigate és useLocation hookokat
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -110,16 +110,18 @@ const availableBuildingOptions: BuildingOption[] = [
 ];
 
 const Game = () => {
-  const navigate = useNavigate(); // Inicializáljuk a useNavigate hookot
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { initialPlayer, allPlayers } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[] };
 
-  const [players, setPlayers] = useState<Player[]>([
+  const [players, setPlayers] = useState<Player[]>(allPlayers || [
     { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli" },
     { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3 }, workplace: "Munkanélküli" },
     { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8 }, workplace: "Munkanélküli" },
     { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli" },
     { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli" },
   ]);
-  const [currentPlayerId, setCurrentPlayerId] = useState<string>(players[0].id);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
 
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
@@ -542,6 +544,18 @@ const Game = () => {
     showError("Építés megszakítva.");
   };
 
+  const handleNextPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    setCurrentPlayerId(players[nextIndex].id);
+  };
+
+  const handlePreviousPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const prevIndex = (currentIndex - 1 + players.length) % players.length;
+    setCurrentPlayerId(players[prevIndex].id);
+  };
+
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -551,18 +565,26 @@ const Game = () => {
 
       <div className="mb-4">
         <Label htmlFor="player-switcher" className="text-sidebar-foreground mb-2 block">Játékos váltása:</Label>
-        <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
-          <SelectTrigger id="player-switcher" className="w-full bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border">
-            <SelectValue placeholder="Válassz játékost" />
-          </SelectTrigger>
-          <SelectContent className="bg-sidebar text-sidebar-foreground border-sidebar-border">
-            {players.map((player) => (
-              <SelectItem key={player.id} value={player.id}>
-                {player.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="icon" onClick={handlePreviousPlayer} className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+            <SelectTrigger id="player-switcher" className="w-full bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border">
+              <SelectValue placeholder="Válassz játékost" />
+            </SelectTrigger>
+            <SelectContent className="bg-sidebar text-sidebar-foreground border-sidebar-border">
+              {players.map((player) => (
+                <SelectItem key={player.id} value={player.id}>
+                  {player.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={handleNextPlayer} className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <PlayerInfo

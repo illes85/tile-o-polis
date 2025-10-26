@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Game from "./pages/Game";
 import NotFound from "./pages/NotFound";
-import GameMenuScreen from "./pages/GameMenuScreen"; // Importáljuk az új GameMenuScreen komponenst
+import GameMenuScreen from "./pages/GameMenuScreen";
+import PlayerSelectionScreen from "./pages/PlayerSelectionScreen"; // Importáljuk az új PlayerSelectionScreen komponenst
 
 const queryClient = new QueryClient();
 
@@ -16,8 +17,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<GameMenuScreen />} /> {/* A GameMenuScreen lesz a gyökér útvonal */}
-          <Route path="/game" element={<Game />} /> {/* A játék a /game útvonalon lesz elérhető */}
+          <Route path="/" element={<GameMenuScreen />} />
+          <Route path="/select-player" element={<PlayerSelectionScreen />} /> {/* Új útvonal a játékosválasztóhoz */}
+          <Route path="/game" element={<Game />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

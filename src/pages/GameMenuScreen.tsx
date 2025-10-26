@@ -10,7 +10,7 @@ const GameMenuScreen: React.FC = () => {
   const navigate = useNavigate();
 
   const handleNewGame = () => {
-    navigate("/game");
+    navigate("/select-player"); // Navigálás az új játékosválasztó képernyőre
   };
 
   const handleSaveGame = () => {

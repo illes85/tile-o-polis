@@ -84,6 +84,7 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             {id.includes("Sátor") ? <Tent className="h-4 w-4 mb-1" /> : "Ház"}
+            <span className="text-white text-xs">{id.includes("Sátor") ? "Sátor" : "Ház"}</span> {/* Itt jelenítjük meg a nevet */}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
