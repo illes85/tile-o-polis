@@ -250,8 +250,6 @@ const Game = () => {
     );
   };
 
-  // handleRoleChange függvény eltávolítva
-
   const handleBuildingClick = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     setSelectedBuilding(building || null);
@@ -270,7 +268,7 @@ const Game = () => {
       showError("Ezt a házat már kibérelted!");
       return;
     }
-    if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) { // occupancy helyett residentIds.length
+    if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) {
       showError("Ez a ház már tele van!");
       return;
     }
@@ -287,7 +285,7 @@ const Game = () => {
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
-          ? { ...b, renterId: currentPlayerId, residentIds: [...b.residentIds, currentPlayerId] } // Hozzáadjuk a lakókhoz
+          ? { ...b, renterId: currentPlayerId, residentIds: [...b.residentIds, currentPlayerId] }
           : b
       )
     );
@@ -304,7 +302,7 @@ const Game = () => {
       showError("Már dolgozol ebben az irodában!");
       return;
     }
-    if (selectedBuilding.employeeIds.length >= selectedBuilding.capacity) { // occupancy helyett employeeIds.length
+    if (selectedBuilding.employeeIds.length >= selectedBuilding.capacity) {
       showError("Ez az iroda már tele van!");
       return;
     }
@@ -312,13 +310,13 @@ const Game = () => {
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
-          ? { ...b, employeeIds: [...b.employeeIds, currentPlayerId] } // Hozzáadjuk a dolgozókhoz
+          ? { ...b, employeeIds: [...b.employeeIds, currentPlayerId] }
           : b
       )
     );
     setPlayers(prevPlayers =>
       prevPlayers.map(p =>
-        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p // Frissítve
+        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name } : p
       )
     );
     showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.id} irodába! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
@@ -384,8 +382,8 @@ const Game = () => {
           capacity: buildingToPlace.capacity,
           ownerId: currentPlayerId,
           renterId: undefined,
-          residentIds: [], // Új épületnek nincsenek lakói
-          employeeIds: [], // Új épületnek nincsenek dolgozói
+          residentIds: [],
+          employeeIds: [],
           isUnderConstruction: true,
           buildProgress: 0,
         };
@@ -461,14 +459,14 @@ const Game = () => {
         playerName={currentPlayer.name}
         money={currentPlayer.money}
         inventory={currentPlayer.inventory}
-        workplace={currentPlayer.workplace} // Módosítva: role helyett workplace
+        workplace={currentPlayer.workplace}
         onPlayerNameChange={updatePlayerName}
       />
-      {/* RoleSelector eltávolítva */}
+      {/* RoleSelector was removed, no longer needed */}
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isPlacingBuilding} {/* isBuildingInProgress eltávolítva */}
+          disabled={isPlacingBuilding}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
