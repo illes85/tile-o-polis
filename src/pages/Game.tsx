@@ -6,6 +6,8 @@ import PlayerInfo from "@/components/PlayerInfo";
 import RoleSelector from "@/components/RoleSelector";
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import Map, { BuildingData } from "@/components/Map"; // Import Map and BuildingData
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 const MAP_GRID_SIZE = 20; // 20x20-as rács
 const CELL_SIZE_PX = 40; // Minden cella 40x40 pixel
@@ -19,6 +21,7 @@ const Game = () => {
   });
   const [playerRole, setPlayerRole] = useState("Munkanélküli");
   const [buildings, setBuildings] = useState<BuildingData[]>([]);
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null); // Új állapot a kiválasztott épületnek
 
   useEffect(() => {
     const newBuildings: BuildingData[] = [];
@@ -86,6 +89,19 @@ const Game = () => {
     console.log(`Szerepkör megváltoztatva: ${newRole}`);
   };
 
+  const handleBuildingClick = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    setSelectedBuilding(building || null);
+  };
+
+  const handleRentBuilding = () => {
+    if (selectedBuilding) {
+      console.log(`Kibérelve: ${selectedBuilding.id} ${selectedBuilding.rentalPrice} pénz/perc áron.`);
+      // Itt jönne a tényleges bérlési logika (pl. pénz levonása, épület hozzárendelése a játékoshoz)
+      setSelectedBuilding(null); // Bezárjuk a párbeszédablakot
+    }
+  };
+
   const sidebarContent = (
     <>
       <h2 className="text-2xl font-bold mb-6 text-sidebar-primary-foreground">Város Szimulátor</h2>
@@ -107,8 +123,29 @@ const Game = () => {
         Válaszd ki a szerepkört az oldalsávon, és kezdődjön a kaland!
       </p>
       <div className="flex-grow flex items-center justify-center">
-        <Map buildings={buildings} gridSize={MAP_GRID_SIZE} cellSizePx={CELL_SIZE_PX} />
+        <Map buildings={buildings} gridSize={MAP_GRID_SIZE} cellSizePx={CELL_SIZE_PX} onBuildingClick={handleBuildingClick} />
       </div>
+
+      {selectedBuilding && (
+        <Dialog open={!!selectedBuilding} onOpenChange={() => setSelectedBuilding(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Épület részletei: {selectedBuilding.id}</DialogTitle>
+              <DialogDescription>
+                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű ház.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice} pénz/perc</span></p>
+              {/* További részletek itt */}
+            </div>
+            <DialogFooter>
+              <Button onClick={handleRentBuilding}>Kibérlem</Button>
+              <Button variant="outline" onClick={() => setSelectedBuilding(null)}>Mégsem</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 

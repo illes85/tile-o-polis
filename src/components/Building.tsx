@@ -3,16 +3,18 @@
 import React from "react";
 
 interface BuildingProps {
+  id: string; // Hozzáadva az id a kattintás kezeléséhez
   x: number; // rács x koordinátája
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
   type: "house"; // vagy más típusok később
   cellSizePx: number;
-  rentalPrice?: number; // Hozzáadva: bérleti díj
+  rentalPrice?: number; // A bérleti díj adatként megmarad, de nem jelenik meg itt
+  onClick: (buildingId: string) => void; // Új prop a kattintás kezeléséhez
 }
 
-const Building: React.FC<BuildingProps> = ({ x, y, width, height, type, cellSizePx, rentalPrice }) => {
+const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick }) => {
   const style: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
@@ -22,7 +24,7 @@ const Building: React.FC<BuildingProps> = ({ x, y, width, height, type, cellSize
   };
 
   let content;
-  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1";
+  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 cursor-pointer hover:bg-stone-500 transition-colors";
 
   switch (type) {
     case "house":
@@ -30,9 +32,7 @@ const Building: React.FC<BuildingProps> = ({ x, y, width, height, type, cellSize
       content = (
         <>
           Ház
-          {rentalPrice !== undefined && (
-            <span className="mt-1 text-[0.6rem] text-gray-200">{rentalPrice} pénz/perc</span>
-          )}
+          {/* A bérleti díj már nem jelenik meg itt */}
         </>
       );
       break;
@@ -41,7 +41,7 @@ const Building: React.FC<BuildingProps> = ({ x, y, width, height, type, cellSize
   }
 
   return (
-    <div style={style} className={classes}>
+    <div style={style} className={classes} onClick={() => onClick(id)}>
       {content}
     </div>
   );

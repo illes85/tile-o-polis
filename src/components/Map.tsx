@@ -10,15 +10,17 @@ export interface BuildingData {
   width: number; // rács egységekben
   height: number; // rács egységekben
   type: "house"; // vagy más típusok később
+  rentalPrice?: number; // Hozzáadva: bérleti díj
 }
 
 interface MapProps {
   buildings: BuildingData[];
   gridSize: number; // pl. 20 a 20x20-as rácshoz
   cellSizePx: number; // pl. 40 pixel
+  onBuildingClick: (buildingId: string) => void; // Új prop a kattintás kezeléséhez
 }
 
-const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx }) => {
+const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx, onBuildingClick }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx;
 
@@ -32,6 +34,7 @@ const Map: React.FC<MapProps> = ({ buildings, gridSize, cellSizePx }) => {
           key={building.id}
           {...building}
           cellSizePx={cellSizePx}
+          onClick={onBuildingClick} // Átadjuk a kattintáskezelőt
         />
       ))}
     </div>
