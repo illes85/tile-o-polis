@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home } from "lucide-react"; // Importáljuk a User és Home ikonokat
+import { User, Home } from "lucide-react";
 
 interface BuildingProps {
   id: string;
@@ -16,10 +16,11 @@ interface BuildingProps {
   currentResidents: number;
   maxResidents: number;
   isRentedByPlayer: boolean;
-  isOwnedByPlayer: boolean; // Új prop
+  isOwnedByPlayer: boolean;
+  isGhost?: boolean; // Új prop a szellem épülethez
 }
 
-const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer, isOwnedByPlayer }) => {
+const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer, isOwnedByPlayer, isGhost = false }) => {
   const style: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
@@ -29,25 +30,30 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
   };
 
   let content;
-  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 cursor-pointer hover:bg-stone-500 transition-colors relative";
+  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative";
+
+  if (isGhost) {
+    classes += " bg-blue-400 opacity-50 pointer-events-none"; // Átlátszó és nem kattintható
+  } else {
+    classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
+  }
 
   switch (type) {
     case "house":
-      classes += " bg-stone-400 rounded-md shadow-md";
       content = (
         <>
           Ház
-          {currentResidents > 0 && (
+          {!isGhost && currentResidents > 0 && (
             <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
               {Array.from({ length: currentResidents }).map((_, index) => (
                 <User key={index} className="h-3 w-3 text-blue-200" />
               ))}
             </div>
           )}
-          {isRentedByPlayer && (
+          {!isGhost && isRentedByPlayer && (
             <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
           )}
-          {isOwnedByPlayer && (
+          {!isGhost && isOwnedByPlayer && (
             <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
           )}
         </>
@@ -58,7 +64,7 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
   }
 
   return (
-    <div style={style} className={classes} onClick={() => onClick(id)}>
+    <div style={style} className={classes} onClick={isGhost ? undefined : () => onClick(id)}>
       {content}
     </div>
   );

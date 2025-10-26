@@ -12,8 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
-import BuildMenu from "@/components/BuildMenu";
+import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
+import { musicTracks } from "@/utils/musicFiles"; // Importáljuk a zeneszámok listáját
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -21,7 +22,7 @@ const RENT_INTERVAL_MS = 30000;
 const BUILD_HOUSE_COST = 500;
 const BUILD_HOUSE_DURATION_MS = 10000;
 
-const availableBuildingOptions = [
+const availableBuildingOptions: BuildingOption[] = [
   {
     type: "house",
     name: "Házikó",
@@ -49,6 +50,11 @@ const Game = () => {
   const [buildProgress, setBuildProgress] = useState(0);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
 
+  // Új állapotok az interaktív építéshez
+  const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
+  const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
+  const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
+
   // Segédfüggvény a foglalt cellák meghatározásához
   const getOccupiedCells = (currentBuildings: BuildingData[]) => {
     const occupied = new Set<string>();
@@ -62,70 +68,78 @@ const Game = () => {
     return occupied;
   };
 
-  // tryPlaceBuilding függvény kiemelve a useEffect-ből
-  const tryPlaceBuilding = (
-    currentBuildings: BuildingData[], // Átadjuk a jelenlegi épületeket az ütközésellenőrzéshez
-    buildingId: string,
-    buildingType: "house",
+  // tryPlaceBuilding függvény átalakítva, hogy egy adott helyre próbáljon építeni
+  const canPlaceBuilding = (
+    targetX: number,
+    targetY: number,
     buildingWidth: number,
     buildingHeight: number,
-    price: number,
-    maxResidents: number,
-    isOwned: boolean = false,
-    maxAttempts = 200
-  ): BuildingData | null => {
-    const occupiedCells = getOccupiedCells(currentBuildings); // Friss foglalt cellák lekérése
+    currentBuildings: BuildingData[]
+  ): boolean => {
+    // Ellenőrizzük, hogy a célkoordináták a térképen belül vannak-e
+    if (
+      targetX < 0 ||
+      targetY < 0 ||
+      targetX + buildingWidth > MAP_GRID_SIZE ||
+      targetY + buildingHeight > MAP_GRID_SIZE * 1.5 // A térkép magassága 1.5-szeres
+    ) {
+      return false;
+    }
 
-    const isCellOccupied = (x: number, y: number) => occupiedCells.has(`${x},${y}`);
+    const occupiedCells = getOccupiedCells(currentBuildings);
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingWidth + 1));
-      const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE - buildingHeight + 1));
-
-      let overlaps = false;
-      for (let x = randomX; x < randomX + buildingWidth; x++) {
-        for (let y = randomY; y < randomY + buildingHeight; y++) {
-          if (isCellOccupied(x, y)) {
-            overlaps = true;
-            break;
-          }
+    for (let x = targetX; x < targetX + buildingWidth; x++) {
+      for (let y = targetY; y < targetY + buildingHeight; y++) {
+        if (occupiedCells.has(`${x},${y}`)) {
+          return false; // Ütközés van
         }
-        if (overlaps) break;
-      }
-
-      if (!overlaps) {
-        // Nem kell itt hozzáadni az occupiedCells-hez, mert a getOccupiedCells mindig frissen számolja
-        return {
-          id: buildingId,
-          x: randomX,
-          y: randomY,
-          width: buildingWidth,
-          height: buildingHeight,
-          type: buildingType,
-          rentalPrice: price,
-          maxResidents: maxResidents,
-          currentResidents: 0,
-          isRentedByPlayer: false,
-          isOwnedByPlayer: isOwned,
-        };
       }
     }
-    console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
-    return null;
+    return true; // Nincs ütközés, elhelyezhető
   };
 
+  // Kezdeti épületek elhelyezése
   useEffect(() => {
     const initialBuildings: BuildingData[] = [];
     // Helyezzünk el 4 házat
     for (let i = 0; i < 4; i++) {
-      const house = tryPlaceBuilding(initialBuildings, `house-${i + 1}`, "house", 2, 2, 10, 2, false);
-      if (house) {
-        initialBuildings.push(house); // Hozzáadjuk az ideiglenes listához az ütközésellenőrzéshez
+      const houseWidth = 2;
+      const houseHeight = 2;
+      let placed = false;
+      let attempts = 0;
+      const maxAttempts = 200;
+
+      while (!placed && attempts < maxAttempts) {
+        const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - houseWidth + 1));
+        const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - houseHeight + 1)); // A térkép magassága 1.5-szeres
+
+        if (canPlaceBuilding(randomX, randomY, houseWidth, houseHeight, initialBuildings)) {
+          const newHouse: BuildingData = {
+            id: `house-${i + 1}`,
+            x: randomX,
+            y: randomY,
+            width: houseWidth,
+            height: houseHeight,
+            type: "house",
+            rentalPrice: 10,
+            maxResidents: 2,
+            currentResidents: 0,
+            isRentedByPlayer: false,
+            isOwnedByPlayer: false,
+          };
+          initialBuildings.push(newHouse);
+          placed = true;
+        }
+        attempts++;
+      }
+      if (!placed) {
+        console.warn(`Nem sikerült elhelyezni a ${i + 1}. házat ${maxAttempts} próbálkozás után.`);
       }
     }
     setBuildings(initialBuildings);
   }, []);
 
+  // Bérleti díj levonása időzítővel
   useEffect(() => {
     const rentTimer = setInterval(() => {
       setPlayerMoney((prevMoney) => {
@@ -176,6 +190,10 @@ const Game = () => {
 
   const handleRentBuilding = () => {
     if (selectedBuilding && selectedBuilding.rentalPrice !== undefined) {
+      if (selectedBuilding.isOwnedByPlayer) { // Saját ház bérlésének megakadályozása
+        showError("Nem bérelheted ki a saját házadat!");
+        return;
+      }
       if (selectedBuilding.isRentedByPlayer) {
         showError("Ezt a házat már kibérelted!");
         return;
@@ -215,46 +233,78 @@ const Game = () => {
     }
 
     setIsBuildMenuOpen(false);
-    setIsBuildingInProgress(true);
-    setPlayerMoney(prevMoney => prevMoney - buildingOption.cost);
-    const toastId = showLoading(`${buildingOption.name} építése folyamatban...`);
+    setBuildingToPlace(buildingOption);
+    setIsPlacingBuilding(true);
+    showSuccess(`Kattints a térképre, ahova a ${buildingOption.name} épületet szeretnéd helyezni.`);
+  };
 
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += (100 / (buildingOption.duration / 100));
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(interval);
-      }
-      setBuildProgress(Math.floor(progress));
-    }, 100);
+  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      const mapRect = event.currentTarget.getBoundingClientRect();
+      const mouseX = event.clientX - mapRect.left;
+      const mouseY = event.clientY - mapRect.top;
 
-    setTimeout(() => {
-      clearInterval(interval);
-      dismissToast(toastId);
-      setIsBuildingInProgress(false);
-      setBuildProgress(0);
+      const gridX = Math.floor(mouseX / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseY / CELL_SIZE_PX);
 
-      // tryPlaceBuilding hívása a jelenlegi buildings állapottal
-      const newBuilding = tryPlaceBuilding(
-        buildings, // Átadjuk a jelenlegi buildings listát
-        `player-${buildingOption.type}-${Date.now()}`,
-        buildingOption.type as "house",
-        buildingOption.width,
-        buildingOption.height,
-        buildingOption.rentalPrice,
-        buildingOption.maxResidents,
-        true
-      );
+      setGhostBuildingCoords({ x: gridX, y: gridY });
+    }
+  };
 
-      if (newBuilding) {
-        setBuildings(prevBuildings => [...prevBuildings, newBuilding]);
-        showSuccess(`Új ${buildingOption.name} sikeresen felépült!`);
+  const handleMapClick = (x: number, y: number) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      if (canPlaceBuilding(x, y, buildingToPlace.width, buildingToPlace.height, buildings)) {
+        setIsPlacingBuilding(false);
+        setBuildingToPlace(null);
+        setGhostBuildingCoords(null);
+
+        setPlayerMoney(prevMoney => prevMoney - buildingToPlace.cost);
+        const toastId = showLoading(`${buildingToPlace.name} építése folyamatban...`);
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += (100 / (buildingToPlace.duration / 100));
+          if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+          }
+          setBuildProgress(Math.floor(progress));
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          dismissToast(toastId);
+          setIsBuildingInProgress(false);
+          setBuildProgress(0);
+
+          const newBuilding: BuildingData = {
+            id: `player-${buildingToPlace.type}-${Date.now()}`,
+            x: x,
+            y: y,
+            width: buildingToPlace.width,
+            height: buildingToPlace.height,
+            type: buildingToPlace.type as "house",
+            rentalPrice: buildingToPlace.rentalPrice,
+            maxResidents: buildingToPlace.maxResidents,
+            currentResidents: 0,
+            isRentedByPlayer: false,
+            isOwnedByPlayer: true,
+          };
+
+          setBuildings(prevBuildings => [...prevBuildings, newBuilding]);
+          showSuccess(`Új ${buildingToPlace.name} sikeresen felépült!`);
+        }, buildingToPlace.duration);
       } else {
-        showError(`Nem sikerült új ${buildingOption.name} építeni, nincs szabad hely a térképen.`);
-        setPlayerMoney(prevMoney => prevMoney + buildingOption.cost);
+        showError("Nem építhetsz ide! A hely foglalt vagy a térképen kívül van.");
       }
-    }, buildingOption.duration);
+    }
+  };
+
+  const cancelBuildingPlacement = () => {
+    setIsPlacingBuilding(false);
+    setBuildingToPlace(null);
+    setGhostBuildingCoords(null);
+    showError("Építés megszakítva.");
   };
 
   const sidebarContent = (
@@ -275,13 +325,21 @@ const Game = () => {
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isBuildingInProgress}
+          disabled={isBuildingInProgress || isPlacingBuilding}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
         </Button>
+        {isPlacingBuilding && (
+          <Button
+            onClick={cancelBuildingPlacement}
+            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+          >
+            Építés megszakítása
+          </Button>
+        )}
       </div>
-      <MusicPlayer />
+      <MusicPlayer tracks={musicTracks} /> {/* Átadjuk a zeneszámok listáját */}
       <div className="mt-auto">
         <MadeWithDyad />
       </div>
@@ -305,7 +363,17 @@ const Game = () => {
         </div>
       )}
       <div className="flex-grow flex items-center justify-center">
-        <Map buildings={buildings} gridSize={MAP_GRID_SIZE} cellSizePx={CELL_SIZE_PX} onBuildingClick={handleBuildingClick} />
+        <Map
+          buildings={buildings}
+          gridSize={MAP_GRID_SIZE}
+          cellSizePx={CELL_SIZE_PX}
+          onBuildingClick={handleBuildingClick}
+          isPlacingBuilding={isPlacingBuilding}
+          buildingToPlace={buildingToPlace}
+          ghostBuildingCoords={ghostBuildingCoords}
+          onMapMouseMove={handleMapMouseMove}
+          onMapClick={handleMapClick}
+        />
       </div>
 
       {selectedBuilding && (
@@ -333,7 +401,7 @@ const Game = () => {
             <DialogFooter>
               <Button
                 onClick={handleRentBuilding}
-                disabled={selectedBuilding.isRentedByPlayer || selectedBuilding.currentResidents >= selectedBuilding.maxResidents}
+                disabled={selectedBuilding.isRentedByPlayer || selectedBuilding.currentResidents >= selectedBuilding.maxResidents || selectedBuilding.isOwnedByPlayer}
               >
                 Kibérlem
               </Button>
@@ -349,7 +417,7 @@ const Game = () => {
         onSelectBuilding={handleBuildBuilding}
         availableBuildings={availableBuildingOptions}
         playerMoney={playerMoney}
-        isBuildingInProgress={isBuildingInProgress}
+        isBuildingInProgress={isBuildingInProgress || isPlacingBuilding} // Letiltjuk, ha építés vagy elhelyezés folyik
       />
     </div>
   );
