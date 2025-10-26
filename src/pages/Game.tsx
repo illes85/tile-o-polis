@@ -235,7 +235,7 @@ const Game = () => {
         let totalRent = 0;
         let totalSalary = 0;
 
-        const playerRentedBuildings = buildings.filter(b => b.renterId === player.id);
+        const playerRentedBuildings = buildings.filter(b => b.renterId === player.id && b.ownerId !== player.id); // Csak a bérelt, de nem saját tulajdonú házakért fizet
         playerRentedBuildings.forEach(building => {
           if (building.rentalPrice) {
             totalRent += building.rentalPrice;
@@ -257,7 +257,7 @@ const Game = () => {
             if (player.id === currentPlayerId) showError(`Nincs elég pénz a bérleti díjra (${totalRent} pénz). A bérelt házak kiürültek.`);
             setBuildings(prevBuildings =>
               prevBuildings.map(b =>
-                b.renterId === player.id
+                b.renterId === player.id && b.ownerId !== player.id // Csak a bérelt, de nem saját házat ürítjük ki
                   ? { ...b, renterId: undefined, residentIds: b.residentIds.filter(id => id !== player.id) }
                   : b
               )
@@ -295,11 +295,34 @@ const Game = () => {
       return;
     }
 
-    if (selectedBuilding.ownerId === currentPlayerId) {
-      showError("Nem bérelheted ki a saját házadat!");
+    const isOwner = selectedBuilding.ownerId === currentPlayerId;
+    const isAlreadyRentedByPlayer = selectedBuilding.renterId === currentPlayerId;
+    const isAlreadyResident = selectedBuilding.residentIds.includes(currentPlayerId);
+
+    if (isOwner) {
+      if (isAlreadyResident) {
+        showError("Már beköltöztél a saját házadba!");
+        return;
+      }
+      if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) {
+        showError("Ez a ház már tele van!");
+        return;
+      }
+      // Tulajdonos beköltözik, nem fizet bérleti díjat
+      setBuildings(prevBuildings =>
+        prevBuildings.map(b =>
+          b.id === selectedBuilding.id
+            ? { ...b, renterId: currentPlayerId, residentIds: [...b.residentIds, currentPlayerId] }
+            : b
+        )
+      );
+      showSuccess(`Sikeresen beköltöztél a saját házadba!`);
+      setSelectedBuilding(null);
       return;
     }
-    if (selectedBuilding.renterId === currentPlayerId) {
+
+    // Nem tulajdonos bérli
+    if (isAlreadyRentedByPlayer) {
       showError("Ezt a házat már kibérelted!");
       return;
     }
@@ -618,16 +641,19 @@ const Game = () => {
                 </div>
               )}
 
-              {selectedBuilding.renterId === currentPlayerId && (
+              {selectedBuilding.renterId === currentPlayerId && selectedBuilding.ownerId !== currentPlayerId && (
                 <p className="text-blue-600 font-medium">Ezt a házat már kibérelted!</p>
               )}
-              {selectedBuilding.ownerId === currentPlayerId && (
+              {selectedBuilding.ownerId === currentPlayerId && selectedBuilding.residentIds.includes(currentPlayerId) && (
+                <p className="text-yellow-600 font-medium">Itt laksz a saját házadban!</p>
+              )}
+              {selectedBuilding.ownerId === currentPlayerId && !selectedBuilding.residentIds.includes(currentPlayerId) && (
                 <p className="text-yellow-600 font-medium">Ez az épület a te tulajdonod!</p>
               )}
               {selectedBuilding.employeeIds.includes(currentPlayerId) && (
                 <p className="text-green-600 font-medium">Itt dolgozol!</p>
               )}
-              {(selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && selectedBuilding.renterId !== currentPlayerId) ||
+              {(selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId)) ||
                ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
@@ -636,9 +662,13 @@ const Game = () => {
               {selectedBuilding.type === "house" && (
                 <Button
                   onClick={handleRentBuilding}
-                  disabled={selectedBuilding.renterId === currentPlayerId || selectedBuilding.residentIds.length >= selectedBuilding.capacity || selectedBuilding.ownerId === currentPlayerId}
+                  disabled={
+                    (selectedBuilding.ownerId === currentPlayerId && selectedBuilding.residentIds.includes(currentPlayerId)) || // Saját házban már lakik
+                    (!selectedBuilding.ownerId && selectedBuilding.renterId === currentPlayerId) || // Bérelte, de nem saját
+                    selectedBuilding.residentIds.length >= selectedBuilding.capacity
+                  }
                 >
-                  Kibérlem
+                  {selectedBuilding.ownerId === currentPlayerId ? "Beköltözik" : "Kibérlem"}
                 </Button>
               )}
               {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry") && (

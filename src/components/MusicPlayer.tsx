@@ -17,6 +17,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.src = tracks[currentTrackIndex];
+      console.log("Attempting to load music from:", audioRef.current.src); // Debug log
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
@@ -73,7 +74,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             <SkipForward className="h-4 w-4" />
           </Button>
         </div>
-        <audio ref={audioRef} loop preload="auto" />
+        <audio ref={audioRef} loop preload="auto" controls /> {/* Hozzáadva a controls attribútum */}
       </CardContent>
     </Card>
   );
