@@ -906,7 +906,7 @@ const Game = () => {
     <>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Város Szimulátor</h2>
-        <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
+        {/* PlayerSettings áthelyezve a PlayerInfo komponensbe */}
       </div>
 
       <div className="mb-4">
@@ -939,8 +939,10 @@ const Game = () => {
         inventory={currentPlayer.inventory}
         workplace={currentPlayer.workplace}
         workplaceSalary={currentPlayer.workplaceSalary}
-        onPlayerNameChange={updatePlayerName}
         ownedBusinesses={ownedBusinesses}
+        playerSettingsButton={
+          <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
+        }
       />
       <div className="mt-4">
         <Button
@@ -1115,9 +1117,6 @@ const Game = () => {
 
               {selectedBuilding.renterId === currentPlayerId && selectedBuilding.ownerId !== currentPlayerId && (
                 <p className="text-blue-600 font-medium">Ezt a házat már kibérelted!</p>
-              )}
-              {selectedBuilding.ownerId === currentPlayerId && selectedBuilding.residentIds.includes(currentPlayerId) && (
-                <p className="text-yellow-600 font-medium">Itt laksz a saját házadban!</p>
               )}
               {selectedBuilding.ownerId === currentPlayerId && !selectedBuilding.residentIds.includes(currentPlayerId) && (
                 <p className="text-yellow-600 font-medium">Ez az épület a te tulajdonod!</p>
