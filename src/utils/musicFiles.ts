@@ -1,8 +1,4 @@
-import countryMusic from "@/music/country_music.mp3"; // Importáljuk az MP3 fájlt
+// src/utils/musicFiles.ts
+const musicModules = import.meta.glob('/src/music/*.mp3', { eager: true, as: 'url' });
 
-export const musicTracks: string[] = [
-  countryMusic,
-  // Ha több zene van, így add hozzá:
-  // import track2 from "@/music/track2.mp3";
-  // track2,
-];
+export const musicTracks: string[] = Object.values(musicModules) as string[];

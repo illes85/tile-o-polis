@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import PlayerInfo from "@/components/PlayerInfo";
 import { MadeWithDyad } from "@/components/made-with-dyad";
@@ -14,9 +14,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
-import { musicTracks } from "@/utils/musicFiles";
+import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
+import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins } from "lucide-react"; // Coins ikon importálása
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
@@ -197,6 +198,15 @@ const Game = () => {
   const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // Térkép húzogatás állapotok
+  const [mapOffsetX, setMapOffsetX] = useState(0);
+  const [mapOffsetY, setMapOffsetY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [lastMousePos, setLastMousePos] = useState<{ x: number; y: number } | null>(null);
+
+  // Hangeffekt referencia
+  const currentSfxAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
@@ -450,17 +460,20 @@ const Game = () => {
       showError("Ez a ház már tele van!");
       return;
     }
-    if (currentPlayer.money < selectedBuilding.rentalPrice) {
+    if (selectedBuilding.rentalPrice > 0 && currentPlayer.money < selectedBuilding.rentalPrice) { // Ellenőrzés, ha az ár > 0
       showError("Nincs elég pénzed a bérléshez!");
       return;
     }
 
-    setPlayers(prevPlayers =>
-      prevPlayers.map(p =>
-        p.id === currentPlayerId ? { ...p, money: p.money - selectedBuilding.rentalPrice! } : p
-      )
-    );
-    addTransaction(currentPlayerId, "expense", `Bérleti díj (${selectedBuilding.name})`, selectedBuilding.rentalPrice);
+    if (selectedBuilding.rentalPrice && selectedBuilding.rentalPrice > 0) {
+      setPlayers(prevPlayers =>
+        prevPlayers.map(p =>
+          p.id === currentPlayerId ? { ...p, money: p.money - selectedBuilding.rentalPrice! } : p
+        )
+      );
+      addTransaction(currentPlayerId, "expense", `Bérleti díj (${selectedBuilding.name})`, selectedBuilding.rentalPrice);
+    }
+    
     setBuildings(prevBuildings =>
       prevBuildings.map(b =>
         b.id === selectedBuilding.id
@@ -468,7 +481,7 @@ const Game = () => {
           : b
       )
     );
-    showSuccess(`Sikeresen kibérelted a ${selectedBuilding.name} házat ${selectedBuilding.rentalPrice} pénz/perc áron!`);
+    showSuccess(`Sikeresen kibérelted a ${selectedBuilding.name} házat ${selectedBuilding.rentalPrice === 0 ? "ingyen" : `${selectedBuilding.rentalPrice} pénz/perc`} áron!`);
     setSelectedBuilding(null);
   };
 
@@ -498,7 +511,7 @@ const Game = () => {
         p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name, workplaceSalary: selectedBuilding.salary! } : p
       )
     );
-    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.name} épületbe! Fizetés: ${selectedBuilding.salary} pénz/perc.`);
+    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.name} épületbe! Fizetés: ${selectedBuilding.salary === 0 ? "Ingyenes" : `${selectedBuilding.salary} pénz/perc`}.`);
     setSelectedBuilding(null);
   };
 
@@ -537,8 +550,8 @@ const Game = () => {
   const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isPlacingBuilding && buildingToPlace) {
       const mapRect = event.currentTarget.getBoundingClientRect();
-      const mouseX = event.clientX - mapRect.left;
-      const mouseY = event.clientY - mapRect.top;
+      const mouseX = event.clientX - mapRect.left - mapOffsetX; // Figyelembe vesszük az eltolást
+      const mouseY = event.clientY - mapRect.top - mapOffsetY; // Figyelembe vesszük az eltolást
 
       const gridX = Math.floor(mouseX / CELL_SIZE_PX);
       const gridY = Math.floor(mouseY / CELL_SIZE_PX);
@@ -546,14 +559,32 @@ const Game = () => {
       setGhostBuildingCoords({ x: gridX, y: gridY });
     } else if (isPlacingFarmland && selectedFarmId) {
       const mapRect = event.currentTarget.getBoundingClientRect();
-      const mouseX = event.clientX - mapRect.left;
-      const mouseY = event.clientY - mapRect.top;
+      const mouseX = event.clientX - mapRect.left - mapOffsetX;
+      const mouseY = event.clientY - mapRect.top - mapOffsetY;
 
       const gridX = Math.floor(mouseX / CELL_SIZE_PX);
       const gridY = Math.floor(mouseY / CELL_SIZE_PX);
 
       setGhostBuildingCoords({ x: gridX, y: gridY });
+    } else if (isDragging && lastMousePos) {
+      const deltaX = event.clientX - lastMousePos.x;
+      const deltaY = event.clientY - lastMousePos.y;
+      setMapOffsetX(prev => prev + deltaX);
+      setMapOffsetY(prev => prev + deltaY);
+      setLastMousePos({ x: event.clientX, y: event.clientY });
     }
+  };
+
+  const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPlacingBuilding && !isPlacingFarmland) {
+      setIsDragging(true);
+      setLastMousePos({ x: event.clientX, y: event.clientY });
+    }
+  };
+
+  const handleMapMouseUp = () => {
+    setIsDragging(false);
+    setLastMousePos(null);
   };
 
   const handleMapClick = (x: number, y: number) => {
@@ -609,6 +640,20 @@ const Game = () => {
         setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
         const toastId = showLoading(`${buildingToPlace.name} építése folyamatban...`);
 
+        // Hangeffekt lejátszása
+        const sfxKey = buildingToPlace.type === "house" ? "construction-01" : "construction-02";
+        if (sfxUrls[sfxKey]) {
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+          }
+          const audio = new Audio(sfxUrls[sfxKey]);
+          audio.loop = true;
+          audio.volume = 0.5; // Kicsit halkabban
+          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
+          currentSfxAudioRef.current = audio;
+        }
+
         let currentProgress = 0;
         const interval = setInterval(() => {
           currentProgress += (100 / (buildingToPlace.duration / 100));
@@ -636,6 +681,13 @@ const Game = () => {
             )
           );
           showSuccess(`Új ${buildingToPlace.name} sikeresen felépült!`);
+
+          // Hangeffekt leállítása
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+            currentSfxAudioRef.current = null;
+          }
         }, buildingToPlace.duration);
       } else {
         showError("Nem építhetsz ide! A hely foglalt vagy a térképen kívül van.");
@@ -684,6 +736,11 @@ const Game = () => {
     setBuildingToPlace(null);
     setGhostBuildingCoords(null);
     showError("Építés megszakítva.");
+    if (currentSfxAudioRef.current) {
+      currentSfxAudioRef.current.pause();
+      currentSfxAudioRef.current.currentTime = 0;
+      currentSfxAudioRef.current = null;
+    }
   };
 
   const cancelFarmlandPlacement = () => {
@@ -710,6 +767,20 @@ const Game = () => {
   };
 
   const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm"));
+
+  // Teszt gomb a hangeffektekhez
+  const handleTestSfxPlay = (sfxKey: "construction-01" | "construction-02") => {
+    if (sfxUrls[sfxKey]) {
+      const audio = new Audio(sfxUrls[sfxKey]);
+      audio.volume = 0.7;
+      audio.play().catch(error => {
+        console.error(`Hiba a '${sfxKey}' hangeffekt lejátszásakor:`, error);
+        showError(`Nem sikerült lejátszani a '${sfxKey}' hangeffektet. Ellenőrizd a konzolt!`);
+      });
+    } else {
+      showError(`A '${sfxKey}' hangeffekt URL nem található.`);
+    }
+  };
 
   const sidebarContent = (
     <>
@@ -789,6 +860,19 @@ const Game = () => {
         >
           Pénzmozgások
         </Button>
+        {/* Teszt gombok a hangeffektekhez */}
+        <Button
+          onClick={() => handleTestSfxPlay("construction-01")}
+          className="w-full bg-gray-500 hover:bg-gray-600 text-white mt-2"
+        >
+          Teszt: Ház építési hang
+        </Button>
+        <Button
+          onClick={() => handleTestSfxPlay("construction-02")}
+          className="w-full bg-gray-500 hover:bg-gray-600 text-white mt-2"
+        >
+          Teszt: Vállalkozás építési hang
+        </Button>
         <Button
           onClick={handleGoToMenu}
           className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
@@ -804,8 +888,12 @@ const Game = () => {
   );
 
   const mainContent = (
-    <div className="flex flex-col h-full items-center justify-center">
-      {/* Eltávolított szakasz */}
+    <div
+      className="flex flex-col h-full items-center justify-center relative"
+      onMouseDown={handleMapMouseDown}
+      onMouseUp={handleMapMouseUp}
+      onMouseLeave={handleMapMouseUp} // Ha az egér elhagyja a térképet, állítsuk le a húzást
+    >
       <div className="flex-grow flex items-center justify-center">
         <Map
           buildings={buildings}
@@ -822,6 +910,8 @@ const Game = () => {
           isPlacingFarmland={isPlacingFarmland}
           selectedFarmId={selectedFarmId}
           onFarmlandClick={handleFarmlandClick}
+          mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
+          mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
         />
       </div>
 
@@ -838,10 +928,10 @@ const Game = () => {
               <p>Tulajdonos: <span className="font-semibold">{selectedBuilding.ownerId ? (players.find(p => p.id === selectedBuilding.ownerId)?.name || "Ismeretlen") : "Nincs"}</span></p>
 
               {selectedBuilding.type === "house" && selectedBuilding.rentalPrice !== undefined && (
-                <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice} pénz/perc</span></p>
+                <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice === 0 ? "Ingyenes" : `${selectedBuilding.rentalPrice} pénz/perc`}</span></p>
               )}
               {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm") && selectedBuilding.salary !== undefined && (
-                <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary} pénz/perc</span></p>
+                <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary === 0 ? "Ingyenes" : `${selectedBuilding.salary} pénz/perc`}</span></p>
               )}
               <p>{selectedBuilding.type === "house" ? "Lakók" : "Dolgozók"}: <span className="font-semibold">{selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length}/{selectedBuilding.capacity}</span></p>
 

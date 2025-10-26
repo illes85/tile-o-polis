@@ -4,7 +4,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react";
+import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react"; // DollarSign helyett Coins
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
@@ -50,14 +50,14 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
     const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
-    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick;
+    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || isBuildingInProgress; // Hozzáadva az isBuildingInProgress ellenőrzés
 
     return (
       <Card key={building.name} className="flex items-center justify-between p-4">
         <div>
           <CardTitle className="text-lg">{building.name}</CardTitle>
           <p className="text-sm text-muted-foreground flex items-center">
-            <DollarSign className="h-4 w-4 mr-1 text-green-500" /> {building.cost} pénz
+            <Coins className="h-4 w-4 mr-1 text-green-500" /> {building.cost === 0 ? "Ingyenes" : `${building.cost} pénz`}
           </p>
           {building.woodCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">

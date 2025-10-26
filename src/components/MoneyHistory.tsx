@@ -4,7 +4,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { DollarSign, ArrowUpCircle, ArrowDownCircle } from "lucide-react";
+import { Coins, ArrowUpCircle, ArrowDownCircle } from "lucide-react"; // DollarSign helyett Coins
 
 export interface Transaction {
   id: string;

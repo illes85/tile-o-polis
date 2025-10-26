@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, SkipForward, SkipBack } from "lucide-react"; // Importáljuk a SkipBack ikont is
+import { Volume2, VolumeX, SkipForward, SkipBack } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface MusicPlayerProps {
@@ -15,9 +15,18 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
 
   useEffect(() => {
+    if (tracks.length === 0) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      setIsPlaying(false);
+      return;
+    }
+
     if (audioRef.current) {
       audioRef.current.src = tracks[currentTrackIndex];
-      console.log("Attempting to load music from:", audioRef.current.src); // Debug log
+      console.log("Attempting to load music from:", audioRef.current.src);
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
@@ -39,17 +48,19 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   };
 
   const playNextTrack = () => {
+    if (tracks.length === 0) return;
     setCurrentTrackIndex(prevIndex => (prevIndex + 1) % tracks.length);
-    setIsPlaying(true); // Automatikusan elindítja a következő számot
+    setIsPlaying(true);
   };
 
   const playPreviousTrack = () => {
+    if (tracks.length === 0) return;
     setCurrentTrackIndex(prevIndex => (prevIndex - 1 + tracks.length) % tracks.length);
-    setIsPlaying(true); // Automatikusan elindítja az előző számot
+    setIsPlaying(true);
   };
 
   if (tracks.length === 0) {
-    return null; // Ha nincs zene, ne jelenjen meg a lejátszó
+    return null;
   }
 
   return (
@@ -87,7 +98,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             <SkipForward className="h-4 w-4" />
           </Button>
         </div>
-        <audio ref={audioRef} loop preload="auto" /> {/* Eltávolítva a controls attribútum */}
+        <audio ref={audioRef} loop preload="auto" />
       </CardContent>
     </Card>
   );

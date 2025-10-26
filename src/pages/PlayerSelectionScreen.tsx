@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"; // Importáljuk a Select komponenseket
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
+import { Coins } from "lucide-react"; // Importáljuk a Coins ikont
 
 interface Player {
   id: string;
@@ -93,7 +94,7 @@ const PlayerSelectionScreen: React.FC = () => {
               className="w-full justify-start"
               variant="outline"
             >
-              {player.name} (Pénz: {player.money})
+              {player.name} (<Coins className="inline-block h-4 w-4 mr-1 text-green-500" /> {player.money})
             </Button>
           ))}
           <div className="border-t pt-4 mt-4">
@@ -136,9 +137,9 @@ const PlayerSelectionScreen: React.FC = () => {
                   <SelectValue placeholder="Válassz nehézséget" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="easy">Könnyű (1500 pénz, 20 fa, 10 tégla)</SelectItem>
-                  <SelectItem value="normal">Normál (1000 pénz, 5 fa, 2 tégla)</SelectItem>
-                  <SelectItem value="hard">Nehéz (500 pénz, 0 fa, 0 tégla)</SelectItem>
+                  <SelectItem value="easy">Könnyű (1500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 20 fa, 10 tégla)</SelectItem>
+                  <SelectItem value="normal">Normál (1000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 5 fa, 2 tégla)</SelectItem>
+                  <SelectItem value="hard">Nehéz (500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 0 fa, 0 tégla)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Wheat, Droplet, Shirt, User, Pencil, Leaf, Square as BrickIcon, Briefcase } from "lucide-react"; // Importáljuk a Leaf, BrickIcon és Briefcase ikonokat
+import { Coins, Wheat, Droplet, Shirt, User, Pencil, Leaf, Square as BrickIcon, Briefcase } from "lucide-react"; // DollarSign helyett Coins
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { BuildingData } from "@/components/Map"; // Importáljuk a BuildingData interfészt
@@ -82,7 +82,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
           </div>
         </div>
         <div className="flex items-center mb-2">
-          <DollarSign className="mr-2 h-4 w-4 text-green-500" />
+          <Coins className="mr-2 h-4 w-4 text-green-500" /> {/* DollarSign helyett Coins */}
           <span>Pénz: {money}</span>
         </div>
         <div className="flex items-center mb-2">

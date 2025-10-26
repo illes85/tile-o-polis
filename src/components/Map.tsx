@@ -3,6 +3,7 @@
 import React from "react";
 import Building, { FarmlandTile } from "./Building"; // Importáljuk a FarmlandTile interfészt
 import { BuildingOption } from "./BuildMenu";
+import { Sprout } from "lucide-react"; // Importáljuk a Sprout ikont
 
 export interface BuildingData {
   id: string;
@@ -40,6 +41,8 @@ interface MapProps {
   isPlacingFarmland: boolean; // Új: szántóföld építési mód
   selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
   onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
+  mapOffsetX: number; // Új: térkép eltolás X irányban
+  mapOffsetY: number; // Új: térkép eltolás Y irányban
 }
 
 const Map: React.FC<MapProps> = ({
@@ -57,6 +60,8 @@ const Map: React.FC<MapProps> = ({
   isPlacingFarmland,
   selectedFarmId,
   onFarmlandClick,
+  mapOffsetX, // Hozzáadva
+  mapOffsetY, // Hozzáadva
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -66,8 +71,9 @@ const Map: React.FC<MapProps> = ({
     const mouseX = event.clientX - mapRect.left;
     const mouseY = event.clientY - mapRect.top;
 
-    const gridX = Math.floor(mouseX / cellSizePx);
-    const gridY = Math.floor(mouseY / cellSizePx);
+    // Figyelembe vesszük az eltolást a rács koordinátáinak kiszámításakor
+    const gridX = Math.floor((mouseX - mapOffsetX) / cellSizePx);
+    const gridY = Math.floor((mouseY - mapOffsetY) / cellSizePx);
 
     if (isPlacingBuilding && ghostBuildingCoords) {
       onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
@@ -93,7 +99,12 @@ const Map: React.FC<MapProps> = ({
   return (
     <div
       className="relative border border-gray-300 dark:border-gray-700 bg-green-200 dark:bg-green-800 overflow-hidden"
-      style={{ width: mapWidthPx, height: mapHeightPx }}
+      style={{
+        width: mapWidthPx,
+        height: mapHeightPx,
+        transform: `translate(${mapOffsetX}px, ${mapOffsetY}px)`, // Térkép eltolása
+        cursor: isPlacingBuilding || isPlacingFarmland ? "crosshair" : "grab", // Kurzor változtatása
+      }}
       onMouseMove={onMapMouseMove}
       onClick={handleMapClickInternal}
     >
