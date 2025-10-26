@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { User, Home } from "lucide-react";
+import { User, Home, Hammer, Briefcase } from "lucide-react";
+import { Progress } from "@/components/ui/progress"; // Import Progress component
 
 interface BuildingProps {
   id: string;
@@ -9,18 +10,39 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house";
+  type: "house" | "office"; // Új típus
   cellSizePx: number;
-  rentalPrice?: number;
   onClick: (buildingId: string) => void;
-  currentResidents: number;
-  maxResidents: number;
+  rentalPrice?: number;
+  salary?: number; // Új prop irodákhoz
+  capacity: number; // Max lakók/dolgozók
+  occupancy: number; // Aktuális lakók/dolgozók
   isRentedByPlayer: boolean;
   isOwnedByPlayer: boolean;
-  isGhost?: boolean; // Új prop a szellem épülethez
+  isGhost?: boolean;
+  isUnderConstruction?: boolean; // Új prop
+  buildProgress?: number; // Új prop
+  isPlayerEmployedHere?: boolean; // Új prop irodákhoz
 }
 
-const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cellSizePx, onClick, currentResidents, maxResidents, isRentedByPlayer, isOwnedByPlayer, isGhost = false }) => {
+const Building: React.FC<BuildingProps> = ({
+  id,
+  x,
+  y,
+  width,
+  height,
+  type,
+  cellSizePx,
+  onClick,
+  occupancy,
+  capacity,
+  isRentedByPlayer,
+  isOwnedByPlayer,
+  isGhost = false,
+  isUnderConstruction = false,
+  buildProgress = 0,
+  isPlayerEmployedHere = false,
+}) => {
   const style: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
@@ -30,41 +52,71 @@ const Building: React.FC<BuildingProps> = ({ id, x, y, width, height, type, cell
   };
 
   let content;
-  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative";
+  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
 
   if (isGhost) {
-    classes += " bg-blue-400 opacity-50 pointer-events-none"; // Átlátszó és nem kattintható
+    classes += " bg-blue-400 opacity-50 pointer-events-none";
+  } else if (isUnderConstruction) {
+    classes += " bg-gray-600 opacity-70"; // Építés alatt álló épület
+    content = (
+      <div className="flex flex-col items-center justify-center h-full w-full">
+        <Hammer className="h-6 w-6 text-white mb-1" />
+        <span className="text-white text-xs">Épül...</span>
+        <Progress value={buildProgress} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
+        <span className="text-white text-xs">{Math.floor(buildProgress)}%</span>
+      </div>
+    );
   } else {
     classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
-  }
-
-  switch (type) {
-    case "house":
-      content = (
-        <>
-          Ház
-          {!isGhost && currentResidents > 0 && (
-            <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
-              {Array.from({ length: currentResidents }).map((_, index) => (
-                <User key={index} className="h-3 w-3 text-blue-200" />
-              ))}
-            </div>
-          )}
-          {!isGhost && isRentedByPlayer && (
-            <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
-          )}
-          {!isGhost && isOwnedByPlayer && (
-            <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
-          )}
-        </>
-      );
-      break;
-    default:
-      content = "Ismeretlen épület";
+    switch (type) {
+      case "house":
+        content = (
+          <>
+            Ház
+            {occupancy > 0 && (
+              <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+                {Array.from({ length: occupancy }).map((_, index) => (
+                  <User key={index} className="h-3 w-3 text-blue-200" />
+                ))}
+              </div>
+            )}
+            {isRentedByPlayer && (
+              <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
+            )}
+            {isOwnedByPlayer && (
+              <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+            )}
+          </>
+        );
+        break;
+      case "office":
+        classes = classes.replace("bg-stone-400", "bg-blue-600"); // Kék szín az irodának
+        content = (
+          <>
+            Iroda
+            {occupancy > 0 && (
+              <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+                {Array.from({ length: occupancy }).map((_, index) => (
+                  <Briefcase key={index} className="h-3 w-3 text-white" />
+                ))}
+              </div>
+            )}
+            {isOwnedByPlayer && (
+              <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+            )}
+            {isPlayerEmployedHere && (
+              <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
+            )}
+          </>
+        );
+        break;
+      default:
+        content = "Ismeretlen épület";
+    }
   }
 
   return (
-    <div style={style} className={classes} onClick={isGhost ? undefined : () => onClick(id)}>
+    <div style={style} className={classes} onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}>
       {content}
     </div>
   );

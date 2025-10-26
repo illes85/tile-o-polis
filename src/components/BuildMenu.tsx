@@ -4,23 +4,24 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DollarSign, Hammer } from "lucide-react";
+import { DollarSign, Hammer, Users, Briefcase } from "lucide-react"; // Importáljuk a Users és Briefcase ikonokat
 
-interface BuildingOption {
-  type: string;
+export interface BuildingOption {
+  type: "house" | "office"; // Új típus
   name: string;
   cost: number;
   duration: number; // in ms
   width: number;
   height: number;
-  rentalPrice: number;
-  maxResidents: number;
+  rentalPrice?: number; // Házakhoz
+  salary?: number; // Irodákhoz
+  capacity: number; // Max lakók/dolgozók
 }
 
 interface BuildMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectBuilding: (buildingType: string) => void;
+  onSelectBuilding: (buildingType: "house" | "office") => void;
   availableBuildings: BuildingOption[];
   playerMoney: number;
   isBuildingInProgress: boolean;
@@ -52,6 +53,16 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
                 <p className="text-sm text-muted-foreground flex items-center">
                   <Hammer className="h-4 w-4 mr-1 text-gray-500" /> {building.duration / 1000} másodperc
                 </p>
+                {building.type === "house" && building.rentalPrice !== undefined && (
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <Users className="h-4 w-4 mr-1 text-gray-500" /> Max lakók: {building.capacity}
+                  </p>
+                )}
+                {building.type === "office" && building.salary !== undefined && (
+                  <p className="text-sm text-muted-foreground flex items-center">
+                    <Briefcase className="h-4 w-4 mr-1 text-gray-500" /> Max dolgozók: {building.capacity}
+                  </p>
+                )}
               </div>
               <Button
                 onClick={() => onSelectBuilding(building.type)}

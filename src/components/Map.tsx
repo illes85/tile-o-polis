@@ -2,7 +2,7 @@
 
 import React from "react";
 import Building from "./Building";
-import { BuildingOption } from "./BuildMenu"; // Importáljuk a BuildingOption típust
+import { BuildingOption } from "./BuildMenu";
 
 export interface BuildingData {
   id: string;
@@ -10,12 +10,16 @@ export interface BuildingData {
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house"; // vagy más típusok később
-  rentalPrice?: number; // Hozzáadva: bérleti díj
-  maxResidents: number; // Új: maximális lakók száma
-  currentResidents: number; // Új: aktuális lakók száma
-  isRentedByPlayer: boolean; // Új: jelzi, ha az aktuális játékos bérelte
-  isOwnedByPlayer: boolean; // Új: jelzi, ha az aktuális játékos tulajdonában van
+  type: "house" | "office"; // Új típus
+  rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
+  salary?: number; // Új: fizetés (irodákhoz)
+  capacity: number; // Max lakók/dolgozók száma
+  occupancy: number; // Aktuális lakók/dolgozók száma
+  isRentedByPlayer: boolean; // Jelzi, ha az aktuális játékos bérelte (házakhoz)
+  isOwnedByPlayer: boolean; // Jelzi, ha az aktuális játékos tulajdonában van
+  isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
+  buildProgress?: number; // Új: építési folyamat (0-100)
+  isPlayerEmployedHere: boolean; // Új: jelzi, ha a játékos itt dolgozik (irodákhoz)
 }
 
 interface MapProps {
@@ -23,11 +27,11 @@ interface MapProps {
   gridSize: number; // pl. 20 a 20x20-as rácshoz
   cellSizePx: number; // pl. 40 pixel
   onBuildingClick: (buildingId: string) => void;
-  isPlacingBuilding: boolean; // Új prop
-  buildingToPlace: BuildingOption | null; // Új prop
-  ghostBuildingCoords: { x: number; y: number } | null; // Új prop
-  onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void; // Új prop
-  onMapClick: (x: number, y: number) => void; // Új prop
+  isPlacingBuilding: boolean;
+  buildingToPlace: BuildingOption | null;
+  ghostBuildingCoords: { x: number; y: number } | null;
+  onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMapClick: (x: number, y: number) => void;
 }
 
 const Map: React.FC<MapProps> = ({
@@ -72,14 +76,17 @@ const Map: React.FC<MapProps> = ({
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as "house"} // Feltételezzük, hogy a típus 'house'
+          type={buildingToPlace.type as "house" | "office"}
           cellSizePx={cellSizePx}
-          onClick={() => {}} // A szellem épület nem kattintható
-          currentResidents={0}
-          maxResidents={0}
+          onClick={() => {}}
+          occupancy={0}
+          capacity={buildingToPlace.capacity}
           isRentedByPlayer={false}
-          isOwnedByPlayer={true} // A szellem épület a játékos építési szándékát jelzi
+          isOwnedByPlayer={true}
           isGhost={true}
+          isUnderConstruction={false} // A szellem épület nem építés alatt áll
+          buildProgress={0}
+          isPlayerEmployedHere={false}
         />
       )}
     </div>
