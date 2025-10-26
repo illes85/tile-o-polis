@@ -16,9 +16,9 @@ import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout } from "lucide-react"; // Importáljuk a Sprout ikont is
+import { RotateCw, ChevronLeft, ChevronRight, Sprout } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
-import MoneyHistory, { Transaction } from "@/components/MoneyHistory"; // Importáljuk a MoneyHistory komponenst és a Transaction interfészt
+import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
 const MAP_GRID_SIZE = 20;
 const CELL_SIZE_PX = 40;
@@ -48,7 +48,7 @@ interface Player {
     brick: number;
   };
   workplace: string;
-  workplaceSalary: number; // Új: munkahelyi fizetés
+  workplaceSalary: number;
 }
 
 const availableBuildingOptions: BuildingOption[] = [
@@ -186,17 +186,17 @@ const Game = () => {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
   const [isBuildingInProgress, setIsBuildingInProgress] = useState(false);
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
-  const [isMoneyHistoryOpen, setIsMoneyHistoryOpen] = useState(false); // Új: pénzmozgás előzmények dialógus állapota
+  const [isMoneyHistoryOpen, setIsMoneyHistoryOpen] = useState(false);
 
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
   const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
   const [currentBuildingRotation, setCurrentBuildingRotation] = useState<number>(0);
 
-  const [isPlacingFarmland, setIsPlacingFarmland] = useState(false); // Új: szántóföld építési mód
-  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null); // Új: a kiválasztott farm ID-ja
+  const [isPlacingFarmland, setIsPlacingFarmland] = useState(false);
+  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]); // Új: tranzakciók naplója
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
@@ -342,7 +342,7 @@ const Game = () => {
       }
       setBuildings(initialBuildings);
     }
-  }, [buildings.length, initialBuildingsState]); // Függőségi tömb frissítve
+  }, [buildings.length, initialBuildingsState]);
 
   useEffect(() => {
     const gameTickTimer = setInterval(() => {
@@ -363,7 +363,7 @@ const Game = () => {
         playerEmployedBuildings.forEach(building => {
           if (building.salary) {
             totalSalary += building.salary;
-            currentWorkplaceSalary = building.salary; // Feltételezzük, hogy egy játékosnak egy munkahelye van
+            currentWorkplaceSalary = building.salary;
           }
         });
 
@@ -408,7 +408,6 @@ const Game = () => {
   const handleBuildingClick = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     setSelectedBuilding(building || null);
-    // Kilépés a szántóföld építési módból, ha más épületre kattintunk
     setIsPlacingFarmland(false);
     setSelectedFarmId(null);
   };
@@ -791,7 +790,7 @@ const Game = () => {
           Pénzmozgások
         </Button>
         <Button
-          onClick={handleGoToMenu} // Navigálás a főmenübe, átadva az állapotot
+          onClick={handleGoToMenu}
           className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
         >
           Menü
@@ -806,13 +805,7 @@ const Game = () => {
 
   const mainContent = (
     <div className="flex flex-col h-full items-center justify-center">
-      <h1 className="text-3xl font-bold mb-6 text-primary">Üdv a játékban!</h1>
-      <p className="text-lg text-muted-foreground mb-4">
-        Ez a játék világa. Itt fognak megjelenni az interakciók, a térkép és a különböző események.
-      </p>
-      <p className="text-md text-muted-foreground mb-6">
-        Válaszd ki a szerepköröd az oldalsávon, és kezdődjön a kaland!
-      </p>
+      {/* Eltávolított szakasz */}
       <div className="flex-grow flex items-center justify-center">
         <Map
           buildings={buildings}
@@ -879,7 +872,7 @@ const Game = () => {
                   onClick={() => {
                     setIsPlacingFarmland(true);
                     setSelectedFarmId(selectedBuilding.id);
-                    setSelectedBuilding(null); // Bezárjuk a dialógust
+                    setSelectedBuilding(null);
                     showSuccess(`Kattints a farm területére szántóföld csempe létrehozásához (${FARMLAND_COST_PER_TILE} pénz/csempe).`);
                   }}
                   className="w-full mt-4 bg-green-500 hover:bg-green-600"
