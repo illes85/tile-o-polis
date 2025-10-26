@@ -65,8 +65,11 @@ const availableBuildingOptions: BuildingOption[] = [
 
 const Game = () => {
   const [players, setPlayers] = useState<Player[]>([
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, workplace: "Munkanélküli" }, // Frissítve
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, workplace: "Munkanélküli" }, // Frissítve
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1 }, workplace: "Munkanélküli" },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0 }, workplace: "Munkanélküli" },
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2 }, workplace: "Munkanélküli" }, // Új játékos
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0 }, workplace: "Munkanélküli" }, // Új játékos
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1 }, workplace: "Munkanélküli" }, // Új játékos
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -465,7 +468,7 @@ const Game = () => {
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isBuildingInProgress || isPlacingBuilding}
+          disabled={isPlacingBuilding} {/* isBuildingInProgress eltávolítva */}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
