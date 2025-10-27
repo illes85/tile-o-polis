@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import MusicPlayer from "@/components/MusicPlayer";
+import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer"; // Importáljuk az SfxPlayer-t
 import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
@@ -42,6 +43,7 @@ const ROAD_BUILD_DURATION_MS = 6000; // Új konstans az útépítés idejéhez (
 const ROAD_STONE_COST_PER_TILE = 1; // Új konstans az útépítés kő költségéhez
 const FARMLAND_HOE_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje kapával (5 másodperc)
 const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral
+const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
 
 interface Player {
   id: string;
@@ -233,7 +235,7 @@ const Game = () => {
   const [lastMousePos, setLastMousePos] = useState<{ x: number; y: number } | null>(null);
 
   // Hangeffekt referencia
-  const currentSfxAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sfxPlayerRef = useRef<SfxPlayerRef>(null);
 
   // Összesített placement mód
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad;
@@ -332,6 +334,36 @@ const Game = () => {
     }
     
     return true;
+  };
+
+  // Segédfüggvény a távolság ellenőrzéséhez
+  const getDistance = (x1: number, y1: number, x2: number, y2: number) => {
+    return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
+  };
+
+  const isFarmlandWithinRange = (farmX: number, farmY: number, farmWidth: number, farmHeight: number, farmRotation: number, targetX: number, targetY: number): boolean => {
+    const effectiveFarmWidth = (farmRotation === 90 || farmRotation === 270) ? farmHeight : farmWidth;
+    const effectiveFarmHeight = (farmRotation === 90 || farmRotation === 270) ? farmWidth : farmHeight;
+
+    // Ellenőrizzük, hogy a targetX, targetY a farm épület 3 mezőnyi körzetében van-e
+    // A farm épület határai
+    const farmMinX = farmX;
+    const farmMaxX = farmX + effectiveFarmWidth - 1;
+    const farmMinY = farmY;
+    const farmMaxY = farmY + effectiveFarmHeight - 1;
+
+    // Kiterjesztett határok a FARMLAND_MAX_DISTANCE alapján
+    const extendedMinX = farmMinX - FARMLAND_MAX_DISTANCE;
+    const extendedMaxX = farmMaxX + FARMLAND_MAX_DISTANCE;
+    const extendedMinY = farmMinY - FARMLAND_MAX_DISTANCE;
+    const extendedMaxY = farmMaxY + FARMLAND_MAX_DISTANCE;
+
+    return (
+      targetX >= extendedMinX &&
+      targetX <= extendedMaxX &&
+      targetY >= extendedMinY &&
+      targetY <= extendedMaxY
+    );
   };
 
   useEffect(() => {
@@ -652,14 +684,24 @@ const Game = () => {
       const maxY = Math.max(startGridY, gridY);
 
       const newGhostTiles: { x: number; y: number }[] = [];
+      const farm = buildings.find(b => b.id === selectedFarmId);
+
       for (let x = minX; x <= maxX; x++) {
         for (let y = minY; y <= maxY; y++) {
-          newGhostTiles.push({ x, y });
+          // Ellenőrizzük a távolságot a farmtól
+          if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, x, y)) {
+            newGhostTiles.push({ x, y });
+          }
         }
       }
       setGhostFarmlandTiles(newGhostTiles);
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
-      setGhostBuildingCoords({ x: gridX, y: gridY });
+      const farm = buildings.find(b => b.id === selectedFarmId);
+      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
+        setGhostBuildingCoords({ x: gridX, y: gridY });
+      } else {
+        setGhostBuildingCoords(null); // Ha kívül esik a hatókörön, ne jelenjen meg szellem csempe
+      }
     } else if (isPlacingRoad && isRoadDragging && lastMousePos) { // Folyamatos útépítés húzással
       const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
@@ -710,7 +752,14 @@ const Game = () => {
       const mapRect = event.currentTarget.getBoundingClientRect();
       const gridX = Math.floor((event.clientX - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const gridY = Math.floor((event.clientY - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
-      setGhostFarmlandTiles([{ x: gridX, y: gridY }]); // Kezdő csempe hozzáadása
+      
+      const farm = buildings.find(b => b.id === selectedFarmId);
+      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
+        setGhostFarmlandTiles([{ x: gridX, y: gridY }]); // Kezdő csempe hozzáadása
+      } else {
+        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni!`);
+        setIsFarmlandDragging(false); // Megszakítjuk a húzást, ha kívül esik
+      }
     } else if (!isPlacementMode) { // Csak akkor engedélyezzük a húzást, ha nincs építési módban
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
@@ -768,16 +817,9 @@ const Game = () => {
         setBuildings(prevBuildings => [...prevBuildings, ...newRoads]);
         const toastId = showLoading(`Út építése folyamatban (${ghostRoadTiles.length} csempe)...`);
 
-        if (sfxUrls["construction-01"]) {
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-          }
-          const audio = new Audio(sfxUrls["construction-01"]);
-          audio.loop = true;
-          audio.volume = 0.5;
-          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
-          currentSfxAudioRef.current = audio;
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx(); // Leállítjuk az előző SFX-et, ha volt
+          sfxPlayerRef.current.playSfx("construction-01", true); // Építési hang loopolva
         }
 
         const progressIntervals: NodeJS.Timeout[] = [];
@@ -812,10 +854,8 @@ const Game = () => {
           );
           showSuccess(`Út sikeresen felépült (${ghostRoadTiles.length} csempe)!`);
 
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-            currentSfxAudioRef.current = null;
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
           }
         }, ROAD_BUILD_DURATION_MS);
       }
@@ -876,16 +916,9 @@ const Game = () => {
         );
         const toastId = showLoading(`Szántóföld építése folyamatban (${ghostFarmlandTiles.length} csempe, ${toolName})...`);
 
-        if (sfxUrls["construction-01"]) {
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-          }
-          const audio = new Audio(sfxUrls["construction-01"]);
-          audio.loop = true;
-          audio.volume = 0.5;
-          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
-          currentSfxAudioRef.current = audio;
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+          sfxPlayerRef.current.playSfx("construction-01", true);
         }
 
         const progressIntervals: NodeJS.Timeout[] = [];
@@ -934,10 +967,8 @@ const Game = () => {
           );
           showSuccess(`Szántóföld sikeresen létrehozva (${ghostFarmlandTiles.length} csempe, ${toolName})!`);
 
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-            currentSfxAudioRef.current = null;
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
           }
         }, buildDuration);
       }
@@ -1000,18 +1031,10 @@ const Game = () => {
         setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
         const toastId = showLoading(`${buildingToPlace.name} építése folyamatban...`);
 
-        // Hangeffekt lejátszása
-        const sfxKey = buildingToPlace.type === "house" ? "construction-01" : "construction-02";
-        if (sfxUrls[sfxKey]) {
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-          }
-          const audio = new Audio(sfxUrls[sfxKey]);
-          audio.loop = true;
-          audio.volume = 0.5; // Kicsit halkabban
-          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
-          currentSfxAudioRef.current = audio;
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+          const sfxKey = buildingToPlace.type === "house" ? "construction-01" : "construction-02";
+          sfxPlayerRef.current.playSfx(sfxKey, true);
         }
 
         let currentProgress = 0;
@@ -1042,11 +1065,8 @@ const Game = () => {
           );
           showSuccess(`Új ${buildingToPlace.name} sikeresen felépült!`);
 
-          // Hangeffekt leállítása
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-            currentSfxAudioRef.current = null;
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
           }
         }, buildingToPlace.duration);
       } else {
@@ -1093,17 +1113,9 @@ const Game = () => {
         setBuildings(prevBuildings => [...prevBuildings, newRoad]);
         const toastId = showLoading(`Út építése folyamatban...`);
 
-        // Hangeffekt lejátszása
-        if (sfxUrls["construction-01"]) {
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-          }
-          const audio = new Audio(sfxUrls["construction-01"]);
-          audio.loop = true;
-          audio.volume = 0.5;
-          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
-          currentSfxAudioRef.current = audio;
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+          sfxPlayerRef.current.playSfx("construction-01", true);
         }
 
         let currentProgress = 0;
@@ -1134,10 +1146,8 @@ const Game = () => {
           );
           showSuccess("Út csempe sikeresen elhelyezve!");
 
-          if (currentSfxAudioRef.current) {
-            currentSfxAudioRef.current.pause();
-            currentSfxAudioRef.current.currentTime = 0;
-            currentSfxAudioRef.current = null;
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
           }
         }, ROAD_BUILD_DURATION_MS);
       } else {
@@ -1147,6 +1157,11 @@ const Game = () => {
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (!farm || farm.type !== "farm" || farm.ownerId !== currentPlayerId) {
         showError("Ez nem a te farmod, vagy nem farm típusú épület!");
+        return;
+      }
+
+      if (!isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, x, y)) {
+        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni!`);
         return;
       }
 
@@ -1198,16 +1213,9 @@ const Game = () => {
       );
       const toastId = showLoading(`Szántóföld építése folyamatban (${toolName})...`);
 
-      if (sfxUrls["construction-01"]) {
-        if (currentSfxAudioRef.current) {
-          currentSfxAudioRef.current.pause();
-          currentSfxAudioRef.current.currentTime = 0;
-        }
-        const audio = new Audio(sfxUrls["construction-01"]);
-        audio.loop = true;
-        audio.volume = 0.5;
-        audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
-        currentSfxAudioRef.current = audio;
+      if (sfxPlayerRef.current) {
+        sfxPlayerRef.current.stopAllSfx();
+        sfxPlayerRef.current.playSfx("construction-01", true);
       }
 
       let currentProgress = 0;
@@ -1250,10 +1258,8 @@ const Game = () => {
         );
         showSuccess(`Szántóföld csempe sikeresen létrehozva (${toolName})!`);
 
-        if (currentSfxAudioRef.current) {
-          currentSfxAudioRef.current.pause();
-          currentSfxAudioRef.current.currentTime = 0;
-          currentSfxAudioRef.current = null;
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
         }
       }, buildDuration);
     }
@@ -1270,10 +1276,8 @@ const Game = () => {
     setBuildingToPlace(null);
     setGhostBuildingCoords(null);
     showError("Építés megszakítva.");
-    if (currentSfxAudioRef.current) {
-      currentSfxAudioRef.current.pause();
-      currentSfxAudioRef.current.currentTime = 0;
-      currentSfxAudioRef.current = null;
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
     }
   };
 
@@ -1284,6 +1288,9 @@ const Game = () => {
     setIsFarmlandDragging(false);
     setGhostBuildingCoords(null);
     showError("Szántóföld építés megszakítva.");
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
+    }
   };
 
   const cancelRoadPlacement = () => { // Új: útépítés megszakítása
@@ -1292,6 +1299,9 @@ const Game = () => {
     setGhostRoadTiles([]);
     setGhostBuildingCoords(null);
     showError("Útépítés megszakítva.");
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
+    }
   };
 
   const handleNextPlayer = () => {
@@ -1409,6 +1419,7 @@ const Game = () => {
         </Button>
       </div>
       <MusicPlayer tracks={musicTracks} />
+      <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} /> {/* SFX lejátszó hozzáadása */}
       <div className="mt-auto">
         <MadeWithDyad />
       </div>
