@@ -24,6 +24,11 @@ export interface BuildingData {
   buildProgress?: number; // Új: építési folyamat (0-100)
   rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
   farmlandTiles?: FarmlandTile[]; // Új: szántóföld csempék (csak farmokhoz)
+  // Új propok az út csempékhez
+  hasRoadNeighborTop?: boolean;
+  hasRoadNeighborBottom?: boolean;
+  hasRoadNeighborLeft?: boolean;
+  hasRoadNeighborRight?: boolean;
 }
 
 interface MapProps {
@@ -100,6 +105,10 @@ const Map: React.FC<MapProps> = ({
     }
   };
 
+  const isRoadAt = (x: number, y: number) => {
+    return buildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction && !b.isGhost);
+  };
+
   return (
     <div
       className="relative border border-gray-300 dark:border-gray-700 bg-green-200 dark:bg-green-800 overflow-hidden"
@@ -112,15 +121,28 @@ const Map: React.FC<MapProps> = ({
       onMouseMove={onMapMouseMove}
       onClick={handleMapClickInternal}
     >
-      {buildings.map((building) => (
-        <Building
-          key={building.id}
-          {...building}
-          cellSizePx={cellSizePx}
-          onClick={onBuildingClick}
-          currentPlayerId={currentPlayerId} // Átadjuk az aktuális játékos ID-ját
-        />
-      ))}
+      {buildings.map((building) => {
+        const commonProps = {
+          key: building.id,
+          ...building,
+          cellSizePx: cellSizePx,
+          onClick: onBuildingClick,
+          currentPlayerId: currentPlayerId,
+        };
+
+        if (building.type === "road") {
+          return (
+            <Building
+              {...commonProps}
+              hasRoadNeighborTop={isRoadAt(building.x, building.y - 1)}
+              hasRoadNeighborBottom={isRoadAt(building.x, building.y + 1)}
+              hasRoadNeighborLeft={isRoadAt(building.x - 1, building.y)}
+              hasRoadNeighborRight={isRoadAt(building.x + 1, building.y)}
+            />
+          );
+        }
+        return <Building {...commonProps} />;
+      })}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
           id="ghost-building"
@@ -158,17 +180,30 @@ const Map: React.FC<MapProps> = ({
         </div>
       )}
       {isPlacingRoad && ghostBuildingCoords && ( // Új: szellem út csempe
-        <div
-          className="absolute bg-gray-700 border border-gray-800 opacity-50 pointer-events-none"
-          style={{
-            left: ghostBuildingCoords.x * cellSizePx,
-            top: ghostBuildingCoords.y * cellSizePx,
-            width: cellSizePx,
-            height: cellSizePx,
-          }}
-        >
-          <Route className="h-full w-full text-gray-400 p-1" />
-        </div>
+        <Building
+          id="ghost-road"
+          name="Út"
+          x={ghostBuildingCoords.x}
+          y={ghostBuildingCoords.y}
+          width={1}
+          height={1}
+          type="road"
+          cellSizePx={cellSizePx}
+          onClick={() => {}}
+          capacity={0}
+          ownerId={currentPlayerId}
+          residentIds={[]}
+          employeeIds={[]}
+          isGhost={true}
+          isUnderConstruction={false}
+          buildProgress={0}
+          currentPlayerId={currentPlayerId}
+          rotation={0}
+          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1)}
+          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1)}
+          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y)}
+          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y)}
+        />
       )}
     </div>
   );

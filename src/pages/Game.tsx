@@ -888,20 +888,6 @@ const Game = () => {
   const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm"));
   const ownedMayorsOffice = buildings.find(b => b.ownerId === currentPlayerId && b.name === "Polgármesteri Hivatal");
 
-  // Teszt gomb a hangeffektekhez
-  const handleTestSfxPlay = (sfxKey: "construction-01" | "construction-02") => {
-    if (sfxUrls[sfxKey]) {
-      const audio = new Audio(sfxUrls[sfxKey]);
-      audio.volume = 0.7;
-      audio.play().catch(error => {
-        console.error(`Hiba a '${sfxKey}' hangeffekt lejátszásakor:`, error);
-        showError(`Nem sikerült lejátszani a '${sfxKey}' hangeffektet. Ellenőrizd a konzolt!`);
-      });
-    } else {
-      showError(`A '${sfxKey}' hangeffekt URL nem található.`);
-    }
-  };
-
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -939,6 +925,7 @@ const Game = () => {
         inventory={currentPlayer.inventory}
         workplace={currentPlayer.workplace}
         workplaceSalary={currentPlayer.workplaceSalary}
+        onPlayerNameChange={updatePlayerName}
         ownedBusinesses={ownedBusinesses}
         playerSettingsButton={
           <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
@@ -989,19 +976,6 @@ const Game = () => {
           className="w-full bg-yellow-600 hover:bg-yellow-700 text-white mt-2"
         >
           Pénzmozgások
-        </Button>
-        {/* Teszt gombok a hangeffektekhez */}
-        <Button
-          onClick={() => handleTestSfxPlay("construction-01")}
-          className="w-full bg-gray-500 hover:bg-gray-600 text-white mt-2"
-        >
-          Teszt: Ház építési hang
-        </Button>
-        <Button
-          onClick={() => handleTestSfxPlay("construction-02")}
-          className="w-full bg-gray-500 hover:bg-gray-600 text-white mt-2"
-        >
-          Teszt: Vállalkozás építési hang
         </Button>
         <Button
           onClick={handleGoToMenu}

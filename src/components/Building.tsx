@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route } from "lucide-react"; // Importáljuk a Leaf, Tent, Factory, Sprout, Building és Road ikonokat
-import { Progress } from "@/components/ui/progress"; // Import Progress component
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
 
 export interface FarmlandTile {
   x: number;
@@ -12,32 +13,37 @@ export interface FarmlandTile {
 
 interface BuildingProps {
   id: string;
-  name: string; // Új: épület neve
+  name: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road"; // Új típus: farmland és road
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road";
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
-  salary?: number; // Új prop irodákhoz
-  capacity: number; // Max lakók/dolgozók
-  ownerId?: string; // Új: tulajdonos ID-ja
-  renterId?: string; // Új: bérlő ID-ja
-  residentIds: string[]; // Új: lakók ID-i
-  employeeIds: string[]; // Új: dolgozók ID-i
+  salary?: number;
+  capacity: number;
+  ownerId?: string;
+  renterId?: string;
+  residentIds: string[];
+  employeeIds: string[];
   isGhost?: boolean;
-  isUnderConstruction?: boolean; // Új prop
-  buildProgress?: number; // Új prop
-  currentPlayerId: string; // Új: az aktuális játékos ID-ja
-  rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
-  farmlandTiles?: FarmlandTile[]; // Új: szántóföld csempék (csak farmokhoz)
+  isUnderConstruction?: boolean;
+  buildProgress?: number;
+  currentPlayerId: string;
+  rotation: number;
+  farmlandTiles?: FarmlandTile[];
+  // Új propok az út csempékhez
+  hasRoadNeighborTop?: boolean;
+  hasRoadNeighborBottom?: boolean;
+  hasRoadNeighborLeft?: boolean;
+  hasRoadNeighborRight?: boolean;
 }
 
 const Building: React.FC<BuildingProps> = ({
   id,
-  name, // Hozzáadva a name prop
+  name,
   x,
   y,
   width,
@@ -56,15 +62,19 @@ const Building: React.FC<BuildingProps> = ({
   currentPlayerId,
   rotation,
   farmlandTiles,
+  hasRoadNeighborTop = false,
+  hasRoadNeighborBottom = false,
+  hasRoadNeighborLeft = false,
+  hasRoadNeighborRight = false,
 }) => {
-  const style: React.CSSProperties = {
+  const baseStyle: React.CSSProperties = {
     position: "absolute",
     left: x * cellSizePx,
     top: y * cellSizePx,
     width: width * cellSizePx,
     height: height * cellSizePx,
-    transform: `rotate(${rotation}deg)`, // Forgatás alkalmazása
-    transformOrigin: 'center center', // Középpont körüli forgatás
+    transform: `rotate(${rotation}deg)`,
+    transformOrigin: 'center center',
   };
 
   const occupancy = type === "house" ? residentIds.length : employeeIds.length;
@@ -74,11 +84,12 @@ const Building: React.FC<BuildingProps> = ({
 
   let content;
   let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+  let innerStyle: React.CSSProperties = {};
 
   if (isGhost) {
     classes += " bg-blue-400 opacity-50 pointer-events-none";
   } else if (isUnderConstruction) {
-    classes += " bg-gray-600 opacity-70"; // Építés alatt álló épület
+    classes += " bg-gray-600 opacity-70";
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <Hammer className="h-6 w-6 text-white mb-1" />
@@ -93,8 +104,8 @@ const Building: React.FC<BuildingProps> = ({
       case "house":
         content = (
           <>
-            {name === "Sátor" ? <Tent className="h-4 w-4 mb-1" /> : null} {/* Sátor ikon csak a Sátorhoz */}
-            <span className="text-white text-xs">{name}</span> {/* Az épület neve */}
+            {name === "Sátor" ? <Tent className="h-4 w-4 mb-1" /> : null}
+            <span className="text-white text-xs">{name}</span>
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
@@ -112,7 +123,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "office":
-        classes = classes.replace("bg-stone-400", "bg-blue-600"); // Kék szín az irodának
+        classes = classes.replace("bg-stone-400", "bg-blue-600");
         content = (
           <>
             {name === "Polgármesteri Hivatal" ? <BuildingIcon className="h-4 w-4 mb-1" /> : <Briefcase className="h-4 w-4 mb-1" />}
@@ -134,7 +145,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "forestry":
-        classes = classes.replace("bg-stone-400", "bg-green-700"); // Zöld szín az erdészháznak
+        classes = classes.replace("bg-stone-400", "bg-green-700");
         content = (
           <>
             Erdészház
@@ -154,8 +165,8 @@ const Building: React.FC<BuildingProps> = ({
           </>
         );
         break;
-      case "farm": // Új farm típus
-        classes = classes.replace("bg-stone-400", "bg-yellow-600"); // Sárga szín a farmnak
+      case "farm":
+        classes = classes.replace("bg-stone-400", "bg-yellow-600");
         content = (
           <>
             Farm
@@ -194,21 +205,81 @@ const Building: React.FC<BuildingProps> = ({
           </>
         );
         break;
-      case "farmland": // Szántóföld csempe
+      case "farmland":
         classes = "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
         content = <Sprout className="h-full w-full text-green-300 p-1" />;
         break;
-      case "road": // Új út típus
-        classes = "bg-gray-700 border border-gray-800 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
-        content = <Route className="h-full w-full text-gray-400 p-1" />;
-        break;
+      case "road":
+        // Alap stílus: kicsit kisebb, lekerekített szürke négyszög
+        classes = cn(
+          "absolute bg-gray-700 rounded-md",
+          isGhost && "opacity-50 pointer-events-none"
+        );
+        
+        // Az "összeolvadás" logikája
+        const roadWidth = cellSizePx * 0.6; // Alap szélesség
+        const roadHeight = cellSizePx * 0.6; // Alap magasság
+        const offset = (cellSizePx - roadWidth) / 2; // Középre igazítás
+
+        innerStyle = {
+          left: offset,
+          top: offset,
+          width: roadWidth,
+          height: roadHeight,
+        };
+
+        if (hasRoadNeighborTop) {
+          innerStyle.top = 0;
+          innerStyle.height = (innerStyle.height as number) + offset;
+          classes = cn(classes, "rounded-t-none");
+        }
+        if (hasRoadNeighborBottom) {
+          innerStyle.height = (innerStyle.height as number) + offset;
+          classes = cn(classes, "rounded-b-none");
+        }
+        if (hasRoadNeighborLeft) {
+          innerStyle.left = 0;
+          innerStyle.width = (innerStyle.width as number) + offset;
+          classes = cn(classes, "rounded-l-none");
+        }
+        if (hasRoadNeighborRight) {
+          innerStyle.width = (innerStyle.width as number) + offset;
+          classes = cn(classes, "rounded-r-none");
+        }
+
+        content = (
+          <div className="h-full w-full flex items-center justify-center">
+            <Route className="h-full w-full text-gray-400 p-1" />
+          </div>
+        );
+        
+        return (
+          <div style={baseStyle} className="absolute">
+            <div
+              style={innerStyle}
+              className={cn(
+                "absolute bg-gray-700 rounded-md",
+                isGhost && "opacity-50 pointer-events-none",
+                !hasRoadNeighborTop && "rounded-t-md",
+                !hasRoadNeighborBottom && "rounded-b-md",
+                !hasRoadNeighborLeft && "rounded-l-md",
+                !hasRoadNeighborRight && "rounded-r-md",
+                hasRoadNeighborTop && hasRoadNeighborBottom && "rounded-none", // Ha mindkét irányba van, akkor ne legyen lekerekítés
+                hasRoadNeighborLeft && hasRoadNeighborRight && "rounded-none"
+              )}
+              onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}
+            >
+              {content}
+            </div>
+          </div>
+        );
       default:
         content = "Ismeretlen épület";
     }
   }
 
   return (
-    <div style={style} className={classes} onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}>
+    <div style={baseStyle} className={classes} onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}>
       {content}
     </div>
   );
