@@ -27,6 +27,15 @@ const MoneyHistory: React.FC<MoneyHistoryProps> = ({ isOpen, onClose, transactio
     .filter(t => t.playerId === currentPlayerId)
     .sort((a, b) => b.timestamp - a.timestamp); // Legújabb felül
 
+  // Calculate summary
+  const totalIncome = playerTransactions
+    .filter(t => t.type === "income")
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const totalExpense = playerTransactions
+    .filter(t => t.type === "expense")
+    .reduce((sum, t) => sum + t.amount, 0);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -36,6 +45,17 @@ const MoneyHistory: React.FC<MoneyHistoryProps> = ({ isOpen, onClose, transactio
             Itt láthatod a játékosod pénzmozgásainak történetét.
           </DialogDescription>
         </DialogHeader>
+        <div className="mb-4 p-2 border rounded-md bg-gray-50 dark:bg-gray-800">
+          <h3 className="font-semibold text-lg mb-2">Összesítés:</h3>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-green-600 flex items-center"><ArrowUpCircle className="h-4 w-4 mr-1" /> Összes bevétel:</span>
+            <span className="font-bold text-green-600">{totalIncome} pénz</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-red-600 flex items-center"><ArrowDownCircle className="h-4 w-4 mr-1" /> Összes kiadás:</span>
+            <span className="font-bold text-red-600">{totalExpense} pénz</span>
+          </div>
+        </div>
         <ScrollArea className="h-[300px] w-full rounded-md border p-4">
           {playerTransactions.length === 0 ? (
             <p className="text-center text-muted-foreground">Nincsenek tranzakciók.</p>

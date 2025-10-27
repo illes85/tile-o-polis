@@ -1495,6 +1495,9 @@ const Game = () => {
                   className="w-full mt-4 bg-green-500 hover:bg-green-600"
                 >
                   Szántóföld létrehozása
+                  <span className="ml-2 text-xs opacity-80">
+                    ({FARMLAND_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" />/csempe, {FARMLAND_HOE_BUILD_DURATION_MS / 1000} mp)
+                  </span>
                 </Button>
               )}
 
@@ -1508,6 +1511,9 @@ const Game = () => {
                   className="w-full mt-4 bg-gray-500 hover:bg-gray-600"
                 >
                   Út építése
+                  <span className="ml-2 text-xs opacity-80">
+                    ({ROAD_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" /> + {ROAD_STONE_COST_PER_TILE} kő/csempe, {ROAD_BUILD_DURATION_MS / 1000} mp)
+                  </span>
                 </Button>
               )}
 
@@ -1560,6 +1566,7 @@ const Game = () => {
         playerMoney={currentPlayer.money}
         playerWood={currentPlayer.inventory.wood}
         playerBrick={currentPlayer.inventory.brick}
+        playerStone={currentPlayer.inventory.stone} // Átadjuk a kő mennyiségét
         isBuildingInProgress={isPlacingBuilding || isPlacingFarmland || isPlacingRoad} // Csak akkor inaktív, ha a játékos éppen helyez el valamit
       />
 
