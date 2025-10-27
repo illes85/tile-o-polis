@@ -311,7 +311,17 @@ const Game = () => {
     });
   };
 
-  const isAdjacentToRoad = (targetX: number, targetY: number, buildingWidth: number, buildingHeight: number, rotation: number, currentBuildings: BuildingData[]): boolean => {
+  const isRoadAt = (checkX: number, checkY: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
+    // Ellenőrizzük a már felépült utakat
+    const existingRoad = currentBuildings.some(b =>
+      b.type === "road" && b.x === checkX && b.y === checkY && !b.isUnderConstruction && !b.isGhost
+    );
+    // Ellenőrizzük a szellem út csempéket is
+    const ghostRoad = currentGhostRoadTiles.some(t => t.x === checkX && t.y === checkY);
+    return existingRoad || ghostRoad;
+  };
+
+  const isAdjacentToRoad = (targetX: number, targetY: number, buildingWidth: number, buildingHeight: number, rotation: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
     const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
     const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
 
@@ -324,10 +334,9 @@ const Game = () => {
             const checkX = x + dx;
             const checkY = y + dy;
 
-            const isRoad = currentBuildings.some(b =>
-              b.type === "road" && b.x === checkX && b.y === checkY && !b.isUnderConstruction && !b.isGhost
-            );
-            if (isRoad) return true;
+            if (isRoadAt(checkX, checkY, currentBuildings, currentGhostRoadTiles)) {
+              return true;
+            }
           }
         }
       }
@@ -342,7 +351,8 @@ const Game = () => {
     buildingHeight: number,
     rotation: number,
     buildingType: "house" | "office" | "forestry" | "farm" | "shop", // Hozzáadva a buildingType
-    currentBuildings: BuildingData[]
+    currentBuildings: BuildingData[],
+    currentGhostRoadTiles: { x: number; y: number }[] // Átadjuk a szellem út csempéket
   ): boolean => {
     const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
     const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
@@ -367,7 +377,7 @@ const Game = () => {
     // Új szabály: épületek csak út mentén épülhetnek, kivéve Sátor és Erdészház
     if (buildingType !== "house" || (buildingType === "house" && buildingWidth !== 2 && buildingHeight !== 1)) { // Sátor kivétel
       if (buildingType !== "forestry") { // Erdészház kivétel
-        if (!isAdjacentToRoad(targetX, targetY, buildingWidth, buildingHeight, rotation, currentBuildings)) {
+        if (!isAdjacentToRoad(targetX, targetY, buildingWidth, buildingHeight, rotation, currentBuildings, currentGhostRoadTiles)) {
           showError("Az épületet csak út mentén lehet elhelyezni!");
           return false;
         }
@@ -1045,7 +1055,7 @@ const Game = () => {
     const gridY = Math.floor((y - mapOffsetY) / CELL_SIZE_PX);
 
     if (isPlacingBuilding && buildingToPlace) {
-      if (canPlaceBuilding(gridX, gridY, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildingToPlace.type, buildings)) {
+      if (canPlaceBuilding(gridX, gridY, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildingToPlace.type, buildings, ghostRoadTiles)) {
         setIsPlacingBuilding(false);
         setBuildingToPlace(null);
         setGhostBuildingCoords(null);
