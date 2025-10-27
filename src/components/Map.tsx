@@ -47,6 +47,7 @@ interface MapProps {
   selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
   onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
   isPlacingRoad: boolean; // Új: útépítés mód
+  ghostRoadTiles: { x: number; y: number }[]; // Új: szellem út csempék
   mapOffsetX: number; // Új: térkép eltolás X irányban
   mapOffsetY: number; // Új: térkép eltolás Y irányban
 }
@@ -67,6 +68,7 @@ const Map: React.FC<MapProps> = ({
   selectedFarmId,
   onFarmlandClick,
   isPlacingRoad, // Hozzáadva
+  ghostRoadTiles, // Hozzáadva
   mapOffsetX, // Hozzáadva
   mapOffsetY, // Hozzáadva
 }) => {
@@ -100,13 +102,14 @@ const Map: React.FC<MapProps> = ({
           onFarmlandClick(selectedFarmId, gridX, gridY);
         }
       }
-    } else if (isPlacingRoad && ghostBuildingCoords) { // Új: útépítés mód
+    } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) { // Új: útépítés mód, csak ha nem húzunk
       onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
     }
   };
 
-  const isRoadAt = (x: number, y: number) => {
-    return buildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction && !b.isGhost);
+  const isRoadAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
+    return currentBuildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction && !b.isGhost) ||
+           currentGhostRoadTiles.some(t => t.x === x && t.y === y);
   };
 
   return (
@@ -134,10 +137,10 @@ const Map: React.FC<MapProps> = ({
           return (
             <Building
               {...commonProps}
-              hasRoadNeighborTop={isRoadAt(building.x, building.y - 1)}
-              hasRoadNeighborBottom={isRoadAt(building.x, building.y + 1)}
-              hasRoadNeighborLeft={isRoadAt(building.x - 1, building.y)}
-              hasRoadNeighborRight={isRoadAt(building.x + 1, building.y)}
+              hasRoadNeighborTop={isRoadAt(building.x, building.y - 1, buildings, ghostRoadTiles)}
+              hasRoadNeighborBottom={isRoadAt(building.x, building.y + 1, buildings, ghostRoadTiles)}
+              hasRoadNeighborLeft={isRoadAt(building.x - 1, building.y, buildings, ghostRoadTiles)}
+              hasRoadNeighborRight={isRoadAt(building.x + 1, building.y, buildings, ghostRoadTiles)}
             />
           );
         }
@@ -179,9 +182,36 @@ const Map: React.FC<MapProps> = ({
           <Sprout className="h-full w-full text-green-300 p-1" />
         </div>
       )}
-      {isPlacingRoad && ghostBuildingCoords && ( // Új: szellem út csempe
+      {isPlacingRoad && ghostRoadTiles.map((tile, index) => ( // Új: szellem út csempék megjelenítése
         <Building
-          id="ghost-road"
+          key={`ghost-road-${index}`}
+          id={`ghost-road-${index}`}
+          name="Út"
+          x={tile.x}
+          y={tile.y}
+          width={1}
+          height={1}
+          type="road"
+          cellSizePx={cellSizePx}
+          onClick={() => {}}
+          capacity={0}
+          ownerId={currentPlayerId}
+          residentIds={[]}
+          employeeIds={[]}
+          isGhost={true}
+          isUnderConstruction={false}
+          buildProgress={0}
+          currentPlayerId={currentPlayerId}
+          rotation={0}
+          hasRoadNeighborTop={isRoadAt(tile.x, tile.y - 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborBottom={isRoadAt(tile.x, tile.y + 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborLeft={isRoadAt(tile.x - 1, tile.y, buildings, ghostRoadTiles)}
+          hasRoadNeighborRight={isRoadAt(tile.x + 1, tile.y, buildings, ghostRoadTiles)}
+        />
+      ))}
+      {isPlacingRoad && !ghostRoadTiles.length && ghostBuildingCoords && ( // Ha nincs húzás, csak egy szellem csempe
+        <Building
+          id="ghost-road-single"
           name="Út"
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
@@ -199,10 +229,10 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={0}
-          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1)}
-          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1)}
-          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y)}
-          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y)}
+          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
+          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
         />
       )}
     </div>

@@ -38,6 +38,7 @@ const FORESTRY_HOUSE_SALARY_PER_INTERVAL = 8;
 const FORESTRY_HOUSE_MAX_EMPLOYEES = 1;
 const FARMLAND_COST_PER_TILE = 3;
 const ROAD_COST_PER_TILE = 5; // Új konstans az útépítés költségéhez
+const ROAD_BUILD_DURATION_MS = 3000; // Új konstans az útépítés idejéhez
 
 interface Player {
   id: string;
@@ -214,6 +215,8 @@ const Game = () => {
   const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
 
   const [isPlacingRoad, setIsPlacingRoad] = useState(false); // Új állapot az útépítéshez
+  const [ghostRoadTiles, setGhostRoadTiles] = useState<{ x: number; y: number }[]>([]); // Új: szellem út csempék a folyamatos építéshez
+  const [isRoadDragging, setIsRoadDragging] = useState(false); // Új: útépítés húzással
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
@@ -488,6 +491,8 @@ const Game = () => {
     setIsPlacingFarmland(false);
     setSelectedFarmId(null);
     setIsPlacingRoad(false); // Új: útépítés mód kikapcsolása
+    setIsRoadDragging(false);
+    setGhostRoadTiles([]);
   };
 
   const handleRentBuilding = () => {
@@ -634,7 +639,46 @@ const Game = () => {
       const gridY = Math.floor(mouseY / CELL_SIZE_PX);
 
       setGhostBuildingCoords({ x: gridX, y: gridY });
-    } else if (isPlacingRoad) { // Új: útépítés mód
+    } else if (isPlacingRoad && isRoadDragging && lastMousePos) { // Folyamatos útépítés húzással
+      const mapRect = event.currentTarget.getBoundingClientRect();
+      const mouseX = event.clientX - mapRect.left - mapOffsetX;
+      const mouseY = event.clientY - mapRect.top - mapOffsetY;
+
+      const currentGridX = Math.floor(mouseX / CELL_SIZE_PX);
+      const currentGridY = Math.floor(mouseY / CELL_SIZE_PX);
+
+      const lastGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
+      const lastGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+
+      const newGhostTiles: { x: number; y: number }[] = [];
+      // Egyszerű vonal interpoláció a kezdő és aktuális pont között
+      const dx = Math.abs(currentGridX - lastGridX);
+      const dy = Math.abs(currentGridY - lastGridY);
+      const sx = (lastGridX < currentGridX) ? 1 : -1;
+      const sy = (lastGridY < currentGridY) ? 1 : -1;
+      let err = dx - dy;
+
+      let x = lastGridX;
+      let y = lastGridY;
+
+      while (true) {
+        if (!ghostRoadTiles.some(t => t.x === x && t.y === y) && !isCellOccupied(x, y, buildings)) {
+          newGhostTiles.push({ x, y });
+        }
+        if (x === currentGridX && y === currentGridY) break;
+        const e2 = 2 * err;
+        if (e2 > -dy) { err -= dy; x += sx; }
+        if (e2 < dx) { err += dx; y += sy; }
+      }
+      
+      setGhostRoadTiles(prev => {
+        const uniqueNewTiles = newGhostTiles.filter(newTile => 
+          !prev.some(existingTile => existingTile.x === newTile.x && existingTile.y === newTile.y)
+        );
+        return [...prev, ...uniqueNewTiles];
+      });
+      setLastMousePos({ x: event.clientX, y: event.clientY }); // Frissítjük az utolsó egérpozíciót a folyamatos húzáshoz
+    } else if (isPlacingRoad && !isRoadDragging) { // Csak a szellem csempe mozgatása, ha nem húzunk
       const mapRect = event.currentTarget.getBoundingClientRect();
       const mouseX = event.clientX - mapRect.left - mapOffsetX;
       const mouseY = event.clientY - mapRect.top - mapOffsetY;
@@ -654,7 +698,16 @@ const Game = () => {
   };
 
   const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!isPlacingBuilding && !isPlacingFarmland && !isPlacingRoad) { // Új: útépítés mód ellenőrzése
+    if (isPlacingRoad) {
+      setIsRoadDragging(true);
+      setLastMousePos({ x: event.clientX, y: event.clientY });
+      const mapRect = event.currentTarget.getBoundingClientRect();
+      const gridX = Math.floor((event.clientX - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
+      const gridY = Math.floor((event.clientY - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      if (!isCellOccupied(gridX, gridY, buildings)) {
+        setGhostRoadTiles([{ x: gridX, y: gridY }]);
+      }
+    } else if (!isPlacingBuilding && !isPlacingFarmland) {
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
     }
@@ -663,6 +716,102 @@ const Game = () => {
   const handleMapMouseUp = () => {
     setIsDragging(false);
     setLastMousePos(null);
+
+    if (isPlacingRoad && isRoadDragging) {
+      setIsRoadDragging(false);
+      // Építsük fel az összes szellem út csempét
+      if (ghostRoadTiles.length > 0) {
+        const totalCost = ghostRoadTiles.length * ROAD_COST_PER_TILE;
+        if (currentPlayer.money < totalCost) {
+          showError(`Nincs elég pénzed az utak építéséhez! Szükséges: ${totalCost} pénz.`);
+          setGhostRoadTiles([]); // Töröljük a szellem csempéket, ha nincs elég pénz
+          return;
+        }
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - totalCost } : p
+          )
+        );
+        addTransaction(currentPlayerId, "expense", `Út építése (${ghostRoadTiles.length} csempe)`, totalCost);
+
+        setIsBuildingInProgress(true); // Jelöljük, hogy építés van folyamatban
+
+        const newRoads: BuildingData[] = ghostRoadTiles.map(tile => ({
+          id: `road-${Date.now()}-${tile.x}-${tile.y}`,
+          name: "Út",
+          x: tile.x,
+          y: tile.y,
+          width: 1,
+          height: 1,
+          type: "road",
+          capacity: 0,
+          ownerId: currentPlayerId,
+          residentIds: [],
+          employeeIds: [],
+          isUnderConstruction: true, // Út is építés alatt áll
+          buildProgress: 0,
+          rotation: 0,
+        }));
+
+        setBuildings(prevBuildings => [...prevBuildings, ...newRoads]);
+        const toastId = showLoading(`Út építése folyamatban (${ghostRoadTiles.length} csempe)...`);
+
+        // Hangeffekt lejátszása
+        if (sfxUrls["construction-01"]) { // Használhatunk egy általános építési hangot
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+          }
+          const audio = new Audio(sfxUrls["construction-01"]);
+          audio.loop = true;
+          audio.volume = 0.5;
+          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
+          currentSfxAudioRef.current = audio;
+        }
+
+        const progressIntervals: NodeJS.Timeout[] = [];
+        newRoads.forEach(road => {
+          let currentProgress = 0;
+          const interval = setInterval(() => {
+            currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
+            if (currentProgress >= 100) {
+              currentProgress = 100;
+              clearInterval(interval);
+            }
+            setBuildings(prevBuildings =>
+              prevBuildings.map(b =>
+                b.id === road.id ? { ...b, buildProgress: Math.floor(currentProgress) } : b
+              )
+            );
+          }, 100);
+          progressIntervals.push(interval);
+        });
+
+        setTimeout(() => {
+          progressIntervals.forEach(clearInterval);
+          dismissToast(toastId);
+          setIsBuildingInProgress(false);
+
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              newRoads.some(nr => nr.id === b.id)
+                ? { ...b, isUnderConstruction: false, buildProgress: 100 }
+                : b
+            )
+          );
+          showSuccess(`Út sikeresen felépült (${ghostRoadTiles.length} csempe)!`);
+
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+            currentSfxAudioRef.current = null;
+          }
+        }, ROAD_BUILD_DURATION_MS);
+      }
+      setGhostRoadTiles([]); // Töröljük a szellem csempéket az építés után
+      setIsPlacingRoad(false); // Kikapcsoljuk az útépítés módot
+    }
   };
 
   const handleMapClick = (x: number, y: number) => {
@@ -770,7 +919,7 @@ const Game = () => {
       } else {
         // Hibaüzenet már a canPlaceBuilding-ben megjelenik
       }
-    } else if (isPlacingRoad) { // Új: útépítés mód kezelése
+    } else if (isPlacingRoad && !isRoadDragging) { // Ha csak kattintunk útépítés módban, de nem húzunk
       if (!isCellOccupied(x, y, buildings)) {
         if (currentPlayer.money < ROAD_COST_PER_TILE) {
           showError(`Nincs elég pénzed út építéséhez! Szükséges: ${ROAD_COST_PER_TILE} pénz.`);
@@ -784,8 +933,11 @@ const Game = () => {
         );
         addTransaction(currentPlayerId, "expense", "Út építése", ROAD_COST_PER_TILE);
 
+        setIsBuildingInProgress(true);
+
+        const newRoadId = `road-${Date.now()}`;
         const newRoad: BuildingData = {
-          id: `road-${Date.now()}`,
+          id: newRoadId,
           name: "Út",
           x: x,
           y: y,
@@ -796,12 +948,60 @@ const Game = () => {
           ownerId: currentPlayerId,
           residentIds: [],
           employeeIds: [],
-          isUnderConstruction: false,
-          buildProgress: 100,
+          isUnderConstruction: true,
+          buildProgress: 0,
           rotation: 0,
         };
         setBuildings(prevBuildings => [...prevBuildings, newRoad]);
-        showSuccess("Út csempe sikeresen elhelyezve!");
+        const toastId = showLoading(`Út építése folyamatban...`);
+
+        // Hangeffekt lejátszása
+        if (sfxUrls["construction-01"]) {
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+          }
+          const audio = new Audio(sfxUrls["construction-01"]);
+          audio.loop = true;
+          audio.volume = 0.5;
+          audio.play().catch(e => console.error("Hiba a hangeffekt lejátszásakor:", e));
+          currentSfxAudioRef.current = audio;
+        }
+
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
+          if (currentProgress >= 100) {
+            currentProgress = 100;
+            clearInterval(interval);
+          }
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newRoadId ? { ...b, buildProgress: Math.floor(currentProgress) } : b
+            )
+          );
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          dismissToast(toastId);
+          setIsBuildingInProgress(false);
+
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newRoadId
+                ? { ...b, isUnderConstruction: false, buildProgress: 100 }
+                : b
+            )
+          );
+          showSuccess("Út csempe sikeresen elhelyezve!");
+
+          if (currentSfxAudioRef.current) {
+            currentSfxAudioRef.current.pause();
+            currentSfxAudioRef.current.currentTime = 0;
+            currentSfxAudioRef.current = null;
+          }
+        }, ROAD_BUILD_DURATION_MS);
       } else {
         showError("Ez a hely már foglalt!");
       }
@@ -865,6 +1065,8 @@ const Game = () => {
 
   const cancelRoadPlacement = () => { // Új: útépítés megszakítása
     setIsPlacingRoad(false);
+    setIsRoadDragging(false);
+    setGhostRoadTiles([]);
     setGhostBuildingCoords(null);
     showError("Útépítés megszakítva.");
   };
@@ -925,7 +1127,6 @@ const Game = () => {
         inventory={currentPlayer.inventory}
         workplace={currentPlayer.workplace}
         workplaceSalary={currentPlayer.workplaceSalary}
-        onPlayerNameChange={updatePlayerName}
         ownedBusinesses={ownedBusinesses}
         playerSettingsButton={
           <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
@@ -1015,6 +1216,7 @@ const Game = () => {
           selectedFarmId={selectedFarmId}
           onFarmlandClick={handleFarmlandClick}
           isPlacingRoad={isPlacingRoad} // Átadjuk az útépítés állapotát
+          ghostRoadTiles={ghostRoadTiles} // Átadjuk a szellem út csempéket
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
         />
@@ -1081,7 +1283,7 @@ const Game = () => {
                   onClick={() => {
                     setIsPlacingRoad(true);
                     setSelectedBuilding(null);
-                    showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe).`);
+                    showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe), vagy húzd az egeret a folyamatos építéshez.`);
                   }}
                   className="w-full mt-4 bg-gray-500 hover:bg-gray-600"
                 >

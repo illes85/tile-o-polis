@@ -212,8 +212,9 @@ const Building: React.FC<BuildingProps> = ({
       case "road":
         // Alap stílus: kicsit kisebb, lekerekített szürke négyszög
         classes = cn(
-          "absolute bg-gray-700 rounded-md",
-          isGhost && "opacity-50 pointer-events-none"
+          "absolute bg-gray-300/80 border border-gray-400", // Világosabb szürke, enyhe átlátszósággal
+          isGhost && "opacity-50 pointer-events-none",
+          isUnderConstruction && "opacity-70 bg-gray-400" // Építés alatt álló út
         );
         
         // Az "összeolvadás" logikája
@@ -228,44 +229,48 @@ const Building: React.FC<BuildingProps> = ({
           height: roadHeight,
         };
 
+        // Ha van szomszéd, akkor kiterjesztjük a belső elemet a szomszéd felé
         if (hasRoadNeighborTop) {
           innerStyle.top = 0;
           innerStyle.height = (innerStyle.height as number) + offset;
-          classes = cn(classes, "rounded-t-none");
         }
         if (hasRoadNeighborBottom) {
           innerStyle.height = (innerStyle.height as number) + offset;
-          classes = cn(classes, "rounded-b-none");
         }
         if (hasRoadNeighborLeft) {
           innerStyle.left = 0;
           innerStyle.width = (innerStyle.width as number) + offset;
-          classes = cn(classes, "rounded-l-none");
         }
         if (hasRoadNeighborRight) {
           innerStyle.width = (innerStyle.width as number) + offset;
-          classes = cn(classes, "rounded-r-none");
         }
 
-        content = (
-          <div className="h-full w-full flex items-center justify-center">
-            <Route className="h-full w-full text-gray-400 p-1" />
-          </div>
+        // Lekerekítés szabályozása: csak akkor legyen lekerekített, ha nincs szomszéd abban az irányban
+        const roundedClasses = cn(
+          !hasRoadNeighborTop && "rounded-t-md",
+          !hasRoadNeighborBottom && "rounded-b-md",
+          !hasRoadNeighborLeft && "rounded-l-md",
+          !hasRoadNeighborRight && "rounded-r-md",
+          (hasRoadNeighborTop && hasRoadNeighborBottom && hasRoadNeighborLeft && hasRoadNeighborRight) && "rounded-none" // Ha mindenhol van szomszéd, akkor ne legyen lekerekítés
         );
-        
+
+        content = isUnderConstruction ? (
+          <div className="flex flex-col items-center justify-center h-full w-full">
+            <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
+            <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
+            <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
+          </div>
+        ) : null; // Nincs ikon, ha kész az út
+
         return (
           <div style={baseStyle} className="absolute">
             <div
               style={innerStyle}
               className={cn(
-                "absolute bg-gray-700 rounded-md",
+                "absolute bg-gray-300/80 border border-gray-400",
                 isGhost && "opacity-50 pointer-events-none",
-                !hasRoadNeighborTop && "rounded-t-md",
-                !hasRoadNeighborBottom && "rounded-b-md",
-                !hasRoadNeighborLeft && "rounded-l-md",
-                !hasRoadNeighborRight && "rounded-r-md",
-                hasRoadNeighborTop && hasRoadNeighborBottom && "rounded-none", // Ha mindkét irányba van, akkor ne legyen lekerekítés
-                hasRoadNeighborLeft && hasRoadNeighborRight && "rounded-none"
+                isUnderConstruction && "opacity-70 bg-gray-400",
+                roundedClasses
               )}
               onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}
             >
