@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route } from "lucide-react";
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag } from "lucide-react"; // ShoppingBag ikon a bolthoz
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
 
@@ -20,7 +20,7 @@ interface BuildingProps {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road";
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; // Új: shop típus
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -77,9 +77,13 @@ const Building: React.FC<BuildingProps> = ({
     top: y * cellSizePx,
     width: width * cellSizePx,
     height: height * cellSizePx,
-    transform: `rotate(${rotation}deg)`,
-    transformOrigin: 'center center',
   };
+
+  // Csak akkor alkalmazzuk a forgatást, ha nem szellem épület
+  if (!isGhost) {
+    baseStyle.transform = `rotate(${rotation}deg)`;
+    baseStyle.transformOrigin = 'center center';
+  }
 
   const occupancy = type === "house" ? residentIds.length : employeeIds.length;
   const isRentedByPlayer = renterId === currentPlayerId;
@@ -315,6 +319,28 @@ const Building: React.FC<BuildingProps> = ({
             </div>
           </div>
         );
+      case "shop":
+        classes = classes.replace("bg-stone-400", "bg-purple-600");
+        content = (
+          <>
+            <ShoppingBag className="h-4 w-4 mb-1" />
+            <span className="text-white text-xs">{name}</span>
+            {occupancy > 0 && (
+              <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
+                {Array.from({ length: occupancy }).map((_, index) => (
+                  <Briefcase key={index} className="h-3 w-3 text-white" />
+                ))}
+              </div>
+            )}
+            {isOwnedByPlayer && (
+              <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+            )}
+            {isPlayerEmployedHere && (
+              <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
+            )}
+          </>
+        );
+        break;
       default:
         content = "Ismeretlen épület";
     }

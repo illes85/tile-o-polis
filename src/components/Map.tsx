@@ -12,7 +12,7 @@ export interface BuildingData {
   y: number; // rács y koordinátája
   width: number; // rács egységekben
   height: number; // rács egységekben
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road"; // Új típus: farmland és road
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; // Új típus: farmland, road és shop
   rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
   salary?: number; // Új: fizetés (irodákhoz)
   capacity: number; // Max lakók/dolgozók száma
@@ -167,7 +167,7 @@ const Map: React.FC<MapProps> = ({
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as "house" | "office" | "forestry" | "farm"}
+          type={buildingToPlace.type as "house" | "office" | "forestry" | "farm" | "shop"}
           cellSizePx={cellSizePx}
           onClick={() => {}}
           capacity={buildingToPlace.capacity}

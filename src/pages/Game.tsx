@@ -42,8 +42,8 @@ const FARMLAND_COST_PER_TILE = 3;
 const ROAD_COST_PER_TILE = 5; // Új konstans az útépítés költségéhez
 const ROAD_BUILD_DURATION_MS = 6000; // Új konstans az útépítés idejéhez (6 másodperc)
 const ROAD_STONE_COST_PER_TILE = 1; // Új konstans az útépítés kő költségéhez
-const FARMLAND_HOE_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje kapával (5 másodperc)
-const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral
+const FARMLAND_HOE_BUILD_DURATION_MS = 15000; // Szántóföld építési ideje kapával (15 másodperc)
+const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral (5 másodperc)
 const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
 
 interface Player {
@@ -191,6 +191,19 @@ const availableBuildingOptions: BuildingOption[] = [
     salary: 20,
     capacity: 5,
   },
+  { // Új épület: Bolt
+    type: "shop",
+    category: "business",
+    name: "Bolt",
+    cost: 1500,
+    woodCost: 8,
+    brickCost: 10,
+    duration: 20000,
+    width: 3,
+    height: 3,
+    salary: 10, // A boltos fizetése
+    capacity: 3, // Max alkalmazottak száma
+  },
 ];
 
 const Game = () => {
@@ -303,7 +316,7 @@ const Game = () => {
     buildingWidth: number,
     buildingHeight: number,
     rotation: number,
-    buildingType: "house" | "office" | "forestry" | "farm", // Hozzáadva a buildingType
+    buildingType: "house" | "office" | "forestry" | "farm" | "shop", // Hozzáadva a buildingType
     currentBuildings: BuildingData[]
   ): boolean => {
     const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
@@ -378,7 +391,7 @@ const Game = () => {
       const placeInitialBuilding = (
         buildingId: string,
         buildingName: string,
-        buildingType: "house" | "office" | "forestry" | "farm" | "road", // Új: road típus
+        buildingType: "house" | "office" | "forestry" | "farm" | "road" | "shop", // Új: shop típus
         buildingWidth: number,
         buildingHeight: number,
         rentalPrice?: number,
@@ -606,7 +619,7 @@ const Game = () => {
   };
 
   const handleJoinOffice = () => {
-    if (!selectedBuilding || (selectedBuilding.type !== "office" && selectedBuilding.type !== "forestry" && selectedBuilding.type !== "farm") || selectedBuilding.salary === undefined) {
+    if (!selectedBuilding || (selectedBuilding.type !== "office" && selectedBuilding.type !== "forestry" && selectedBuilding.type !== "farm" && selectedBuilding.type !== "shop") || selectedBuilding.salary === undefined) {
       return;
     }
 
@@ -874,9 +887,8 @@ const Game = () => {
           return;
         }
 
-        // Placeholder: ellenőrizni kell a kapa/traktor meglétét
-        const hasHoe = currentPlayer.inventory.hoe > 0; // Ide jön majd a játékos inventory ellenőrzése
-        const hasTractor = currentPlayer.inventory.tractor > 0; // Ide jön majd a játékos inventory ellenőrzése
+        const hasHoe = currentPlayer.inventory.hoe > 0;
+        const hasTractor = currentPlayer.inventory.tractor > 0;
         const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
         const toolName = hasTractor ? "traktorral" : "kapával";
 
@@ -1174,9 +1186,8 @@ const Game = () => {
         return;
       }
 
-      // Placeholder: ellenőrizni kell a kapa/traktor meglétét
-      const hasHoe = currentPlayer.inventory.hoe > 0; // Ide jön majd a játékos inventory ellenőrzése
-      const hasTractor = currentPlayer.inventory.tractor > 0; // Ide jön majd a játékos inventory ellenőrzése
+      const hasHoe = currentPlayer.inventory.hoe > 0;
+      const hasTractor = currentPlayer.inventory.tractor > 0;
       const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
       const toolName = hasTractor ? "traktorral" : "kapával";
 
@@ -1323,7 +1334,7 @@ const Game = () => {
     navigate('/', { state: { players: players, buildings: buildings, currentPlayerId: currentPlayerId, transactions: transactions } });
   };
 
-  const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm"));
+  const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm" || b.type === "shop"));
   const ownedMayorsOffice = buildings.find(b => b.ownerId === currentPlayerId && b.name === "Polgármesteri Hivatal");
 
   const sidebarContent = (
@@ -1467,7 +1478,7 @@ const Game = () => {
             <DialogHeader>
               <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle>
               <DialogDescription>
-                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : selectedBuilding.type === "farm" ? "farm" : "út"}.
+                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : selectedBuilding.type === "farm" ? "farm" : selectedBuilding.type === "shop" ? "bolt" : "út"}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -1476,7 +1487,7 @@ const Game = () => {
               {selectedBuilding.type === "house" && selectedBuilding.rentalPrice !== undefined && (
                 <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice === 0 ? "Ingyenes" : `${selectedBuilding.rentalPrice} pénz/perc`}</span></p>
               )}
-              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm") && selectedBuilding.salary !== undefined && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.salary !== undefined && (
                 <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary === 0 ? "Ingyenes" : `${selectedBuilding.salary} pénz/perc`}</span></p>
               )}
               <p>{selectedBuilding.type === "house" ? "Lakók" : "Dolgozók"}: <span className="font-semibold">{selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length}/{selectedBuilding.capacity}</span></p>
@@ -1492,7 +1503,7 @@ const Game = () => {
                 </div>
               )}
 
-              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm") && selectedBuilding.employeeIds.length > 0 && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length > 0 && (
                 <div>
                   <h4 className="font-medium mt-2">Dolgozók:</h4>
                   <ul className="list-disc list-inside ml-4">
@@ -1546,7 +1557,7 @@ const Game = () => {
                 <p className="text-green-600 font-medium">Itt dolgozol!</p>
               )}
               {(selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId)) ||
-               ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
+               ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
             </div>
@@ -1563,7 +1574,7 @@ const Game = () => {
                   {selectedBuilding.ownerId === currentPlayerId ? "Beköltözik" : "Kibérlem"}
                 </Button>
               )}
-              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm") && (
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && (
                 <Button
                   onClick={handleJoinOffice}
                   disabled={selectedBuilding.employeeIds.includes(currentPlayerId) || selectedBuilding.employeeIds.length >= selectedBuilding.capacity}
