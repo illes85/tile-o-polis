@@ -16,8 +16,8 @@ export interface FarmlandTile {
 interface BuildingProps {
   id: string;
   name: string;
-  x: number; // Lehet rács koordináta vagy pixel koordináta
-  y: number; // Lehet rács koordináta vagy pixel koordináta
+  x: number; // Rács x koordinátája
+  y: number; // Rács y koordinátája
   width: number;
   height: number;
   type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; // Új: shop típus
@@ -71,18 +71,9 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborRight = false,
   isPlacementMode, // Hozzáadva
 }) => {
-  let actualX = x;
-  let actualY = y;
-
-  // Ha szellem épület, akkor a kapott pixel koordinátákat igazítjuk a rácshoz
-  if (isGhost) {
-    actualX = Math.floor(x / cellSizePx) * cellSizePx;
-    actualY = Math.floor(y / cellSizePx) * cellSizePx;
-  } else {
-    // Normál épületeknél a rács koordinátákat alakítjuk pixelbe
-    actualX = x * cellSizePx;
-    actualY = y * cellSizePx;
-  }
+  // Az x és y propok mostantól mindig rácskoordináták, így egyszerűen megszorozzuk őket cellSizePx-szel.
+  const actualX = x * cellSizePx;
+  const actualY = y * cellSizePx;
 
   const baseStyle: React.CSSProperties = {
     position: "absolute",

@@ -38,9 +38,9 @@ interface MapProps {
   onBuildingClick: (buildingId: string) => void;
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
-  ghostBuildingCoords: { x: number; y: number } | null; // Pixel koordináták
+  ghostBuildingCoords: { x: number; y: number } | null; // Rács koordináták
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMapClick: (x: number, y: number) => void; // Pixel koordinátákat fogad
+  onMapClick: (x: number, y: number) => void; // Rács koordinátákat fogad
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
   isPlacingFarmland: boolean; // Új: szántóföld építési mód
@@ -149,8 +149,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-building"
           name={buildingToPlace.name} // Átadjuk a nevet a szellem épületnek
-          x={ghostBuildingCoords.x} // Pixel koordináták
-          y={ghostBuildingCoords.y} // Pixel koordináták
+          x={ghostBuildingCoords.x} // Rács koordináták
+          y={ghostBuildingCoords.y} // Rács koordináták
           width={buildingToPlace.width}
           height={buildingToPlace.height}
           type={buildingToPlace.type as "house" | "office" | "forestry" | "farm" | "shop"}
@@ -174,8 +174,8 @@ const Map: React.FC<MapProps> = ({
           key={`ghost-farmland-${index}`}
           id={`ghost-farmland-${index}`}
           name="Szántóföld"
-          x={tile.x * cellSizePx} // Rács koordinátákból pixelbe
-          y={tile.y * cellSizePx} // Rács koordinátákból pixelbe
+          x={tile.x} // Rács koordináták
+          y={tile.y} // Rács koordináták
           width={1}
           height={1}
           type="farmland"
@@ -197,8 +197,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-farmland-single"
           name="Szántóföld"
-          x={ghostBuildingCoords.x} // Pixel koordináták
-          y={ghostBuildingCoords.y} // Pixel koordináták
+          x={ghostBuildingCoords.x} // Rács koordináták
+          y={ghostBuildingCoords.y} // Rács koordináták
           width={1}
           height={1}
           type="farmland"
@@ -221,8 +221,8 @@ const Map: React.FC<MapProps> = ({
           key={`ghost-road-${index}`}
           id={`ghost-road-${index}`}
           name="Út"
-          x={tile.x * cellSizePx} // Rács koordinátákból pixelbe
-          y={tile.y * cellSizePx} // Rács koordinátákból pixelbe
+          x={tile.x} // Rács koordináták
+          y={tile.y} // Rács koordináták
           width={1}
           height={1}
           type="road"
@@ -248,8 +248,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-road-single"
           name="Út"
-          x={ghostBuildingCoords.x} // Pixel koordináták
-          y={ghostBuildingCoords.y} // Pixel koordináták
+          x={ghostBuildingCoords.x} // Rács koordináták
+          y={ghostBuildingCoords.y} // Rács koordináták
           width={1}
           height={1}
           type="road"
@@ -264,10 +264,10 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={0}
-          hasRoadNeighborTop={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx), Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx) - 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborBottom={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx), Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx) + 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborLeft={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx) - 1, Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx), buildings, ghostRoadTiles)}
-          hasRoadNeighborRight={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx) + 1, Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx), buildings, ghostRoadTiles)}
+          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
+          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
           isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       )}
