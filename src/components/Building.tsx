@@ -9,6 +9,8 @@ export interface FarmlandTile {
   x: number;
   y: number;
   ownerId: string;
+  isUnderConstruction?: boolean; // Új: szántóföld csempe építés alatt
+  buildProgress?: number; // Új: szántóföld csempe építési folyamat
 }
 
 interface BuildingProps {
@@ -188,7 +190,10 @@ const Building: React.FC<BuildingProps> = ({
                 {farmlandTiles.map((tile, index) => (
                   <div
                     key={index}
-                    className="bg-yellow-800/50 border border-yellow-900"
+                    className={cn(
+                      "bg-yellow-800/50 border border-yellow-900",
+                      tile.isUnderConstruction && "opacity-70 bg-gray-400"
+                    )}
                     style={{
                       position: 'absolute',
                       left: (tile.x - x) * cellSizePx,
@@ -197,7 +202,15 @@ const Building: React.FC<BuildingProps> = ({
                       height: cellSizePx,
                     }}
                   >
-                    <Sprout className="h-full w-full text-green-300 p-1" />
+                    {tile.isUnderConstruction ? (
+                      <div className="flex flex-col items-center justify-center h-full w-full">
+                        <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
+                        <Progress value={tile.buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
+                        <span className="text-gray-700 text-[0.6rem]">{Math.floor(tile.buildProgress || 0)}%</span>
+                      </div>
+                    ) : (
+                      <Sprout className="h-full w-full text-green-300 p-1" />
+                    )}
                   </div>
                 ))}
               </div>
@@ -206,8 +219,19 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "farmland":
-        classes = "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden";
-        content = <Sprout className="h-full w-full text-green-300 p-1" />;
+        classes = cn(
+          "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden",
+          isUnderConstruction && "opacity-70 bg-gray-400"
+        );
+        content = isUnderConstruction ? (
+          <div className="flex flex-col items-center justify-center h-full w-full">
+            <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
+            <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
+            <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
+          </div>
+        ) : (
+          <Sprout className="h-full w-full text-green-300 p-1" />
+        );
         break;
       case "road":
         // Alap stílus: kicsit kisebb, lekerekített szürke négyszög

@@ -4,7 +4,7 @@ import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon } from "lucide-react"; // DollarSign helyett Coins
+import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon, Gem } from "lucide-react"; // DollarSign helyett Coins, Gem ikon a kőhöz
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
@@ -14,6 +14,7 @@ export interface BuildingOption {
   cost: number;
   woodCost?: number;
   brickCost?: number;
+  stoneCost?: number; // Új: kő költség
   duration: number;
   width: number;
   height: number;
@@ -30,7 +31,8 @@ interface BuildMenuProps {
   playerMoney: number;
   playerWood: number;
   playerBrick: number;
-  isBuildingInProgress: boolean;
+  playerStone: number; // Új: játékos kő mennyisége
+  isBuildingInProgress: boolean; // Ez most már csak azt jelzi, ha a játékos éppen helyez el valamit
 }
 
 const BuildMenu: React.FC<BuildMenuProps> = ({
@@ -41,6 +43,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
   playerMoney,
   playerWood,
   playerBrick,
+  playerStone, // Hozzáadva
   isBuildingInProgress,
 }) => {
   const residentialBuildings = availableBuildings.filter(b => b.category === "residential");
@@ -50,7 +53,8 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
     const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
-    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || isBuildingInProgress; // Hozzáadva az isBuildingInProgress ellenőrzés
+    const canAffordStone = building.stoneCost ? playerStone >= building.stoneCost : true; // Új: kő ellenőrzés
+    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || !canAffordStone || isBuildingInProgress; // Hozzáadva a kő és az isBuildingInProgress ellenőrzés
 
     return (
       <Card key={building.name} className="flex items-center justify-between p-4">
@@ -67,6 +71,11 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
           {building.brickCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
               <BrickIcon className="h-4 w-4 mr-1 text-orange-500" /> {building.brickCost} tégla
+            </p>
+          )}
+          {building.stoneCost !== undefined && ( // Új: kő költség megjelenítése
+            <p className="text-sm text-muted-foreground flex items-center">
+              <Gem className="h-4 w-4 mr-1 text-gray-500" /> {building.stoneCost} kő
             </p>
           )}
           <p className="text-sm text-muted-foreground flex items-center">

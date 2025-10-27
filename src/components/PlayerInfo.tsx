@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, Wheat, Droplet, Shirt, User, Leaf, Square as BrickIcon, Briefcase } from "lucide-react"; // DollarSign helyett Coins
+import { Coins, Wheat, Droplet, Shirt, User, Leaf, Square as BrickIcon, Briefcase, Gem } from "lucide-react"; // DollarSign helyett Coins, Gem ikon a kőhöz
 import { BuildingData } from "@/components/Map"; // Importáljuk a BuildingData interfészt
 
 interface PlayerInfoProps {
@@ -14,6 +14,7 @@ interface PlayerInfoProps {
     clothes: number;
     wood: number;
     brick: number;
+    stone: number; // Új: kő nyersanyag
   };
   workplace: string;
   workplaceSalary: number; // Új: munkahelyi fizetés
@@ -58,6 +59,9 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
             </li>
             <li className="flex items-center">
               <BrickIcon className="mr-2 h-3 w-3 text-orange-500" /> Tégla: {inventory.brick}
+            </li>
+            <li className="flex items-center">
+              <Gem className="mr-2 h-3 w-3 text-gray-500" /> Kő: {inventory.stone}
             </li>
           </ul>
         </div>

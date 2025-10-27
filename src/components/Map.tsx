@@ -46,6 +46,7 @@ interface MapProps {
   isPlacingFarmland: boolean; // Új: szántóföld építési mód
   selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
   onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
+  ghostFarmlandTiles: { x: number; y: number }[]; // Új: szellem szántóföld csempék
   isPlacingRoad: boolean; // Új: útépítés mód
   ghostRoadTiles: { x: number; y: number }[]; // Új: szellem út csempék
   mapOffsetX: number; // Új: térkép eltolás X irányban
@@ -67,6 +68,7 @@ const Map: React.FC<MapProps> = ({
   isPlacingFarmland,
   selectedFarmId,
   onFarmlandClick,
+  ghostFarmlandTiles, // Hozzáadva
   isPlacingRoad, // Hozzáadva
   ghostRoadTiles, // Hozzáadva
   mapOffsetX, // Hozzáadva
@@ -86,7 +88,7 @@ const Map: React.FC<MapProps> = ({
 
     if (isPlacingBuilding && ghostBuildingCoords) {
       onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
-    } else if (isPlacingFarmland && selectedFarmId) {
+    } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) { // Új: szántóföld mód, csak ha nem húzunk
       const selectedFarm = buildings.find(b => b.id === selectedFarmId);
       if (selectedFarm) {
         const effectiveFarmWidth = (selectedFarm.rotation === 90 || selectedFarm.rotation === 270) ? selectedFarm.height : selectedFarm.width;
@@ -99,7 +101,7 @@ const Map: React.FC<MapProps> = ({
           gridY >= selectedFarm.y &&
           gridY < selectedFarm.y + effectiveFarmHeight
         ) {
-          onFarmlandClick(selectedFarmId, gridX, gridY);
+          onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y); // A Map-en keresztül hívjuk meg a Game handleMapClick-jét
         }
       }
     } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) { // Új: útépítés mód, csak ha nem húzunk
@@ -110,6 +112,14 @@ const Map: React.FC<MapProps> = ({
   const isRoadAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
     return currentBuildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction && !b.isGhost) ||
            currentGhostRoadTiles.some(t => t.x === x && t.y === y);
+  };
+
+  const isFarmlandAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostFarmlandTiles: { x: number; y: number }[], farmId: string | null): boolean => {
+    const targetFarm = currentBuildings.find(b => b.id === farmId);
+    if (targetFarm && targetFarm.farmlandTiles) {
+      if (targetFarm.farmlandTiles.some(ft => ft.x === x && ft.y === y && !ft.isUnderConstruction)) return true;
+    }
+    return currentGhostFarmlandTiles.some(t => t.x === x && t.y === y);
   };
 
   return (
@@ -169,18 +179,50 @@ const Map: React.FC<MapProps> = ({
           rotation={currentBuildingRotation} // Átadjuk a forgatást a szellem épületnek
         />
       )}
-      {isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
-        <div
-          className="absolute bg-yellow-800/50 border border-yellow-900 opacity-70 pointer-events-none"
-          style={{
-            left: ghostBuildingCoords.x * cellSizePx,
-            top: ghostBuildingCoords.y * cellSizePx,
-            width: cellSizePx,
-            height: cellSizePx,
-          }}
-        >
-          <Sprout className="h-full w-full text-green-300 p-1" />
-        </div>
+      {isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.map((tile, index) => ( // Szellem szántóföld csempék megjelenítése
+        <Building
+          key={`ghost-farmland-${index}`}
+          id={`ghost-farmland-${index}`}
+          name="Szántóföld"
+          x={tile.x}
+          y={tile.y}
+          width={1}
+          height={1}
+          type="farmland"
+          cellSizePx={cellSizePx}
+          onClick={() => {}}
+          capacity={0}
+          ownerId={currentPlayerId}
+          residentIds={[]}
+          employeeIds={[]}
+          isGhost={true}
+          isUnderConstruction={false}
+          buildProgress={0}
+          currentPlayerId={currentPlayerId}
+          rotation={0}
+        />
+      ))}
+      {isPlacingFarmland && selectedFarmId && !ghostFarmlandTiles.length && ghostBuildingCoords && ( // Ha nincs húzás, csak egy szellem csempe
+        <Building
+          id="ghost-farmland-single"
+          name="Szántóföld"
+          x={ghostBuildingCoords.x}
+          y={ghostBuildingCoords.y}
+          width={1}
+          height={1}
+          type="farmland"
+          cellSizePx={cellSizePx}
+          onClick={() => {}}
+          capacity={0}
+          ownerId={currentPlayerId}
+          residentIds={[]}
+          employeeIds={[]}
+          isGhost={true}
+          isUnderConstruction={false}
+          buildProgress={0}
+          currentPlayerId={currentPlayerId}
+          rotation={0}
+        />
       )}
       {isPlacingRoad && ghostRoadTiles.map((tile, index) => ( // Új: szellem út csempék megjelenítése
         <Building
