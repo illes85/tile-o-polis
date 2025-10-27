@@ -16,6 +16,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [volume, setVolume] = useState(0.5); // Kezdeti hangerő 50%
 
+  // Effect to load new track when currentTrackIndex or tracks change
   useEffect(() => {
     if (tracks.length === 0) {
       if (audioRef.current) {
@@ -27,15 +28,16 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     }
 
     if (audioRef.current) {
+      const wasPlaying = !audioRef.current.paused; // Check if it was playing before src change
       audioRef.current.src = tracks[currentTrackIndex];
-      audioRef.current.volume = volume; // Hangerő beállítása
-      console.log("Attempting to load music from:", audioRef.current.src);
-      if (isPlaying) {
+      audioRef.current.load(); // Reload the new source
+      if (wasPlaying) { // If it was playing, try to play again
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
-  }, [currentTrackIndex, tracks, volume]); // Hozzáadtuk a volume-ot a függőségekhez
+  }, [currentTrackIndex, tracks]); // Removed 'volume' from dependencies
 
+  // Effect to handle play/pause toggle
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -45,6 +47,13 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
       }
     }
   }, [isPlaying]);
+
+  // Effect to update volume without restarting playback
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
 
   const togglePlayPause = () => {
     setIsPlaying(prev => !prev);
@@ -64,9 +73,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
 
   const handleVolumeChange = (newVolume: number[]) => {
     setVolume(newVolume[0] / 100); // A Slider 0-100 közötti értéket ad vissza
-    if (audioRef.current) {
-      audioRef.current.volume = newVolume[0] / 100;
-    }
   };
 
   if (tracks.length === 0) {

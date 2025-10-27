@@ -34,7 +34,7 @@ const initialPlayers: Player[] = [
   { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
   { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
   { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
-  { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20, stone: 10, hoe: 1, tractor: 0 }, workplace: "Tesztelő" }, // Teszt játékos
+  { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2 }, workplace: "Tesztelő" }, // Teszt játékos
 ];
 
 const PlayerSelectionScreen: React.FC = () => {

@@ -217,7 +217,7 @@ const Game = () => {
     { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20, stone: 10, hoe: 1, tractor: 0 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
+    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -361,7 +361,6 @@ const Game = () => {
     const effectiveFarmWidth = (farmRotation === 90 || farmRotation === 270) ? farmHeight : farmWidth;
     const effectiveFarmHeight = (farmRotation === 90 || farmRotation === 270) ? farmWidth : farmHeight;
 
-    // Ellenőrizzük, hogy a targetX, targetY a farm épület 3 mezőnyi körzetében van-e
     // A farm épület határai
     const farmMinX = farmX;
     const farmMaxX = farmX + effectiveFarmWidth - 1;
@@ -370,9 +369,9 @@ const Game = () => {
 
     // Kiterjesztett határok a FARMLAND_MAX_DISTANCE alapján
     const extendedMinX = farmMinX - FARMLAND_MAX_DISTANCE;
-    const extendedMaxX = farmMaxX + effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE;
+    const extendedMaxX = farmMaxX + FARMLAND_MAX_DISTANCE; // Itt volt egy hiba, effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE helyett
     const extendedMinY = farmMinY - FARMLAND_MAX_DISTANCE;
-    const extendedMaxY = farmMaxY + effectiveFarmHeight - 1 + FARMLAND_MAX_DISTANCE;
+    const extendedMaxY = farmMaxY + FARMLAND_MAX_DISTANCE; // Itt is
 
     return (
       targetX >= extendedMinX &&
@@ -399,14 +398,16 @@ const Game = () => {
         capacity: number = 0,
         ownerId?: string,
         rotation: number = 0,
-        maxAttempts = 200
+        maxAttempts = 200,
+        initialX?: number, // Opcionális kezdeti X koordináta
+        initialY?: number  // Opcionális kezdeti Y koordináta
       ): BuildingData | null => {
         const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
         const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
-          const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1)); // MAP_GRID_SIZE * 1.5 a magasság
+          const randomX = initialX !== undefined ? initialX : Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
+          const randomY = initialY !== undefined ? initialY : Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1)); // MAP_GRID_SIZE * 1.5 a magasság
 
           let overlaps = false;
           for (let x = randomX; x < randomX + effectiveWidth; x++) {
@@ -446,6 +447,7 @@ const Game = () => {
               farmlandTiles: buildingType === "farm" ? [] : undefined,
             };
           }
+          if (initialX !== undefined && initialY !== undefined) break; // Ha fix koordinátát adtunk meg, csak egyszer próbáljuk
         }
         console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
         return null;
@@ -471,10 +473,24 @@ const Game = () => {
           initialBuildings.push(house);
         }
       }
-      // Kezdeti út csempe elhelyezése
-      const initialRoad = placeInitialBuilding("road-1", "Út", "road", 1, 1, undefined, undefined, 0, undefined, 0);
-      if (initialRoad) {
-        initialBuildings.push(initialRoad);
+      // Kezdeti út csempe elhelyezése a pálya közepén
+      const centerRoad = placeInitialBuilding(
+        "road-center",
+        "Út",
+        "road",
+        1,
+        1,
+        undefined,
+        undefined,
+        0,
+        undefined,
+        0,
+        1, // Csak 1 próbálkozás
+        Math.floor(MAP_GRID_SIZE / 2),
+        Math.floor(MAP_GRID_SIZE * 1.5 / 2)
+      );
+      if (centerRoad) {
+        initialBuildings.push(centerRoad);
       }
 
       setBuildings(initialBuildings);
