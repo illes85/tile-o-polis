@@ -84,13 +84,16 @@ const Map: React.FC<MapProps> = ({
     const mouseX = event.clientX - mapRect.left;
     const mouseY = event.clientY - mapRect.top;
 
-    // A kattintáskor a pixel koordinátákat adjuk át a Game komponensnek
+    // A kattintáskor a rács koordinátáit kell kiszámolni, figyelembe véve az eltolást
+    const gridX = Math.floor((mouseX - mapOffsetX) / cellSizePx);
+    const gridY = Math.floor((mouseY - mapOffsetY) / cellSizePx);
+
     if (isPlacingBuilding && ghostBuildingCoords) {
-      onMapClick(mouseX, mouseY);
+      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
     } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) {
-      onMapClick(mouseX, mouseY);
+      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
     } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) {
-      onMapClick(mouseX, mouseY);
+      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
     }
   };
 

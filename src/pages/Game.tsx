@@ -1049,11 +1049,7 @@ const Game = () => {
     }
   };
 
-  const handleMapClick = (x: number, y: number) => {
-    // A kattintáskor a rács koordinátáit kell használni, nem a pixel koordinátákat
-    const gridX = Math.floor((x - mapOffsetX) / CELL_SIZE_PX);
-    const gridY = Math.floor((y - mapOffsetY) / CELL_SIZE_PX);
-
+  const handleMapClick = (gridX: number, gridY: number) => { // Itt már rács koordinátákat kapunk
     if (isPlacingBuilding && buildingToPlace) {
       if (canPlaceBuilding(gridX, gridY, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildingToPlace.type, buildings, ghostRoadTiles)) {
         setIsPlacingBuilding(false);
