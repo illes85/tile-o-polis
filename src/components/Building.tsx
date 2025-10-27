@@ -16,8 +16,8 @@ export interface FarmlandTile {
 interface BuildingProps {
   id: string;
   name: string;
-  x: number;
-  y: number;
+  x: number; // Lehet rács koordináta vagy pixel koordináta
+  y: number; // Lehet rács koordináta vagy pixel koordináta
   width: number;
   height: number;
   type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; // Új: shop típus
@@ -71,18 +71,36 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborRight = false,
   isPlacementMode, // Hozzáadva
 }) => {
+  let actualX = x;
+  let actualY = y;
+
+  // Ha szellem épület, akkor a kapott pixel koordinátákat igazítjuk a rácshoz
+  if (isGhost) {
+    actualX = Math.floor(x / cellSizePx) * cellSizePx;
+    actualY = Math.floor(y / cellSizePx) * cellSizePx;
+  } else {
+    // Normál épületeknél a rács koordinátákat alakítjuk pixelbe
+    actualX = x * cellSizePx;
+    actualY = y * cellSizePx;
+  }
+
   const baseStyle: React.CSSProperties = {
     position: "absolute",
-    left: x * cellSizePx,
-    top: y * cellSizePx,
+    left: actualX,
+    top: actualY,
     width: width * cellSizePx,
     height: height * cellSizePx,
+    zIndex: isGhost ? 50 : 1, // Magasabb z-index a szellem épületnek
+    opacity: isGhost ? 0.7 : 1, // Átlátszóság a szellem épületnek
+    pointerEvents: isGhost ? 'none' : 'auto', // Ne lehessen rákattintani a szellem épületre
   };
 
   // Csak akkor alkalmazzuk a forgatást, ha nem szellem épület
   if (!isGhost) {
     baseStyle.transform = `rotate(${rotation}deg)`;
     baseStyle.transformOrigin = 'center center';
+  } else {
+    baseStyle.transform = 'none'; // Szellem épületnél nincs forgatás
   }
 
   const occupancy = type === "house" ? residentIds.length : employeeIds.length;
@@ -105,9 +123,7 @@ const Building: React.FC<BuildingProps> = ({
     }
   };
 
-  if (isGhost) {
-    classes += " bg-blue-400 opacity-70 pointer-events-none z-50"; // Növeltük az átlátszóságot és hozzáadtuk a z-indexet
-  } else if (isUnderConstruction) {
+  if (isUnderConstruction) {
     classes += " bg-gray-600 opacity-70";
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full">
@@ -254,7 +270,6 @@ const Building: React.FC<BuildingProps> = ({
         // Alap stílus: kicsit kisebb, lekerekített szürke négyszög
         classes = cn(
           "absolute bg-gray-300/80 border border-gray-400", // Világosabb szürke, enyhe átlátszósággal
-          isGhost && "opacity-50 pointer-events-none",
           isUnderConstruction && "opacity-70 bg-gray-400" // Építés alatt álló út
         );
         
@@ -309,7 +324,6 @@ const Building: React.FC<BuildingProps> = ({
               style={innerStyle}
               className={cn(
                 "absolute bg-gray-300/80 border border-gray-400",
-                isGhost && "opacity-50 pointer-events-none",
                 isUnderConstruction && "opacity-70 bg-gray-400",
                 roundedClasses
               )}

@@ -38,9 +38,9 @@ interface MapProps {
   onBuildingClick: (buildingId: string) => void;
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
-  ghostBuildingCoords: { x: number; y: number } | null;
+  ghostBuildingCoords: { x: number; y: number } | null; // Pixel koordináták
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
-  onMapClick: (x: number, y: number) => void;
+  onMapClick: (x: number, y: number) => void; // Pixel koordinátákat fogad
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
   isPlacingFarmland: boolean; // Új: szántóföld építési mód
@@ -84,30 +84,13 @@ const Map: React.FC<MapProps> = ({
     const mouseX = event.clientX - mapRect.left;
     const mouseY = event.clientY - mapRect.top;
 
-    // Figyelembe vesszük az eltolást a rács koordinátáinak kiszámításakor
-    const gridX = Math.floor((mouseX - mapOffsetX) / cellSizePx);
-    const gridY = Math.floor((mouseY - mapOffsetY) / cellSizePx);
-
+    // A kattintáskor a pixel koordinátákat adjuk át a Game komponensnek
     if (isPlacingBuilding && ghostBuildingCoords) {
-      onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
-    } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) { // Új: szántóföld mód, csak ha nem húzunk
-      const selectedFarm = buildings.find(b => b.id === selectedFarmId);
-      if (selectedFarm) {
-        const effectiveFarmWidth = (selectedFarm.rotation === 90 || selectedFarm.rotation === 270) ? selectedFarm.height : selectedFarm.width;
-        const effectiveFarmHeight = (selectedFarm.rotation === 90 || selectedFarm.rotation === 270) ? selectedFarm.width : selectedFarm.height;
-
-        // Ellenőrizzük, hogy a kattintás a farmon belül történt-e
-        if (
-          gridX >= selectedFarm.x &&
-          gridX < selectedFarm.x + effectiveFarmWidth &&
-          gridY >= selectedFarm.y &&
-          gridY < selectedFarm.y + effectiveFarmHeight
-        ) {
-          onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y); // A Map-en keresztül hívjuk meg a Game handleMapClick-jét
-        }
-      }
-    } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) { // Új: útépítés mód, csak ha nem húzunk
-      onMapClick(ghostBuildingCoords.x, ghostBuildingCoords.y);
+      onMapClick(mouseX, mouseY);
+    } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) {
+      onMapClick(mouseX, mouseY);
+    } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) {
+      onMapClick(mouseX, mouseY);
     }
   };
 
@@ -163,8 +146,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-building"
           name={buildingToPlace.name} // Átadjuk a nevet a szellem épületnek
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
+          x={ghostBuildingCoords.x} // Pixel koordináták
+          y={ghostBuildingCoords.y} // Pixel koordináták
           width={buildingToPlace.width}
           height={buildingToPlace.height}
           type={buildingToPlace.type as "house" | "office" | "forestry" | "farm" | "shop"}
@@ -188,8 +171,8 @@ const Map: React.FC<MapProps> = ({
           key={`ghost-farmland-${index}`}
           id={`ghost-farmland-${index}`}
           name="Szántóföld"
-          x={tile.x}
-          y={tile.y}
+          x={tile.x * cellSizePx} // Rács koordinátákból pixelbe
+          y={tile.y * cellSizePx} // Rács koordinátákból pixelbe
           width={1}
           height={1}
           type="farmland"
@@ -211,8 +194,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-farmland-single"
           name="Szántóföld"
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
+          x={ghostBuildingCoords.x} // Pixel koordináták
+          y={ghostBuildingCoords.y} // Pixel koordináták
           width={1}
           height={1}
           type="farmland"
@@ -235,8 +218,8 @@ const Map: React.FC<MapProps> = ({
           key={`ghost-road-${index}`}
           id={`ghost-road-${index}`}
           name="Út"
-          x={tile.x}
-          y={tile.y}
+          x={tile.x * cellSizePx} // Rács koordinátákból pixelbe
+          y={tile.y * cellSizePx} // Rács koordinátákból pixelbe
           width={1}
           height={1}
           type="road"
@@ -262,8 +245,8 @@ const Map: React.FC<MapProps> = ({
         <Building
           id="ghost-road-single"
           name="Út"
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
+          x={ghostBuildingCoords.x} // Pixel koordináták
+          y={ghostBuildingCoords.y} // Pixel koordináták
           width={1}
           height={1}
           type="road"
@@ -278,10 +261,10 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={0}
-          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
-          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
+          hasRoadNeighborTop={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx), Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx) - 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborBottom={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx), Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx) + 1, buildings, ghostRoadTiles)}
+          hasRoadNeighborLeft={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx) - 1, Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx), buildings, ghostRoadTiles)}
+          hasRoadNeighborRight={isRoadAt(Math.floor((ghostBuildingCoords.x - mapOffsetX) / cellSizePx) + 1, Math.floor((ghostBuildingCoords.y - mapOffsetY) / cellSizePx), buildings, ghostRoadTiles)}
           isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       )}
