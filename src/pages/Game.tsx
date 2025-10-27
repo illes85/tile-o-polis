@@ -250,11 +250,36 @@ const Game = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [lastMousePos, setLastMousePos] = useState<{ x: number; y: number } | null>(null);
 
+  // Ref a fő tartalom div-hez a méretek lekéréséhez
+  const mainContentRef = useRef<HTMLDivElement>(null);
+
   // Hangeffekt referencia
   const sfxPlayerRef = useRef<SfxPlayerRef>(null);
 
   // Összesített placement mód
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad;
+
+  // Kamera pozicionálása a pálya közepére a játék elején
+  useEffect(() => {
+    if (mainContentRef.current) {
+      const viewportWidth = mainContentRef.current.clientWidth;
+      const viewportHeight = mainContentRef.current.clientHeight;
+
+      const mapTotalWidthPx = MAP_GRID_SIZE * CELL_SIZE_PX;
+      const mapTotalHeightPx = MAP_GRID_SIZE * 1.5 * CELL_SIZE_PX;
+
+      // A térkép középpontjának kiszámítása pixelekben (a térkép saját bal felső sarkához képest)
+      const mapCenterPxX = mapTotalWidthPx / 2;
+      const mapCenterPxY = mapTotalHeightPx / 2;
+
+      // Az eltolás kiszámítása, hogy a térkép középpontja a viewport középpontjába kerüljön
+      const initialOffsetX = (viewportWidth / 2) - mapCenterPxX;
+      const initialOffsetY = (viewportHeight / 2) - mapCenterPxY;
+
+      setMapOffsetX(initialOffsetX);
+      setMapOffsetY(initialOffsetY);
+    }
+  }, []); // Csak egyszer fusson le a komponens mountolásakor
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
@@ -1458,6 +1483,7 @@ const Game = () => {
 
   const mainContent = (
     <div
+      ref={mainContentRef} // Hozzáadva a ref
       className="flex flex-col h-full items-center justify-center relative"
       onMouseDown={handleMapMouseDown}
       onMouseUp={handleMapMouseUp}
