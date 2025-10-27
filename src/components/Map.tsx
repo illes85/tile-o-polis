@@ -51,6 +51,7 @@ interface MapProps {
   ghostRoadTiles: { x: number; y: number }[]; // Új: szellem út csempék
   mapOffsetX: number; // Új: térkép eltolás X irányban
   mapOffsetY: number; // Új: térkép eltolás Y irányban
+  isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
 }
 
 const Map: React.FC<MapProps> = ({
@@ -73,6 +74,7 @@ const Map: React.FC<MapProps> = ({
   ghostRoadTiles, // Hozzáadva
   mapOffsetX, // Hozzáadva
   mapOffsetY, // Hozzáadva
+  isPlacementMode, // Hozzáadva
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -141,6 +143,7 @@ const Map: React.FC<MapProps> = ({
           cellSizePx: cellSizePx,
           onClick: onBuildingClick,
           currentPlayerId: currentPlayerId,
+          isPlacementMode: isPlacementMode, // Átadjuk az isPlacementMode állapotot
         };
 
         if (building.type === "road") {
@@ -177,6 +180,7 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={currentBuildingRotation} // Átadjuk a forgatást a szellem épületnek
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       )}
       {isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.map((tile, index) => ( // Szellem szántóföld csempék megjelenítése
@@ -200,6 +204,7 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={0}
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       ))}
       {isPlacingFarmland && selectedFarmId && !ghostFarmlandTiles.length && ghostBuildingCoords && ( // Ha nincs húzás, csak egy szellem csempe
@@ -222,6 +227,7 @@ const Map: React.FC<MapProps> = ({
           buildProgress={0}
           currentPlayerId={currentPlayerId}
           rotation={0}
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       )}
       {isPlacingRoad && ghostRoadTiles.map((tile, index) => ( // Új: szellem út csempék megjelenítése
@@ -249,6 +255,7 @@ const Map: React.FC<MapProps> = ({
           hasRoadNeighborBottom={isRoadAt(tile.x, tile.y + 1, buildings, ghostRoadTiles)}
           hasRoadNeighborLeft={isRoadAt(tile.x - 1, tile.y, buildings, ghostRoadTiles)}
           hasRoadNeighborRight={isRoadAt(tile.x + 1, tile.y, buildings, ghostRoadTiles)}
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       ))}
       {isPlacingRoad && !ghostRoadTiles.length && ghostBuildingCoords && ( // Ha nincs húzás, csak egy szellem csempe
@@ -275,6 +282,7 @@ const Map: React.FC<MapProps> = ({
           hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1, buildings, ghostRoadTiles)}
           hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
           hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       )}
     </div>

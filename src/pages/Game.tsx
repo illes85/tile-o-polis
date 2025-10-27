@@ -22,7 +22,7 @@ import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as Buildin
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
-const MAP_GRID_SIZE = 20;
+const MAP_GRID_SIZE = 40; // Növeltük a térkép méretét
 const CELL_SIZE_PX = 40;
 const RENT_INTERVAL_MS = 30000;
 const BUILD_HOUSE_COST = 500;
@@ -40,7 +40,7 @@ const FARMLAND_COST_PER_TILE = 3;
 const ROAD_COST_PER_TILE = 5; // Új konstans az útépítés költségéhez
 const ROAD_BUILD_DURATION_MS = 6000; // Új konstans az útépítés idejéhez (6 másodperc)
 const ROAD_STONE_COST_PER_TILE = 1; // Új konstans az útépítés kő költségéhez
-const FARMLAND_HOE_BUILD_DURATION_MS = 15000; // Szántóföld építési ideje kapával
+const FARMLAND_HOE_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje kapával (5 másodperc)
 const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral
 
 interface Player {
@@ -235,6 +235,9 @@ const Game = () => {
   // Hangeffekt referencia
   const currentSfxAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Összesített placement mód
+  const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad;
+
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
   };
@@ -355,7 +358,7 @@ const Game = () => {
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           const randomX = Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
-          const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1));
+          const randomY = Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1)); // MAP_GRID_SIZE * 1.5 a magasság
 
           let overlaps = false;
           for (let x = randomX; x < randomX + effectiveWidth; x++) {
@@ -492,6 +495,7 @@ const Game = () => {
   };
 
   const handleBuildingClick = (buildingId: string) => {
+    if (isPlacementMode) return; // Ne lehessen kattintani épületekre, ha építési módban vagyunk
     const building = buildings.find(b => b.id === buildingId);
     setSelectedBuilding(building || null);
     setIsPlacingFarmland(false);
@@ -707,7 +711,7 @@ const Game = () => {
       const gridX = Math.floor((event.clientX - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const gridY = Math.floor((event.clientY - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
       setGhostFarmlandTiles([{ x: gridX, y: gridY }]); // Kezdő csempe hozzáadása
-    } else if (!isPlacingBuilding && !isPlacingFarmland && !isPlacingRoad) {
+    } else if (!isPlacementMode) { // Csak akkor engedélyezzük a húzást, ha nincs építési módban
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
     }
@@ -1354,7 +1358,7 @@ const Game = () => {
       <div className="mt-4">
         <Button
           onClick={() => setIsBuildMenuOpen(true)}
-          disabled={isPlacingBuilding || isPlacingFarmland || isPlacingRoad}
+          disabled={isPlacementMode} // Csak akkor inaktív, ha a játékos éppen helyez el valamit
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
         >
           Építés
@@ -1439,6 +1443,7 @@ const Game = () => {
           ghostRoadTiles={ghostRoadTiles} // Átadjuk a szellem út csempéket
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
+          isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
         />
       </div>
 
@@ -1567,7 +1572,7 @@ const Game = () => {
         playerWood={currentPlayer.inventory.wood}
         playerBrick={currentPlayer.inventory.brick}
         playerStone={currentPlayer.inventory.stone} // Átadjuk a kő mennyiségét
-        isBuildingInProgress={isPlacingBuilding || isPlacingFarmland || isPlacingRoad} // Csak akkor inaktív, ha a játékos éppen helyez el valamit
+        isBuildingInProgress={isPlacementMode} // Csak akkor inaktív, ha a játékos éppen helyez el valamit
       />
 
       <MoneyHistory

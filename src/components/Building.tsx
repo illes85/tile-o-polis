@@ -41,6 +41,7 @@ interface BuildingProps {
   hasRoadNeighborBottom?: boolean;
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
+  isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -68,6 +69,7 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborBottom = false,
   hasRoadNeighborLeft = false,
   hasRoadNeighborRight = false,
+  isPlacementMode, // Hozzáadva
 }) => {
   const baseStyle: React.CSSProperties = {
     position: "absolute",
@@ -87,6 +89,17 @@ const Building: React.FC<BuildingProps> = ({
   let content;
   let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
   let innerStyle: React.CSSProperties = {};
+
+  // Ha építési módban vagyunk, és ez nem egy szellem épület, akkor ne legyen kattintható
+  const handleClick = (event: React.MouseEvent) => {
+    if (!isGhost && !isUnderConstruction && isPlacementMode) {
+      event.stopPropagation(); // Megakadályozza, hogy a kattintás tovább terjedjen a térképre
+      return;
+    }
+    if (!isGhost && !isUnderConstruction) {
+      onClick(id);
+    }
+  };
 
   if (isGhost) {
     classes += " bg-blue-400 opacity-50 pointer-events-none";
@@ -296,7 +309,7 @@ const Building: React.FC<BuildingProps> = ({
                 isUnderConstruction && "opacity-70 bg-gray-400",
                 roundedClasses
               )}
-              onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}
+              onClick={handleClick} // Használjuk az új handleClick-et
             >
               {content}
             </div>
@@ -308,7 +321,7 @@ const Building: React.FC<BuildingProps> = ({
   }
 
   return (
-    <div style={baseStyle} className={classes} onClick={isGhost || isUnderConstruction ? undefined : () => onClick(id)}>
+    <div style={baseStyle} className={classes} onClick={handleClick}> {/* Használjuk az új handleClick-et */}
       {content}
     </div>
   );
