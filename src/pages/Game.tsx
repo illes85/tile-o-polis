@@ -733,34 +733,33 @@ const Game = () => {
 
   const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
-    // Mouse position relative to the map's current visual top-left corner
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    // Calculate grid coordinates based on the mouse position relative to the map's *untransformed* origin
-    // This is what the actual buildings use for their 'x' and 'y' props
-    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
-    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
+    // Számoljuk ki a koordinátákat a nem transzformált térképhez képest
+    const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
+    const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
 
     if (isPlacingBuilding && buildingToPlace) {
-      // For ghost building, we want its top-left to be at the grid cell under the cursor
-      // The Building component will handle the pixel conversion
-      setGhostBuildingCoords({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Pixel koordinátákat tárolunk
+      // Frissítjük a szellem épület koordinátáit az untransformed térképhez képest
+      setGhostBuildingCoords({ x: mouseXRelativeToUntransformedMap, y: mouseYRelativeToUntransformedMap });
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
       const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
 
-      const minX = Math.min(startGridX, gridX);
-      const maxX = Math.max(startGridX, gridX);
-      const minY = Math.min(startGridY, gridY);
-      const maxY = Math.max(startGridY, gridY);
+      const currentGridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
+      const currentGridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+
+      const minX = Math.min(startGridX, currentGridX);
+      const maxX = Math.max(startGridX, currentGridX);
+      const minY = Math.min(startGridY, currentGridY);
+      const maxY = Math.max(startGridY, currentGridY);
 
       const newGhostTiles: { x: number; y: number }[] = [];
       const farm = buildings.find(b => b.id === selectedFarmId);
 
       for (let x = minX; x <= maxX; x++) {
         for (let y = minY; y <= maxY; y++) {
-          // Ellenőrizzük a távolságot a farmtól
           if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, x, y)) {
             newGhostTiles.push({ x, y });
           }
@@ -768,22 +767,26 @@ const Game = () => {
       }
       setGhostFarmlandTiles(newGhostTiles);
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
+      const currentGridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
+      const currentGridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
       const farm = buildings.find(b => b.id === selectedFarmId);
-      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
-        setGhostBuildingCoords({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Pixel koordinátákat tárolunk
+      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, currentGridX, currentGridY)) {
+        setGhostBuildingCoords({ x: mouseXRelativeToUntransformedMap, y: mouseYRelativeToUntransformedMap });
       } else {
-        setGhostBuildingCoords(null); // Ha kívül esik a hatókörön, ne jelenjen meg szellem csempe
+        setGhostBuildingCoords(null);
       }
-    } else if (isPlacingRoad && isRoadDragging && lastMousePos) { // Folyamatos útépítés húzással
+    } else if (isPlacingRoad && isRoadDragging && lastMousePos) {
       const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
 
+      const currentGridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
+      const currentGridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+
       const newGhostTiles: { x: number; y: number }[] = [];
-      // Egyszerű vonal interpoláció a kezdő és aktuális pont között (Bresenham alg.)
-      const dx = Math.abs(gridX - startGridX);
-      const dy = Math.abs(gridY - startGridY);
-      const sx = (startGridX < gridX) ? 1 : -1;
-      const sy = (startGridY < gridY) ? 1 : -1;
+      const dx = Math.abs(currentGridX - startGridX);
+      const dy = Math.abs(currentGridY - startGridY);
+      const sx = (startGridX < currentGridX) ? 1 : -1;
+      const sy = (startGridY < currentGridY) ? 1 : -1;
       let err = dx - dy;
 
       let x = startGridX;
@@ -791,15 +794,15 @@ const Game = () => {
 
       while (true) {
         newGhostTiles.push({ x, y });
-        if (x === gridX && y === gridY) break;
+        if (x === currentGridX && y === currentGridY) break;
         const e2 = 2 * err;
         if (e2 > -dy) { err -= dy; x += sx; }
         if (e2 < dx) { err += dx; y += sy; }
       }
       
       setGhostRoadTiles(newGhostTiles);
-    } else if (isPlacingRoad && !isRoadDragging) { // Csak a szellem csempe mozgatása, ha nem húzunk
-      setGhostBuildingCoords({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Pixel koordinátákat tárolunk
+    } else if (isPlacingRoad && !isRoadDragging) {
+      setGhostBuildingCoords({ x: mouseXRelativeToUntransformedMap, y: mouseYRelativeToUntransformedMap });
     }
     else if (isDragging && lastMousePos) {
       const deltaX = event.clientX - lastMousePos.x;
@@ -813,26 +816,34 @@ const Game = () => {
   const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (isPlacingRoad) {
       setIsRoadDragging(true);
-      setLastMousePos({ x: event.clientX, y: event.clientY });
       const mapRect = event.currentTarget.getBoundingClientRect();
-      const gridX = Math.floor((event.clientX - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const gridY = Math.floor((event.clientY - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
-      setGhostRoadTiles([{ x: gridX, y: gridY }]); // Kezdő csempe hozzáadása
+      const mouseXRelativeToMap = event.clientX - mapRect.left;
+      const mouseYRelativeToMap = event.clientY - mapRect.top;
+      const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
+      const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
+      setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt is a transformed maphez képest tároljuk
+      const gridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+      setGhostRoadTiles([{ x: gridX, y: gridY }]);
     } else if (isPlacingFarmland && selectedFarmId) {
       setIsFarmlandDragging(true);
-      setLastMousePos({ x: event.clientX, y: event.clientY });
       const mapRect = event.currentTarget.getBoundingClientRect();
-      const gridX = Math.floor((event.clientX - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const gridY = Math.floor((event.clientY - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      const mouseXRelativeToMap = event.clientX - mapRect.left;
+      const mouseYRelativeToMap = event.clientY - mapRect.top;
+      const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
+      const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
+      setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt is a transformed maphez képest tároljuk
+      const gridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
       
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
-        setGhostFarmlandTiles([{ x: gridX, y: gridY }]); // Kezdő csempe hozzáadása
+        setGhostFarmlandTiles([{ x: gridX, y: gridY }]);
       } else {
         showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni!`);
-        setIsFarmlandDragging(false); // Megszakítjuk a húzást, ha kívül esik
+        setIsFarmlandDragging(false);
       }
-    } else if (!isPlacementMode) { // Csak akkor engedélyezzük a húzást, ha nincs építési módban
+    } else if (!isPlacementMode) {
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
     }
@@ -1258,10 +1269,10 @@ const Game = () => {
       }
 
       setPlayers(prevPlayers =>
-        prevPlayers.map(p =>
-          p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p
-        )
-      );
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p
+          )
+        );
       addTransaction(currentPlayerId, "expense", `Szántóföld létrehozása (${farm.name})`, FARMLAND_COST_PER_TILE);
 
       setIsBuildingInProgress(true);

@@ -81,12 +81,12 @@ const Map: React.FC<MapProps> = ({
 
   const handleMapClickInternal = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
-    const mouseX = event.clientX - mapRect.left;
-    const mouseY = event.clientY - mapRect.top;
+    const mouseXRelativeToMap = event.clientX - mapRect.left;
+    const mouseYRelativeToMap = event.clientY - mapRect.top;
 
     // A kattintáskor a rács koordinátáit kell kiszámolni, figyelembe véve az eltolást
-    const gridX = Math.floor((mouseX - mapOffsetX) / cellSizePx);
-    const gridY = Math.floor((mouseY - mapOffsetY) / cellSizePx);
+    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
+    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
 
     if (isPlacingBuilding && ghostBuildingCoords) {
       onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
