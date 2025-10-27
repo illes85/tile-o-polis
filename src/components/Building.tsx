@@ -106,7 +106,7 @@ const Building: React.FC<BuildingProps> = ({
   };
 
   if (isGhost) {
-    classes += " bg-blue-400 opacity-50 pointer-events-none";
+    classes += " bg-blue-400 opacity-70 pointer-events-none z-50"; // Növeltük az átlátszóságot és hozzáadtuk a z-indexet
   } else if (isUnderConstruction) {
     classes += " bg-gray-600 opacity-70";
     content = (

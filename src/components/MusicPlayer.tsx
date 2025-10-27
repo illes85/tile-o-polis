@@ -35,7 +35,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
-  }, [currentTrackIndex, tracks]); // Removed 'volume' from dependencies
+  }, [currentTrackIndex, tracks]);
 
   // Effect to handle play/pause toggle
   useEffect(() => {
@@ -126,7 +126,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             className="w-[60%]"
           />
         </div>
-        <audio ref={audioRef} loop preload="auto" />
+        <audio ref={audioRef} preload="auto" onEnded={playNextTrack} />
       </CardContent>
     </Card>
   );
