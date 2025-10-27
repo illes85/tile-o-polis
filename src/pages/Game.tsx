@@ -19,6 +19,7 @@ import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zen
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
 import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok
+import { allProducts, ProductType, getProductByType } from "@/utils/products"; // Importáljuk a termékdefiníciókat
 
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
@@ -56,6 +57,8 @@ interface Player {
     wood: number;
     brick: number;
     stone: number; // Új: kő nyersanyag
+    hoe: number; // Új: kapa
+    tractor: number; // Új: traktor
   };
   workplace: string;
   workplaceSalary: number;
@@ -196,12 +199,12 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20, stone: 10 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20, stone: 10, hoe: 1, tractor: 0 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -354,9 +357,9 @@ const Game = () => {
 
     // Kiterjesztett határok a FARMLAND_MAX_DISTANCE alapján
     const extendedMinX = farmMinX - FARMLAND_MAX_DISTANCE;
-    const extendedMaxX = farmMaxX + FARMLAND_MAX_DISTANCE;
+    const extendedMaxX = farmMaxX + effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE;
     const extendedMinY = farmMinY - FARMLAND_MAX_DISTANCE;
-    const extendedMaxY = farmMaxY + FARMLAND_MAX_DISTANCE;
+    const extendedMaxY = farmMaxY + effectiveFarmHeight - 1 + FARMLAND_MAX_DISTANCE;
 
     return (
       targetX >= extendedMinX &&
@@ -872,8 +875,8 @@ const Game = () => {
         }
 
         // Placeholder: ellenőrizni kell a kapa/traktor meglétét
-        const hasHoe = true; // Ide jön majd a játékos inventory ellenőrzése
-        const hasTractor = false; // Ide jön majd a játékos inventory ellenőrzése
+        const hasHoe = currentPlayer.inventory.hoe > 0; // Ide jön majd a játékos inventory ellenőrzése
+        const hasTractor = currentPlayer.inventory.tractor > 0; // Ide jön majd a játékos inventory ellenőrzése
         const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
         const toolName = hasTractor ? "traktorral" : "kapával";
 
@@ -1172,8 +1175,8 @@ const Game = () => {
       }
 
       // Placeholder: ellenőrizni kell a kapa/traktor meglétét
-      const hasHoe = true; // Ide jön majd a játékos inventory ellenőrzése
-      const hasTractor = false; // Ide jön majd a játékos inventory ellenőrzése
+      const hasHoe = currentPlayer.inventory.hoe > 0; // Ide jön majd a játékos inventory ellenőrzése
+      const hasTractor = currentPlayer.inventory.tractor > 0; // Ide jön majd a játékos inventory ellenőrzése
       const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
       const toolName = hasTractor ? "traktorral" : "kapával";
 

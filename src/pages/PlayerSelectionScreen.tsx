@@ -21,17 +21,20 @@ interface Player {
     clothes: number;
     wood: number;
     brick: number;
+    stone: number; // Új: kő nyersanyag
+    hoe: number; // Új: kapa
+    tractor: number; // Új: traktor
   };
   workplace: string;
 }
 
 const initialPlayers: Player[] = [
-  { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5 }, workplace: "Munkanélküli" },
-  { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3 }, workplace: "Munkanélküli" },
-  { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8 }, workplace: "Munkanélküli" },
-  { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0 }, workplace: "Munkanélküli" },
-  { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4 }, workplace: "Munkanélküli" },
-  { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20 }, workplace: "Tesztelő" }, // Teszt játékos
+  { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
+  { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
+  { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
+  { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
+  { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli" },
+  { id: "player-test", name: "Teszt Játékos", money: 10000, inventory: { potato: 10, water: 10, clothes: 5, wood: 50, brick: 20, stone: 10, hoe: 1, tractor: 0 }, workplace: "Tesztelő" }, // Teszt játékos
 ];
 
 const PlayerSelectionScreen: React.FC = () => {
@@ -44,12 +47,12 @@ const PlayerSelectionScreen: React.FC = () => {
   const getInitialResources = (selectedDifficulty: "easy" | "normal" | "hard") => {
     switch (selectedDifficulty) {
       case "easy":
-        return { money: 1500, wood: 20, brick: 10 };
+        return { money: 1500, wood: 20, brick: 10, stone: 5, hoe: 1, tractor: 0 };
       case "hard":
-        return { money: 500, wood: 0, brick: 0 };
+        return { money: 500, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 };
       case "normal":
       default:
-        return { money: 1000, wood: 5, brick: 2 };
+        return { money: 1000, wood: 5, brick: 2, stone: 0, hoe: 0, tractor: 0 };
     }
   };
 
@@ -63,13 +66,13 @@ const PlayerSelectionScreen: React.FC = () => {
       return;
     }
 
-    const { money, wood, brick } = getInitialResources(difficulty);
+    const { money, wood, brick, stone, hoe, tractor } = getInitialResources(difficulty);
 
     const newPlayer: Player = {
       id: `player-${Date.now()}`,
       name: newPlayerName.trim(),
       money: money,
-      inventory: { potato: 0, water: 0, clothes: 0, wood: wood, brick: brick },
+      inventory: { potato: 0, water: 0, clothes: 0, wood: wood, brick: brick, stone: stone, hoe: hoe, tractor: tractor },
       workplace: "Munkanélküli",
     };
     const updatedPlayers = [...players, newPlayer];
@@ -138,9 +141,9 @@ const PlayerSelectionScreen: React.FC = () => {
                   <SelectValue placeholder="Válassz nehézséget" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="easy">Könnyű (1500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 20 fa, 10 tégla)</SelectItem>
-                  <SelectItem value="normal">Normál (1000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 5 fa, 2 tégla)</SelectItem>
-                  <SelectItem value="hard">Nehéz (500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 0 fa, 0 tégla)</SelectItem>
+                  <SelectItem value="easy">Könnyű (1500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 20 fa, 10 tégla, 5 kő, 1 kapa)</SelectItem>
+                  <SelectItem value="normal">Normál (1000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 5 fa, 2 tégla, 0 kő, 0 kapa)</SelectItem>
+                  <SelectItem value="hard">Nehéz (500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 0 fa, 0 tégla, 0 kő, 0 kapa)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
