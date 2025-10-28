@@ -736,19 +736,16 @@ const Game = () => {
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    // Számoljuk ki a koordinátákat a nem transzformált térképhez képest
-    const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
-    const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
-
-    // Konvertáljuk rácskoordinátákká
-    const gridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
-    const gridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+    // A térkép eltolása már benne van a mapRect.left/top értékekben,
+    // így nem kell újra levonni a mapOffsetX/Y értékeket.
+    const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
+    const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
 
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      const startGridX = Math.floor((lastMousePos.x - mapRect.left) / CELL_SIZE_PX);
+      const startGridY = Math.floor((lastMousePos.y - mapRect.top) / CELL_SIZE_PX);
 
       const minX = Math.min(startGridX, gridX);
       const maxX = Math.max(startGridX, gridX);
@@ -774,8 +771,8 @@ const Game = () => {
         setGhostBuildingCoords(null);
       }
     } else if (isPlacingRoad && isRoadDragging && lastMousePos) {
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      const startGridX = Math.floor((lastMousePos.x - mapRect.left) / CELL_SIZE_PX);
+      const startGridY = Math.floor((lastMousePos.y - mapRect.top) / CELL_SIZE_PX);
 
       const newGhostTiles: { x: number; y: number }[] = [];
       const dx = Math.abs(gridX - startGridX);
@@ -814,22 +811,18 @@ const Game = () => {
       const mapRect = event.currentTarget.getBoundingClientRect();
       const mouseXRelativeToMap = event.clientX - mapRect.left;
       const mouseYRelativeToMap = event.clientY - mapRect.top;
-      const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
-      const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
       setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt a transformed maphez képest tároljuk a húzáshoz
-      const gridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
-      const gridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+      const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
       setGhostRoadTiles([{ x: gridX, y: gridY }]);
     } else if (isPlacingFarmland && selectedFarmId) {
       setIsFarmlandDragging(true);
       const mapRect = event.currentTarget.getBoundingClientRect();
       const mouseXRelativeToMap = event.clientX - mapRect.left;
       const mouseYRelativeToMap = event.clientY - mapRect.top;
-      const mouseXRelativeToUntransformedMap = mouseXRelativeToMap - mapOffsetX;
-      const mouseYRelativeToUntransformedMap = mouseYRelativeToMap - mapOffsetY;
       setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt a transformed maphez képest tároljuk a húzáshoz
-      const gridX = Math.floor(mouseXRelativeToUntransformedMap / CELL_SIZE_PX);
-      const gridY = Math.floor(mouseYRelativeToUntransformedMap / CELL_SIZE_PX);
+      const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
+      const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
       
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
@@ -976,7 +969,7 @@ const Game = () => {
 
         setIsBuildingInProgress(true);
 
-        const newFarmlandTiles: FarmlandTile = ghostFarlandTiles.map(tile => ({
+        const newFarmlandTiles: FarmlandTile[] = ghostFarmlandTiles.map(tile => ({
           x: tile.x,
           y: tile.y,
           ownerId: currentPlayerId,
@@ -1506,9 +1499,6 @@ const Game = () => {
     <div
       ref={mainContentRef} // Hozzáadva a ref
       className="flex flex-col h-full items-center justify-center relative"
-      // onMouseDown={handleMapMouseDown} // Eltávolítva
-      // onMouseUp={handleMapMouseUp}     // Eltávolítva
-      // onMouseLeave={handleMapMouseUp}  // Eltávolítva
     >
       <div className="flex-grow flex items-center justify-center">
         <Map
