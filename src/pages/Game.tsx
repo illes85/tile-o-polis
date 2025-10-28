@@ -404,9 +404,9 @@ const Game = () => {
 
     // Kiterjesztett határok a FARMLAND_MAX_DISTANCE alapján
     const extendedMinX = farmMinX - FARMLAND_MAX_DISTANCE;
-    const extendedMaxX = farmMaxX + FARMLAND_MAX_DISTANCE; // Itt volt egy hiba, effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE helyett
+    const extendedMaxX = farmMaxX + effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE;
     const extendedMinY = farmMinY - FARMLAND_MAX_DISTANCE;
-    const extendedMaxY = farmMaxY + FARMLAND_MAX_DISTANCE; // Itt is
+    const extendedMaxY = farmMaxY + effectiveFarmHeight - 1 + FARMLAND_MAX_DISTANCE;
 
     return (
       targetX >= extendedMinX &&
@@ -976,7 +976,7 @@ const Game = () => {
 
         setIsBuildingInProgress(true);
 
-        const newFarmlandTiles: FarmlandTile[] = ghostFarmlandTiles.map(tile => ({
+        const newFarmlandTiles: FarmlandTile = ghostFarlandTiles.map(tile => ({
           x: tile.x,
           y: tile.y,
           ownerId: currentPlayerId,
@@ -1506,9 +1506,9 @@ const Game = () => {
     <div
       ref={mainContentRef} // Hozzáadva a ref
       className="flex flex-col h-full items-center justify-center relative"
-      onMouseDown={handleMapMouseDown}
-      onMouseUp={handleMapMouseUp}
-      onMouseLeave={handleMapMouseUp} // Ha az egér elhagyja a térképet, állítsuk le a húzást
+      // onMouseDown={handleMapMouseDown} // Eltávolítva
+      // onMouseUp={handleMapMouseUp}     // Eltávolítva
+      // onMouseLeave={handleMapMouseUp}  // Eltávolítva
     >
       <div className="flex-grow flex items-center justify-center">
         <Map
@@ -1532,6 +1532,9 @@ const Game = () => {
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
           isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
+          onMapMouseDown={handleMapMouseDown} // Átadjuk a Map komponensnek
+          onMapMouseUp={handleMapMouseUp}     // Átadjuk a Map komponensnek
+          onMapMouseLeave={handleMapMouseUp}  // Átadjuk a Map komponensnek
         />
       </div>
 

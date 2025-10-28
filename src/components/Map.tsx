@@ -52,6 +52,9 @@ interface MapProps {
   mapOffsetX: number; // Új: térkép eltolás X irányban
   mapOffsetY: number; // Új: térkép eltolás Y irányban
   isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
+  onMapMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; // Új: egér lenyomás esemény
+  onMapMouseUp: (event: React.MouseEvent<HTMLDivElement>) => void;   // Új: egér felengedés esemény
+  onMapMouseLeave: (event: React.MouseEvent<HTMLDivElement>) => void; // Új: egér elhagyja az elemet esemény
 }
 
 const Map: React.FC<MapProps> = ({
@@ -75,6 +78,9 @@ const Map: React.FC<MapProps> = ({
   mapOffsetX, // Hozzáadva
   mapOffsetY, // Hozzáadva
   isPlacementMode, // Hozzáadva
+  onMapMouseDown, // Hozzáadva
+  onMapMouseUp,   // Hozzáadva
+  onMapMouseLeave, // Hozzáadva
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -121,6 +127,9 @@ const Map: React.FC<MapProps> = ({
       }}
       onMouseMove={onMapMouseMove}
       onClick={handleMapClickInternal}
+      onMouseDown={onMapMouseDown}   // Csatoljuk az eseménykezelőket
+      onMouseUp={onMapMouseUp}       // Csatoljuk az eseménykezelőket
+      onMouseLeave={onMapMouseLeave} // Csatoljuk az eseménykezelőket
     >
       {buildings.map((building) => {
         const commonProps = {
