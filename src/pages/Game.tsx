@@ -375,14 +375,14 @@ const Game = () => {
     }
 
     // Új szabály: épületek csak út mentén épülhetnek, kivéve Sátor és Erdészház
-    if (buildingType !== "house" || (buildingType === "house" && buildingWidth !== 2 && buildingHeight !== 1)) { // Sátor kivétel
-      if (buildingType !== "forestry") { // Erdészház kivétel
-        if (!isAdjacentToRoad(targetX, targetY, buildingWidth, buildingHeight, rotation, currentBuildings, currentGhostRoadTiles)) {
-          showError("Az épületet csak út mentén lehet elhelyezni!");
-          return false;
-        }
-      }
-    }
+    // if (buildingType !== "house" || (buildingType === "house" && buildingWidth !== 2 && buildingHeight !== 1)) { // Sátor kivétel
+    //   if (buildingType !== "forestry") { // Erdészház kivétel
+    //     if (!isAdjacentToRoad(targetX, targetY, buildingWidth, buildingHeight, rotation, currentBuildings, currentGhostRoadTiles)) {
+    //       showError("Az épületet csak út mentén lehet elhelyezni!");
+    //       return false;
+    //     }
+    //   }
+    // }
     
     return true;
   };
