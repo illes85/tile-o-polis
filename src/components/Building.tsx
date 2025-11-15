@@ -85,15 +85,9 @@ const Building: React.FC<BuildingProps> = ({
     zIndex: isGhost ? 50 : 1, // Magasabb z-index a szellem épületnek
     opacity: isGhost ? 0.7 : 1, // Átlátszóság a szellem épületnek
     pointerEvents: isGhost ? 'none' : 'auto', // Ne lehessen rákattintani a szellem épületre
+    transform: `rotate(${rotation}deg)`, // Mindig alkalmazzuk a forgatást, szellem épületre is
+    transformOrigin: 'center center',
   };
-
-  // Csak akkor alkalmazzuk a forgatást, ha nem szellem épület
-  if (!isGhost) {
-    baseStyle.transform = `rotate(${rotation}deg)`;
-    baseStyle.transformOrigin = 'center center';
-  } else {
-    baseStyle.transform = 'none'; // Szellem épületnél nincs forgatás
-  }
 
   const occupancy = type === "house" ? residentIds.length : employeeIds.length;
   const isRentedByPlayer = renterId === currentPlayerId;
@@ -131,8 +125,8 @@ const Building: React.FC<BuildingProps> = ({
       case "house":
         content = (
           <>
-            {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-8 w-8 mb-1 object-contain" /> : null}
-            <span className="text-white text-xs">{name}</span>
+            {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" /> : null}
+            <span className="text-white text-xs absolute bottom-1 left-1 bg-black bg-opacity-50 px-1 rounded">{name}</span> {/* Szöveg a kép felett */}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
@@ -141,7 +135,7 @@ const Building: React.FC<BuildingProps> = ({
               </div>
             )}
             {isRentedByPlayer && (
-              <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold">Bérelt</span>
+              <span className="absolute top-1 left-1 text-[0.6rem] text-blue-700 font-bold bg-black bg-opacity-50 px-1 rounded">Bérelt</span>
             )}
             {isOwnedByPlayer && (
               <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
