@@ -99,8 +99,8 @@ const Building: React.FC<BuildingProps> = ({
   const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
 
   let content;
-  let classes = "flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
-  let innerStyle: React.CSSProperties = {};
+  let baseClasses = "flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+  let visualClasses = ""; // Ide kerülnek a háttér, keret, árnyék, hover stílusok
 
   const handleClick = (event: React.MouseEvent) => {
     if (!isGhost && !isUnderConstruction && isPlacementMode) {
@@ -113,7 +113,7 @@ const Building: React.FC<BuildingProps> = ({
   };
 
   if (isUnderConstruction) {
-    classes += " bg-gray-600 opacity-70 border border-gray-500";
+    visualClasses = "bg-gray-600 opacity-70 border border-gray-500";
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <Hammer className="h-6 w-6 text-white mb-1" />
@@ -123,21 +123,19 @@ const Building: React.FC<BuildingProps> = ({
       </div>
     );
   } else {
-    classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
-    
-    // Alapértelmezett keret hozzáadása, kivéve a kép alapú házakhoz
-    // A kép alapú házak (Sátor, Házikó) csak egérráhúzásra kapnak keretet
-    if (type !== "house" || (name !== "Sátor" && name !== "Házikó")) {
-      classes += " border border-gray-500";
-    }
+    visualClasses = "rounded-md shadow-md cursor-pointer transition-colors"; // Közös stílusok nem építés alatt álló épületeknek
 
     switch (type) {
       case "house":
-        // Keret hozzáadása egérráhúzásra a kép alapú házakhoz
-        if ((name === "Sátor" || name === "Házikó") && isHovered) {
-          classes += " border border-gray-500";
+        if (name === "Sátor" || name === "Házikó") {
+          // Kép alapú házak: háttér és keret csak egérráhúzásra
+          if (isHovered) {
+            visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+          }
+        } else {
+          // Nem kép alapú házak: mindig van háttér és keret
+          visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
         }
-
         content = (
           <>
             {name === "Sátor" && <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />}
@@ -146,7 +144,7 @@ const Building: React.FC<BuildingProps> = ({
             {(name === "Sátor" || name === "Házikó") && isHovered && (
               <span className="text-white text-xs absolute bottom-1 left-1 bg-black bg-opacity-50 px-1 rounded">{name}</span>
             )}
-            {name !== "Sátor" && name !== "Házikó" && ( // Ha nincs kép, akkor a név jelenjen meg középen
+            {name !== "Sátor" && name !== "Házikó" && (
               <span className="text-white text-xs">{name}</span>
             )}
             {occupancy > 0 && (
@@ -166,7 +164,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "office":
-        classes = classes.replace("bg-stone-400", "bg-blue-600");
+        visualClasses += " bg-blue-600 border border-gray-500 hover:bg-blue-700";
         content = (
           <>
             {name === "Polgármesteri Hivatal" ? <BuildingIcon className="h-4 w-4 mb-1" /> : <Briefcase className="h-4 w-4 mb-1" />}
@@ -188,7 +186,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "forestry":
-        classes = classes.replace("bg-stone-400", "bg-green-700");
+        visualClasses += " bg-green-700 border border-gray-500 hover:bg-green-800";
         content = (
           <>
             Erdészház
@@ -209,7 +207,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "farm":
-        classes = classes.replace("bg-stone-400", "bg-yellow-600");
+        visualClasses += " bg-yellow-600 border border-gray-500 hover:bg-yellow-700";
         content = (
           <>
             Farm
@@ -260,10 +258,7 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "farmland":
-        classes = cn(
-          "bg-yellow-800/50 border border-yellow-900 flex items-center justify-center text-xs text-white p-1 relative overflow-hidden",
-          isUnderConstruction && "opacity-70 bg-gray-400"
-        );
+        visualClasses += " bg-yellow-800/50 border border-yellow-900"; // Farmlandnek mindig van háttér és keret
         content = isUnderConstruction ? (
           <div className="flex flex-col items-center justify-center h-full w-full">
             <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
@@ -275,76 +270,11 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "road":
-        // Alap stílus: kicsit kisebb, lekerekített szürke négyszög
-        classes = cn(
-          "absolute bg-gray-300/80 border border-gray-400", // Világosabb szürke, enyhe átlátszósággal
-          isUnderConstruction && "opacity-70 bg-gray-400", // Építés alatt álló út
-          isDemolishingRoad && isOwnedByPlayer && "border-2 border-red-500 cursor-cell" // Piros keret bontási módban
-        );
-        
-        // Az "összeolvadás" logikája
-        const roadWidth = cellSizePx * 0.6; // Alap szélesség
-        const roadHeight = cellSizePx * 0.6; // Alap magasság
-        const offset = (cellSizePx - roadWidth) / 2; // Középre igazítás
-
-        innerStyle = {
-          left: offset,
-          top: offset,
-          width: roadWidth,
-          height: roadHeight,
-        };
-
-        // Ha van szomszéd, akkor kiterjesztjük a belső elemet a szomszéd felé
-        if (hasRoadNeighborTop) {
-          innerStyle.top = 0;
-          innerStyle.height = (innerStyle.height as number) + offset;
-        }
-        if (hasRoadNeighborBottom) {
-          innerStyle.height = (innerStyle.height as number) + offset;
-        }
-        if (hasRoadNeighborLeft) {
-          innerStyle.left = 0;
-          innerStyle.width = (innerStyle.width as number) + offset;
-        }
-        if (hasRoadNeighborRight) {
-          innerStyle.width = (innerStyle.width as number) + offset;
-        }
-
-        // Lekerekítés szabályozása: csak akkor legyen lekerekített, ha nincs szomszéd abban az irányban
-        const roundedClasses = cn(
-          !hasRoadNeighborTop && "rounded-t-md",
-          !hasRoadNeighborBottom && "rounded-b-md",
-          !hasRoadNeighborLeft && "rounded-l-md",
-          !hasRoadNeighborRight && "rounded-r-md",
-          (hasRoadNeighborTop && hasRoadNeighborBottom && hasRoadNeighborLeft && hasRoadNeighborRight) && "rounded-none" // Ha mindenhol van szomszéd, akkor ne legyen lekerekítés
-        );
-
-        content = isUnderConstruction ? (
-          <div className="flex flex-col items-center justify-center h-full w-full">
-            <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
-            <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
-            <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
-          </div>
-        ) : null; // Nincs ikon, ha kész az út
-
-        return (
-          <div style={baseStyle} className="absolute">
-            <div
-              style={innerStyle}
-              className={cn(
-                "absolute bg-gray-300/80 border border-gray-400",
-                isUnderConstruction && "opacity-70 bg-gray-400",
-                roundedClasses,
-                isDemolishingRoad && isOwnedByPlayer && "border-2 border-red-500" // Piros keret bontási módban
-              )}
-              onClick={handleClick} // Használjuk az új handleClick-et
-            >
-              {content}
-            </div>
-          </div>
-        );
+        // Az út speciális renderelése miatt itt nem adunk hozzá visualClasses-t,
+        // hanem a belső div-ben kezeljük a stílusokat.
+        break;
       case "shop":
-        classes = classes.replace("bg-stone-400", "bg-purple-600");
+        visualClasses += " bg-purple-600 border border-gray-500 hover:bg-purple-700";
         content = (
           <>
             <ShoppingBag className="h-4 w-4 mb-1" />
@@ -366,14 +296,80 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       default:
+        visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
         content = "Ismeretlen épület";
     }
+  }
+
+  // Speciális kezelés az út típushoz, mivel az egy belső div-et használ
+  if (type === "road" && !isUnderConstruction) {
+    // Az "összeolvadás" logikája
+    const roadWidth = cellSizePx * 0.6; // Alap szélesség
+    const roadHeight = cellSizePx * 0.6; // Alap magasság
+    const offset = (cellSizePx - roadWidth) / 2; // Középre igazítás
+
+    innerStyle = {
+      left: offset,
+      top: offset,
+      width: roadWidth,
+      height: roadHeight,
+    };
+
+    // Ha van szomszéd, akkor kiterjesztjük a belső elemet a szomszéd felé
+    if (hasRoadNeighborTop) {
+      innerStyle.top = 0;
+      innerStyle.height = (innerStyle.height as number) + offset;
+    }
+    if (hasRoadNeighborBottom) {
+      innerStyle.height = (innerStyle.height as number) + offset;
+    }
+    if (hasRoadNeighborLeft) {
+      innerStyle.left = 0;
+      innerStyle.width = (innerStyle.width as number) + offset;
+    }
+    if (hasRoadNeighborRight) {
+      innerStyle.width = (innerStyle.width as number) + offset;
+    }
+
+    // Lekerekítés szabályozása: csak akkor legyen lekerekített, ha nincs szomszéd abban az irányban
+    const roundedClasses = cn(
+      !hasRoadNeighborTop && "rounded-t-md",
+      !hasRoadNeighborBottom && "rounded-b-md",
+      !hasRoadNeighborLeft && "rounded-l-md",
+      !hasRoadNeighborRight && "rounded-r-md",
+      (hasRoadNeighborTop && hasRoadNeighborBottom && hasRoadNeighborLeft && hasRoadNeighborRight) && "rounded-none" // Ha mindenhol van szomszéd, akkor ne legyen lekerekítés
+    );
+
+    content = isUnderConstruction ? (
+      <div className="flex flex-col items-center justify-center h-full w-full">
+        <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
+        <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
+        <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
+      </div>
+    ) : null; // Nincs ikon, ha kész az út
+
+    return (
+      <div style={baseStyle} className="absolute">
+        <div
+          style={innerStyle}
+          className={cn(
+            "absolute bg-gray-300/80 border border-gray-400",
+            isUnderConstruction && "opacity-70 bg-gray-400",
+            roundedClasses,
+            isDemolishingRoad && isOwnedByPlayer && "border-2 border-red-500" // Piros keret bontási módban
+          )}
+          onClick={handleClick}
+        >
+          {content}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div
       style={baseStyle}
-      className={classes}
+      className={cn(baseClasses, visualClasses)} // Itt egyesítjük az alap és vizuális osztályokat
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
