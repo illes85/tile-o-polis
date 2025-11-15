@@ -18,7 +18,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer"; // Importálju
 import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2 } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok, Wrench és Trash2 ikonok
 import { allProducts, ProductType, getProductByType } from "@/utils/products"; // Importáljuk a termékdefiníciókat
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -45,6 +45,7 @@ const ROAD_STONE_COST_PER_TILE = 1; // Új konstans az útépítés kő költsé
 const FARMLAND_HOE_BUILD_DURATION_MS = 15000; // Szántóföld építési ideje kapával (15 másodperc)
 const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral (5 másodperc)
 const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
+const DEMOLISH_REFUND_PERCENTAGE = 0.5; // 50% visszatérítés bontáskor
 
 interface Player {
   id: string;
@@ -242,6 +243,8 @@ const Game = () => {
   const [ghostRoadTiles, setGhostRoadTiles] = useState<{ x: number; y: number }[]>([]); // Új: szellem út csempék a folyamatos építéshez
   const [isRoadDragging, setIsRoadDragging] = useState(false); // Új: útépítés húzással
 
+  const [isDemolishingRoad, setIsDemolishingRoad] = useState(false); // Új állapot: út bontási mód
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Térkép húzogatás állapotok
@@ -257,7 +260,7 @@ const Game = () => {
   const sfxPlayerRef = useRef<SfxPlayerRef>(null);
 
   // Összesített placement mód
-  const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad;
+  const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad || isDemolishingRoad;
 
   // Kamera pozicionálása a pálya közepére a játék elején
   useEffect(() => {
@@ -604,6 +607,7 @@ const Game = () => {
     setIsPlacingRoad(false); // Új: útépítés mód kikapcsolása
     setIsRoadDragging(false);
     setGhostRoadTiles([]);
+    setIsDemolishingRoad(false); // Új: bontási mód kikapcsolása
   };
 
   const handleRentBuilding = () => {
@@ -795,6 +799,9 @@ const Game = () => {
       setGhostRoadTiles(newGhostTiles);
     } else if (isPlacingRoad && !isRoadDragging) {
       setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
+    } else if (isDemolishingRoad) {
+      // Nincs szellem épület bontáskor, de a kurzor változhat
+      setGhostBuildingCoords(null);
     }
     else if (isDragging && lastMousePos) {
       const deltaX = event.clientX - lastMousePos.x;
@@ -1223,6 +1230,30 @@ const Game = () => {
       } else {
         showError("Ez a hely már foglalt!");
       }
+    } else if (isDemolishingRoad) { // Új: út bontása
+      const roadToDemolish = buildings.find(b => b.type === "road" && b.x === gridX && b.y === gridY && b.ownerId === currentPlayerId && !b.isUnderConstruction);
+
+      if (roadToDemolish) {
+        const refundAmount = Math.floor(ROAD_COST_PER_TILE * DEMOLISH_REFUND_PERCENTAGE);
+        const refundStone = Math.floor(ROAD_STONE_COST_PER_TILE * DEMOLISH_REFUND_PERCENTAGE);
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money + refundAmount, inventory: { ...p.inventory, stone: p.inventory.stone + refundStone } } : p
+          )
+        );
+        addTransaction(currentPlayerId, "income", `Út bontása (visszatérítés)`, refundAmount);
+        addTransaction(currentPlayerId, "income", `Kő visszatérítés út bontásakor`, refundStone);
+
+        setBuildings(prevBuildings => prevBuildings.filter(b => b.id !== roadToDemolish.id));
+        showSuccess(`Út sikeresen lebontva! Visszatérítve: ${refundAmount} pénz és ${refundStone} kő.`);
+
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.playSfx("demolition-01"); // Bontási hang
+        }
+      } else {
+        showError("Nincs itt út, amit lebontani lehetne, vagy nem a te tulajdonod!");
+      }
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) { // Ha csak kattintunk szántóföld építés módban, de nem húzunk
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (!farm || farm.type !== "farm" || farm.ownerId !== currentPlayerId) {
@@ -1362,12 +1393,13 @@ const Game = () => {
     }
   };
 
-  const cancelRoadPlacement = () => { // Új: útépítés megszakítása
+  const cancelRoadMode = () => { // Új: útépítés és út bontás megszakítása
     setIsPlacingRoad(false);
     setIsRoadDragging(false);
     setGhostRoadTiles([]);
+    setIsDemolishingRoad(false);
     setGhostBuildingCoords(null);
-    showError("Útépítés megszakítva.");
+    showError("Út mód megszakítva.");
     if (sfxPlayerRef.current) {
       sfxPlayerRef.current.stopAllSfx();
     }
@@ -1466,12 +1498,12 @@ const Game = () => {
             Szántóföld építés megszakítása
           </Button>
         )}
-        {isPlacingRoad && ( // Új: útépítés megszakítása gomb
+        {(isPlacingRoad || isDemolishingRoad) && ( // Új: útépítés/bontás megszakítása gomb
           <Button
-            onClick={cancelRoadPlacement}
+            onClick={cancelRoadMode}
             className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
           >
-            Útépítés megszakítása
+            Út mód megszakítása
           </Button>
         )}
         <Button
@@ -1519,6 +1551,7 @@ const Game = () => {
           ghostFarmlandTiles={ghostFarmlandTiles} // Átadjuk a szellem szántóföld csempéket
           isPlacingRoad={isPlacingRoad} // Átadjuk az útépítés állapotát
           ghostRoadTiles={ghostRoadTiles} // Átadjuk a szellem út csempéket
+          isDemolishingRoad={isDemolishingRoad} // Új: átadjuk a bontási módot
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
           isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
@@ -1588,19 +1621,31 @@ const Game = () => {
               )}
 
               {selectedBuilding.name === "Polgármesteri Hivatal" && selectedBuilding.ownerId === currentPlayerId && (
-                <Button
-                  onClick={() => {
-                    setIsPlacingRoad(true);
-                    setSelectedBuilding(null);
-                    showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe, ${ROAD_STONE_COST_PER_TILE} kő/csempe), vagy húzd az egeret a folyamatos építéshez.`);
-                  }}
-                  className="w-full mt-4 bg-gray-500 hover:bg-gray-600"
-                >
-                  Út építése
-                  <span className="ml-2 text-xs opacity-80">
-                    ({ROAD_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" /> + {ROAD_STONE_COST_PER_TILE} kő/csempe, {ROAD_BUILD_DURATION_MS / 1000} mp)
-                  </span>
-                </Button>
+                <div className="flex flex-col space-y-2 mt-4">
+                  <Button
+                    onClick={() => {
+                      setIsPlacingRoad(true);
+                      setSelectedBuilding(null);
+                      showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe, ${ROAD_STONE_COST_PER_TILE} kő/csempe), vagy húzd az egeret a folyamatos építéshez.`);
+                    }}
+                    className="w-full bg-gray-500 hover:bg-gray-600"
+                  >
+                    <Route className="h-4 w-4 mr-2" /> Út építése
+                    <span className="ml-2 text-xs opacity-80">
+                      ({ROAD_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" /> + {ROAD_STONE_COST_PER_TILE} kő/csempe, {ROAD_BUILD_DURATION_MS / 1000} mp)
+                    </span>
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsDemolishingRoad(true);
+                      setSelectedBuilding(null);
+                      showSuccess("Kattints egy útcsempére a lebontásához. A költség 50%-át visszakapod.");
+                    }}
+                    className="w-full bg-red-500 hover:bg-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Út bontása
+                  </Button>
+                </div>
               )}
 
               {selectedBuilding.renterId === currentPlayerId && selectedBuilding.ownerId !== currentPlayerId && (

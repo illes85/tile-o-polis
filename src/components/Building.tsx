@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag } from "lucide-react"; // ShoppingBag ikon a bolthoz
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2 } from "lucide-react"; // ShoppingBag ikon a bolthoz, Trash2 ikon a bontáshoz
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
 import satorImage from "@/images/sator.png"; // Importáljuk a sator.png képet
@@ -43,6 +43,7 @@ interface BuildingProps {
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
   isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
+  isDemolishingRoad: boolean; // Új: jelzi, ha a játékos út bontási módban van
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -70,7 +71,8 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborBottom = false,
   hasRoadNeighborLeft = false,
   hasRoadNeighborRight = false,
-  isPlacementMode, // Hozzáadva
+  isPlacementMode,
+  isDemolishingRoad, // Hozzáadva
 }) => {
   const [isHovered, setIsHovered] = useState(false); // Új állapot az egérráhúzáshoz
 
@@ -260,7 +262,8 @@ const Building: React.FC<BuildingProps> = ({
         // Alap stílus: kicsit kisebb, lekerekített szürke négyszög
         classes = cn(
           "absolute bg-gray-300/80 border border-gray-400", // Világosabb szürke, enyhe átlátszósággal
-          isUnderConstruction && "opacity-70 bg-gray-400" // Építés alatt álló út
+          isUnderConstruction && "opacity-70 bg-gray-400", // Építés alatt álló út
+          isDemolishingRoad && isOwnedByPlayer && "border-2 border-red-500 cursor-cell" // Piros keret bontási módban
         );
         
         // Az "összeolvadás" logikája
@@ -315,7 +318,8 @@ const Building: React.FC<BuildingProps> = ({
               className={cn(
                 "absolute bg-gray-300/80 border border-gray-400",
                 isUnderConstruction && "opacity-70 bg-gray-400",
-                roundedClasses
+                roundedClasses,
+                isDemolishingRoad && isOwnedByPlayer && "border-2 border-red-500" // Piros keret bontási módban
               )}
               onClick={handleClick} // Használjuk az új handleClick-et
             >
