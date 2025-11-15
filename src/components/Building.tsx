@@ -99,7 +99,8 @@ const Building: React.FC<BuildingProps> = ({
   const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
 
   let content;
-  let baseClasses = "flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+  // Alapértelmezett osztályok, de a padding-et kivesszük, ha kép alapú házról van szó
+  let baseClasses = "flex flex-col items-center justify-center text-xs text-white relative overflow-hidden";
   let visualClasses = ""; // Ide kerülnek a háttér, keret, árnyék, hover stílusok
 
   const handleClick = (event: React.MouseEvent) => {
@@ -115,7 +116,7 @@ const Building: React.FC<BuildingProps> = ({
   if (isUnderConstruction) {
     visualClasses = "bg-gray-600 opacity-70 border border-gray-500";
     content = (
-      <div className="flex flex-col items-center justify-center h-full w-full">
+      <div className="flex flex-col items-center justify-center h-full w-full p-1"> {/* Padding vissza a tartalomra */}
         <Hammer className="h-6 w-6 text-white mb-1" />
         <span className="text-white text-xs">Épül...</span>
         <Progress value={buildProgress} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
@@ -135,6 +136,7 @@ const Building: React.FC<BuildingProps> = ({
         } else {
           // Nem kép alapú házak: mindig van háttér és keret
           visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+          baseClasses += " p-1"; // Padding vissza a nem kép alapú házakra
         }
         content = (
           <>
@@ -165,6 +167,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "office":
         visualClasses += " bg-blue-600 border border-gray-500 hover:bg-blue-700";
+        baseClasses += " p-1"; // Padding vissza
         content = (
           <>
             {name === "Polgármesteri Hivatal" ? <BuildingIcon className="h-4 w-4 mb-1" /> : <Briefcase className="h-4 w-4 mb-1" />}
@@ -187,6 +190,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "forestry":
         visualClasses += " bg-green-700 border border-gray-500 hover:bg-green-800";
+        baseClasses += " p-1"; // Padding vissza
         content = (
           <>
             Erdészház
@@ -208,6 +212,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "farm":
         visualClasses += " bg-yellow-600 border border-gray-500 hover:bg-yellow-700";
+        baseClasses += " p-1"; // Padding vissza
         content = (
           <>
             Farm
@@ -259,6 +264,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "farmland":
         visualClasses += " bg-yellow-800/50 border border-yellow-900"; // Farmlandnek mindig van háttér és keret
+        baseClasses += " p-1"; // Padding vissza
         content = isUnderConstruction ? (
           <div className="flex flex-col items-center justify-center h-full w-full">
             <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
@@ -275,6 +281,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       case "shop":
         visualClasses += " bg-purple-600 border border-gray-500 hover:bg-purple-700";
+        baseClasses += " p-1"; // Padding vissza
         content = (
           <>
             <ShoppingBag className="h-4 w-4 mb-1" />
@@ -297,6 +304,7 @@ const Building: React.FC<BuildingProps> = ({
         break;
       default:
         visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+        baseClasses += " p-1"; // Padding vissza
         content = "Ismeretlen épület";
     }
   }
@@ -341,7 +349,7 @@ const Building: React.FC<BuildingProps> = ({
     );
 
     content = isUnderConstruction ? (
-      <div className="flex flex-col items-center justify-center h-full w-full">
+      <div className="flex flex-col items-center justify-center h-full w-full p-1"> {/* Padding vissza a tartalomra */}
         <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
         <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
         <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
