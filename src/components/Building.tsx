@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag } from "lucide-react"; // ShoppingBag ikon a bolthoz
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
@@ -72,6 +72,8 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborRight = false,
   isPlacementMode, // Hozzáadva
 }) => {
+  const [isHovered, setIsHovered] = useState(false); // Új állapot az egérráhúzáshoz
+
   // Az x és y propok mostantól mindig rácskoordináták, így egyszerűen megszorozzuk őket cellSizePx-szel.
   const actualX = x * cellSizePx;
   const actualY = y * cellSizePx;
@@ -126,7 +128,9 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" /> : null}
-            <span className="text-white text-xs absolute bottom-1 left-1 bg-black bg-opacity-50 px-1 rounded">{name}</span> {/* Szöveg a kép felett */}
+            {name === "Sátor" && isHovered && ( // Csak Sátor esetén és egérráhúzásra
+              <span className="text-white text-xs absolute bottom-1 left-1 bg-black bg-opacity-50 px-1 rounded">{name}</span>
+            )}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => (
@@ -347,7 +351,13 @@ const Building: React.FC<BuildingProps> = ({
   }
 
   return (
-    <div style={baseStyle} className={classes} onClick={handleClick}> {/* Használjuk az új handleClick-et */}
+    <div
+      style={baseStyle}
+      className={classes}
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)} // Egérráhúzás esemény
+      onMouseLeave={() => setIsHovered(false)} // Egér elhagyása esemény
+    >
       {content}
     </div>
   );
