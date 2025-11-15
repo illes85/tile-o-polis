@@ -5,6 +5,7 @@ import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
 import satorImage from "@/images/sator.png"; // Importáljuk a sator.png képet
+import hazikoImage from "@/images/haziko.png"; // Importáljuk a haziko.png képet
 
 export interface FarmlandTile {
   x: number;
@@ -72,11 +73,10 @@ const Building: React.FC<BuildingProps> = ({
   hasRoadNeighborLeft = false,
   hasRoadNeighborRight = false,
   isPlacementMode,
-  isDemolishingRoad, // Hozzáadva
+  isDemolishingRoad,
 }) => {
-  const [isHovered, setIsHovered] = useState(false); // Új állapot az egérráhúzáshoz
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Az x és y propok mostantól mindig rácskoordináták, így egyszerűen megszorozzuk őket cellSizePx-szel.
   const actualX = x * cellSizePx;
   const actualY = y * cellSizePx;
 
@@ -86,10 +86,10 @@ const Building: React.FC<BuildingProps> = ({
     top: actualY,
     width: width * cellSizePx,
     height: height * cellSizePx,
-    zIndex: isGhost ? 50 : 1, // Magasabb z-index a szellem épületnek
-    opacity: isGhost ? 0.7 : 1, // Átlátszóság a szellem épületnek
-    pointerEvents: isGhost ? 'none' : 'auto', // Ne lehessen rákattintani a szellem épületre
-    transform: `rotate(${rotation}deg)`, // Mindig alkalmazzuk a forgatást, szellem épületre is
+    zIndex: isGhost ? 50 : 1,
+    opacity: isGhost ? 0.7 : 1,
+    pointerEvents: isGhost ? 'none' : 'auto',
+    transform: `rotate(${rotation}deg)`,
     transformOrigin: 'center center',
   };
 
@@ -99,13 +99,12 @@ const Building: React.FC<BuildingProps> = ({
   const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
 
   let content;
-  let classes = "border border-gray-500 flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
+  let classes = "flex flex-col items-center justify-center text-xs text-white p-1 relative overflow-hidden";
   let innerStyle: React.CSSProperties = {};
 
-  // Ha építési módban vagyunk, és ez nem egy szellem épület, akkor ne legyen kattintható
   const handleClick = (event: React.MouseEvent) => {
     if (!isGhost && !isUnderConstruction && isPlacementMode) {
-      event.stopPropagation(); // Megakadályozza, hogy a kattintás tovább terjedjen a térképre
+      event.stopPropagation();
       return;
     }
     if (!isGhost && !isUnderConstruction) {
@@ -114,7 +113,7 @@ const Building: React.FC<BuildingProps> = ({
   };
 
   if (isUnderConstruction) {
-    classes += " bg-gray-600 opacity-70";
+    classes += " bg-gray-600 opacity-70 border border-gray-500";
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full">
         <Hammer className="h-6 w-6 text-white mb-1" />
@@ -125,16 +124,29 @@ const Building: React.FC<BuildingProps> = ({
     );
   } else {
     classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
+    
+    // Alapértelmezett keret hozzáadása, kivéve a kép alapú házakhoz
+    if (type !== "house" || (name !== "Sátor" && name !== "Házikó")) {
+      classes += " border border-gray-500";
+    }
+
     switch (type) {
       case "house":
-        if (name === "Sátor") {
-          classes = classes.replace("border border-gray-500", ""); // Remove border for Sátor
+        // Keret hozzáadása egérráhúzásra a kép alapú házakhoz
+        if ((name === "Sátor" || name === "Házikó") && isHovered) {
+          classes += " border border-gray-500";
         }
+
         content = (
           <>
-            {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" /> : null}
-            {name === "Sátor" && isHovered && ( // Csak Sátor esetén és egérráhúzásra
+            {name === "Sátor" && <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />}
+            {name === "Házikó" && <img src={hazikoImage} alt="Házikó" className="h-full w-full object-cover" />}
+            
+            {(name === "Sátor" || name === "Házikó") && isHovered && (
               <span className="text-white text-xs absolute bottom-1 left-1 bg-black bg-opacity-50 px-1 rounded">{name}</span>
+            )}
+            {name !== "Sátor" && name !== "Házikó" && ( // Ha nincs kép, akkor a név jelenjen meg középen
+              <span className="text-white text-xs">{name}</span>
             )}
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
@@ -362,8 +374,8 @@ const Building: React.FC<BuildingProps> = ({
       style={baseStyle}
       className={classes}
       onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)} // Egérráhúzás esemény
-      onMouseLeave={() => setIsHovered(false)} // Egér elhagyása esemény
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {content}
     </div>
