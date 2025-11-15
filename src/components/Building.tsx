@@ -127,6 +127,9 @@ const Building: React.FC<BuildingProps> = ({
     classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
     switch (type) {
       case "house":
+        if (name === "Sátor") {
+          classes = classes.replace("border border-gray-500", ""); // Remove border for Sátor
+        }
         content = (
           <>
             {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" /> : null}

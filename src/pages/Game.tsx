@@ -789,7 +789,10 @@ const Game = () => {
       let y = startGridY;
 
       while (true) {
-        newGhostTiles.push({ x, y });
+        // Csak akkor adjuk hozzá a szellem csempét, ha nincs rajta már épület
+        if (!isCellOccupied(x, y, buildings)) {
+          newGhostTiles.push({ x, y });
+        }
         if (x === gridX && y === gridY) break;
         const e2 = 2 * err;
         if (e2 > -dy) { err -= dy; x += sx; }
@@ -821,7 +824,14 @@ const Game = () => {
       setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt a transformed maphez képest tároljuk a húzáshoz
       const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
       const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
-      setGhostRoadTiles([{ x: gridX, y: gridY }]);
+      
+      // Csak akkor kezdjük el a húzást, ha a kezdő csempe nem foglalt
+      if (!isCellOccupied(gridX, gridY, buildings)) {
+        setGhostRoadTiles([{ x: gridX, y: gridY }]);
+      } else {
+        showError("Nem lehet utat építeni foglalt területekre!");
+        setIsRoadDragging(false); // Megszakítjuk a húzást, ha foglalt a kezdőpont
+      }
     } else if (isPlacingFarmland && selectedFarmId) {
       setIsFarmlandDragging(true);
       const mapRect = event.currentTarget.getBoundingClientRect();
@@ -850,93 +860,103 @@ const Game = () => {
 
     if (isPlacingRoad && isRoadDragging) {
       setIsRoadDragging(false);
-      if (ghostRoadTiles.length > 0) {
-        const totalCost = ghostRoadTiles.length * ROAD_COST_PER_TILE;
-        const totalStoneCost = ghostRoadTiles.length * ROAD_STONE_COST_PER_TILE;
+      // Szűrjük ki a foglalt csempéket a ghostRoadTiles-ból, mielőtt építjük őket
+      const buildableRoadTiles = ghostRoadTiles.filter(tile => !isCellOccupied(tile.x, tile.y, buildings));
 
-        if (currentPlayer.money < totalCost) {
-          showError(`Nincs elég pénzed az utak építéséhez! Szükséges: ${totalCost} pénz.`);
-          setGhostRoadTiles([]);
-          return;
-        }
-        if (currentPlayer.inventory.stone < totalStoneCost) {
-          showError(`Nincs elég kő az utak építéséhez! Szükséges: ${totalStoneCost} kő.`);
-          setGhostRoadTiles([]);
-          return;
-        }
+      if (buildableRoadTiles.length === 0) {
+        showError("Nem lehet utat építeni foglalt területekre!");
+        setGhostRoadTiles([]);
+        setIsPlacingRoad(false); // Kilépünk az útépítési módból
+        return;
+      }
 
-        setPlayers(prevPlayers =>
-          prevPlayers.map(p =>
-            p.id === currentPlayerId ? { ...p, money: p.money - totalCost, inventory: { ...p.inventory, stone: p.inventory.stone - totalStoneCost } } : p
-          )
-        );
-        addTransaction(currentPlayerId, "expense", `Út építése (${ghostRoadTiles.length} csempe)`, totalCost);
-        addTransaction(currentPlayerId, "expense", `Kő felhasználás útépítéshez (${ghostRoadTiles.length} csempe)`, totalStoneCost);
+      const totalCost = buildableRoadTiles.length * ROAD_COST_PER_TILE;
+      const totalStoneCost = buildableRoadTiles.length * ROAD_STONE_COST_PER_TILE;
 
-        setIsBuildingInProgress(true);
+      if (currentPlayer.money < totalCost) {
+        showError(`Nincs elég pénzed az utak építéséhez! Szükséges: ${totalCost} pénz.`);
+        setGhostRoadTiles([]);
+        setIsPlacingRoad(false); // Kilépünk az útépítési módból
+        return;
+      }
+      if (currentPlayer.inventory.stone < totalStoneCost) {
+        showError(`Nincs elég kő az utak építéséhez! Szükséges: ${totalStoneCost} kő.`);
+        setGhostRoadTiles([]);
+        setIsPlacingRoad(false); // Kilépünk az útépítési módból
+        return;
+      }
 
-        const newRoads: BuildingData[] = ghostRoadTiles.map(tile => ({
-          id: `road-${Date.now()}-${tile.x}-${tile.y}`,
-          name: "Út",
-          x: tile.x,
-          y: tile.y,
-          width: 1,
-          height: 1,
-          type: "road",
-          capacity: 0,
-          ownerId: currentPlayerId,
-          residentIds: [],
-          employeeIds: [],
-          isUnderConstruction: true,
-          buildProgress: 0,
-          rotation: 0,
-        }));
+      setPlayers(prevPlayers =>
+        prevPlayers.map(p =>
+          p.id === currentPlayerId ? { ...p, money: p.money - totalCost, inventory: { ...p.inventory, stone: p.inventory.stone - totalStoneCost } } : p
+        )
+      );
+      addTransaction(currentPlayerId, "expense", `Út építése (${buildableRoadTiles.length} csempe)`, totalCost);
+      addTransaction(currentPlayerId, "expense", `Kő felhasználás útépítéshez (${buildableRoadTiles.length} csempe)`, totalStoneCost);
 
-        setBuildings(prevBuildings => [...prevBuildings, ...newRoads]);
-        const toastId = showLoading(`Út építése folyamatban (${ghostRoadTiles.length} csempe)...`);
+      setIsBuildingInProgress(true);
 
-        if (sfxPlayerRef.current) {
-          sfxPlayerRef.current.stopAllSfx(); // Leállítjuk az előző SFX-et, ha volt
-          sfxPlayerRef.current.playSfx("construction-01", true); // Építési hang loopolva
-        }
+      const newRoads: BuildingData[] = buildableRoadTiles.map(tile => ({
+        id: `road-${Date.now()}-${tile.x}-${tile.y}`,
+        name: "Út",
+        x: tile.x,
+        y: tile.y,
+        width: 1,
+        height: 1,
+        type: "road",
+        capacity: 0,
+        ownerId: currentPlayerId,
+        residentIds: [],
+        employeeIds: [],
+        isUnderConstruction: true,
+        buildProgress: 0,
+        rotation: 0,
+      }));
 
-        const progressIntervals: NodeJS.Timeout[] = [];
-        newRoads.forEach(road => {
-          let currentProgress = 0;
-          const interval = setInterval(() => {
-            currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
-            if (currentProgress >= 100) {
-              currentProgress = 100;
-              clearInterval(interval);
-            }
-            setBuildings(prevBuildings =>
-              prevBuildings.map(b =>
-                b.id === road.id ? { ...b, buildProgress: Math.floor(currentProgress) } : b
-              )
-            );
-          }, 100);
-          progressIntervals.push(interval);
-        });
+      setBuildings(prevBuildings => [...prevBuildings, ...newRoads]);
+      const toastId = showLoading(`Út építése folyamatban (${buildableRoadTiles.length} csempe)...`);
 
-        setTimeout(() => {
-          progressIntervals.forEach(clearInterval);
-          dismissToast(toastId);
-          setIsBuildingInProgress(false);
+      if (sfxPlayerRef.current) {
+        sfxPlayerRef.current.stopAllSfx(); // Leállítjuk az előző SFX-et, ha volt
+        sfxPlayerRef.current.playSfx("construction-01", true); // Építési hang loopolva
+      }
 
+      const progressIntervals: NodeJS.Timeout[] = [];
+      newRoads.forEach(road => {
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
+          if (currentProgress >= 100) {
+            currentProgress = 100;
+            clearInterval(interval);
+          }
           setBuildings(prevBuildings =>
             prevBuildings.map(b =>
-              newRoads.some(nr => nr.id === b.id)
-                ? { ...b, isUnderConstruction: false, buildProgress: 100 }
-                : b
+              b.id === road.id ? { ...b, buildProgress: Math.floor(currentProgress) } : b
             )
           );
-          showSuccess(`Út sikeresen felépült (${ghostRoadTiles.length} csempe)!`);
+        }, 100);
+        progressIntervals.push(interval);
+      });
 
-          if (sfxPlayerRef.current) {
-            sfxPlayerRef.current.stopAllSfx();
-          }
-        }, ROAD_BUILD_DURATION_MS);
-      }
+      setTimeout(() => {
+        progressIntervals.forEach(clearInterval);
+        dismissToast(toastId);
+        setIsBuildingInProgress(false);
+
+        setBuildings(prevBuildings =>
+          prevBuildings.map(b =>
+            newRoads.some(nr => nr.id === b.id)
+              ? { ...b, isUnderConstruction: false, buildProgress: 100 }
+              : b
+          )
+        );
+        showSuccess(`Út sikeresen felépült (${buildableRoadTiles.length} csempe)!`);
+
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+        }
+      }, ROAD_BUILD_DURATION_MS);
       setGhostRoadTiles([]);
       setIsPlacingRoad(false);
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging) {
