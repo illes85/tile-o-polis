@@ -308,7 +308,7 @@ const Building: React.FC<BuildingProps> = ({
     const roadHeight = cellSizePx * 0.6; // Alap magasság
     const offset = (cellSizePx - roadWidth) / 2; // Középre igazítás
 
-    innerStyle = {
+    const currentInnerStyle: React.CSSProperties = { // Deklaráljuk itt az innerStyle-t
       left: offset,
       top: offset,
       width: roadWidth,
@@ -317,18 +317,18 @@ const Building: React.FC<BuildingProps> = ({
 
     // Ha van szomszéd, akkor kiterjesztjük a belső elemet a szomszéd felé
     if (hasRoadNeighborTop) {
-      innerStyle.top = 0;
-      innerStyle.height = (innerStyle.height as number) + offset;
+      currentInnerStyle.top = 0;
+      currentInnerStyle.height = (currentInnerStyle.height as number) + offset;
     }
     if (hasRoadNeighborBottom) {
-      innerStyle.height = (innerStyle.height as number) + offset;
+      currentInnerStyle.height = (currentInnerStyle.height as number) + offset;
     }
     if (hasRoadNeighborLeft) {
-      innerStyle.left = 0;
-      innerStyle.width = (innerStyle.width as number) + offset;
+      currentInnerStyle.left = 0;
+      currentInnerStyle.width = (currentInnerStyle.width as number) + offset;
     }
     if (hasRoadNeighborRight) {
-      innerStyle.width = (innerStyle.width as number) + offset;
+      currentInnerStyle.width = (currentInnerStyle.width as number) + offset;
     }
 
     // Lekerekítés szabályozása: csak akkor legyen lekerekített, ha nincs szomszéd abban az irányban
@@ -351,7 +351,7 @@ const Building: React.FC<BuildingProps> = ({
     return (
       <div style={baseStyle} className="absolute">
         <div
-          style={innerStyle}
+          style={currentInnerStyle} // Itt használjuk a helyesen deklarált innerStyle-t
           className={cn(
             "absolute bg-gray-300/80 border border-gray-400",
             isUnderConstruction && "opacity-70 bg-gray-400",
