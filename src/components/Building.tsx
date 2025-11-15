@@ -4,6 +4,7 @@ import React from "react";
 import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag } from "lucide-react"; // ShoppingBag ikon a bolthoz
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
+import satorImage from "@/images/sator.png"; // Importáljuk a sator.png képet
 
 export interface FarmlandTile {
   x: number;
@@ -130,7 +131,7 @@ const Building: React.FC<BuildingProps> = ({
       case "house":
         content = (
           <>
-            {name === "Sátor" ? <Tent className="h-4 w-4 mb-1" /> : null}
+            {name === "Sátor" ? <img src={satorImage} alt="Sátor" className="h-8 w-8 mb-1 object-contain" /> : null}
             <span className="text-white text-xs">{name}</span>
             {occupancy > 0 && (
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
