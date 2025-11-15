@@ -126,6 +126,7 @@ const Building: React.FC<BuildingProps> = ({
     classes += " bg-stone-400 rounded-md shadow-md cursor-pointer hover:bg-stone-500 transition-colors";
     
     // Alapértelmezett keret hozzáadása, kivéve a kép alapú házakhoz
+    // A kép alapú házak (Sátor, Házikó) csak egérráhúzásra kapnak keretet
     if (type !== "house" || (name !== "Sátor" && name !== "Házikó")) {
       classes += " border border-gray-500";
     }
