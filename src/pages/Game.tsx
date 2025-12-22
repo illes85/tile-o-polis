@@ -443,7 +443,9 @@ const Game = () => {
       const toastId = showLoading(`${buildingToPlace.name} építése...`);
       
       if (sfxPlayerRef.current) {
-        sfxPlayerRef.current.playSfx("construction-01", true);
+        sfxPlayerRef.current.stopAllSfx();
+        const sfxKey = buildingToPlace.category === "residential" ? "construction-01" : "construction-02";
+        sfxPlayerRef.current.playSfx(sfxKey, true);
       }
 
       let progress = 0;
