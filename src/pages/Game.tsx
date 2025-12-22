@@ -748,6 +748,7 @@ const Game = () => {
       setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
       // A húzás kezdőpontjának rács koordinátái (figyelembe véve az eltolást)
+      // A lastMousePos most már a globális egérpozíciót tárolja, így újra kell számolni a rács koordinátákat
       const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
       const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
 
@@ -1685,6 +1686,20 @@ const Game = () => {
                ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
+            </div>
+            <DialogFooter>
+              {/* Itt lehetnek további gombok, pl. bérlés, csatlakozás */}
+              {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                <Button onClick={handleRentBuilding}>
+                  {selectedBuilding.ownerId === currentPlayerId ? "Beköltözés" : "Bérlés"}
+                </Button>
+              )}
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && !selectedBuilding.employeeIds.includes(currentPlayerId) && selectedBuilding.ownerId !== currentPlayerId && (
+                <Button onClick={handleJoinOffice}>
+                  Alkalmazottként csatlakozás
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setSelectedBuilding(null)}>Bezárás</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
