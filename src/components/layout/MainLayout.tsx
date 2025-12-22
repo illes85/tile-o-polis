@@ -13,14 +13,14 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({
   sidebarContent,
   mainContent,
-  defaultLayout = [20, 80],
+  defaultLayout = [25, 75], // Növeltük az alapértelmezett szélességet 25%-ra
 }) => {
   return (
     <ResizablePanelGroup
       direction="horizontal"
       className="min-h-screen w-full rounded-lg border"
     >
-      <ResizablePanel defaultSize={defaultLayout[0]} minSize={15} maxSize={30}>
+      <ResizablePanel defaultSize={defaultLayout[0]} minSize={20} maxSize={35}> {/* Növeltük a minSize-t 20%-ra */}
         <div className="flex h-full flex-col p-4 bg-sidebar text-sidebar-foreground">
           {sidebarContent}
         </div>

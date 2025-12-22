@@ -126,7 +126,9 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     return null;
   }
 
-  const currentTrackName = tracks[currentTrackIndex].split('/').pop()?.replace('.mp3', '') || `Track ${currentTrackIndex + 1}`;
+  // URL dekódolás és fájlnév tisztítása
+  const rawTrackName = tracks[currentTrackIndex].split('/').pop()?.replace('.mp3', '') || `Track ${currentTrackIndex + 1}`;
+  const currentTrackName = decodeURIComponent(rawTrackName);
 
   return (
     <Card className="w-full mt-4 bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border shadow-none">
@@ -137,8 +139,10 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
         <p className="text-sm truncate" title={currentTrackName}>
           {currentTrackName}
         </p>
+        
+        {/* Shuffle és Repeat gombok külön sorban */}
         <div className="flex items-center justify-between">
-          <div className="flex space-x-1">
+          <div className="flex space-x-2">
             <Button
               variant="ghost"
               size="icon"
@@ -165,6 +169,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
               {repeatMode === 'one' && <span className="absolute text-[0.6rem] bottom-1 right-1">1</span>}
             </Button>
           </div>
+          
+          {/* Lejátszás gombok */}
           <div className="flex space-x-2">
             <Button
               variant="outline"
@@ -192,6 +198,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             </Button>
           </div>
         </div>
+        
+        {/* Hangerő csúszka */}
         <div className="flex items-center space-x-2">
           {volume === 0 ? <VolumeX className="h-4 w-4 text-gray-500" /> : volume < 0.5 ? <Volume1 className="h-4 w-4 text-gray-500" /> : <Volume2 className="h-4 w-4 text-gray-500" />}
           <Slider
