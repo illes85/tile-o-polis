@@ -20,6 +20,8 @@ import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffek
 import PlayerSettings from "@/components/PlayerSettings";
 import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown } from "lucide-react"; // Új ikonok a navigációhoz
 import { allProducts, ProductType, getProductByType } from "@/utils/products"; // Importáljuk a termékdefiníciókat
+import FarmlandActionDialog from "@/components/FarmlandActionDialog"; // Importáljuk az új dialógust
+import { CropType, FarmlandTile } from "@/components/Building"; // Importáljuk a CropType-ot és FarmlandTile-t
 
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
@@ -47,6 +49,11 @@ const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ide
 const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
 const DEMOLISH_REFUND_PERCENTAGE = 0.5; // 50% visszatérítés bontáskor
 
+// Termelési konstansok
+const WHEAT_SEED_COST = 5;
+const WHEAT_GROW_TIME_MS = 60000; // 60 másodperc
+const WHEAT_HARVEST_YIELD = 10; // Búza hozam csempénként
+
 interface Player {
   id: string;
   name: string;
@@ -60,6 +67,7 @@ interface Player {
     stone: number; // Új: kő nyersanyag
     hoe: number; // Új: kapa
     tractor: number; // Új: traktor
+    wheat: number; // Új: búza
   };
   workplace: string;
   workplaceSalary: number;
@@ -213,12 +221,12 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2, wheat: 50 }, workplace: "Tesztelő", workplaceSalary: 0 }, // Teszt játékos
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -246,6 +254,16 @@ const Game = () => {
   const [isDemolishingRoad, setIsDemolishingRoad] = useState(false); // Új állapot: út bontási mód
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+
+  // Szántóföld akció dialógus állapota
+  const [farmlandActionState, setFarmlandActionState] = useState<{
+    isOpen: boolean;
+    farmId: string;
+    tileX: number;
+    tileY: number;
+    cropType: CropType;
+    cropProgress: number;
+  } | null>(null);
 
   // Térkép pozícionálás állapotok (gombokkal mozgatva)
   const [mapOffsetX, setMapOffsetX] = useState(0);
@@ -608,6 +626,37 @@ const Game = () => {
       setBuildings(initialBuildings);
     }
   }, [buildings.length, initialBuildingsState]);
+
+  // Növekedési időzítő
+  useEffect(() => {
+    const growthTimer = setInterval(() => {
+      setBuildings(prevBuildings => prevBuildings.map(b => {
+        if (b.type === 'farm' && b.farmlandTiles) {
+          const updatedTiles = b.farmlandTiles.map(ft => {
+            if (ft.cropType === CropType.Wheat && !ft.isUnderConstruction && (ft.cropProgress || 0) < 100) {
+              const timeElapsed = 1000; // 1 másodperc telt el
+              const progressIncrease = (timeElapsed / WHEAT_GROW_TIME_MS) * 100;
+              const newProgress = Math.min(100, (ft.cropProgress || 0) + progressIncrease);
+              
+              if (newProgress >= 100 && (ft.cropProgress || 0) < 100) {
+                if (b.ownerId === currentPlayerId) {
+                    showSuccess(`A búza beérett a farmodon! (${ft.x}, ${ft.y})`);
+                }
+              }
+
+              return { ...ft, cropProgress: newProgress };
+            }
+            return ft;
+          });
+          return { ...b, farmlandTiles: updatedTiles };
+        }
+        return b;
+      }));
+    }, 1000); // Minden másodpercben ellenőrizzük a növekedést
+
+    return () => clearInterval(growthTimer);
+  }, [currentPlayerId]);
+
 
   useEffect(() => {
     const gameTickTimer = setInterval(() => {
@@ -1082,6 +1131,8 @@ const Game = () => {
         ownerId: currentPlayerId,
         isUnderConstruction: true,
         buildProgress: 0,
+        cropType: CropType.None, // Alapértelmezett: nincs vetemény
+        cropProgress: 0,
       };
 
       setBuildings(prevBuildings =>
@@ -1145,10 +1196,80 @@ const Game = () => {
     }
   };
 
+  const handlePlantCrop = (farmId: string, tileX: number, tileY: number, cropType: CropType) => {
+    if (cropType !== CropType.Wheat) return; // Csak a búzát támogatjuk egyelőre
+
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, money: p.money - WHEAT_SEED_COST } : p
+      )
+    );
+    addTransaction(currentPlayerId, "expense", `Vetés: Búza`, WHEAT_SEED_COST);
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === farmId
+          ? {
+              ...b,
+              farmlandTiles: b.farmlandTiles?.map(ft =>
+                ft.x === tileX && ft.y === tileY
+                  ? { ...ft, cropType: CropType.Wheat, cropProgress: 0 }
+                  : ft
+              ),
+            }
+          : b
+      )
+    );
+    showSuccess(`Búza elvetve a csempén (${tileX}, ${tileY})!`);
+  };
+
+  const handleHarvestCrop = (farmId: string, tileX: number, tileY: number) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId
+          ? { ...p, inventory: { ...p.inventory, wheat: p.inventory.wheat + WHEAT_HARVEST_YIELD } }
+          : p
+      )
+    );
+    showSuccess(`Sikeres aratás! Kaptál ${WHEAT_HARVEST_YIELD} búzát.`);
+    addTransaction(currentPlayerId, "income", `Aratás: Búza`, 0); // Nincs pénzbevétel, csak termék
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === farmId
+          ? {
+              ...b,
+              farmlandTiles: b.farmlandTiles?.map(ft =>
+                ft.x === tileX && ft.y === tileY
+                  ? { ...ft, cropType: CropType.None, cropProgress: 0 }
+                  : ft
+              ),
+            }
+          : b
+      )
+    );
+  };
+
   const handleFarmlandClick = (farmId: string, x: number, y: number) => {
-    // Ez a függvény most már a Map.tsx-ből hívódik meg, amikor egy már létező szántóföld csempére kattintunk.
-    // Itt lehetne kezelni a termelést vagy a bontást.
-    showSuccess(`Kattintottál a szántóföld csempére: (${x}, ${y})`);
+    if (isPlacementMode) return;
+
+    const farm = buildings.find(b => b.id === farmId);
+    const tile = farm?.farmlandTiles?.find(ft => ft.x === x && ft.y === y);
+
+    if (tile && !tile.isUnderConstruction && tile.ownerId === currentPlayerId) {
+      setFarmlandActionState({
+        isOpen: true,
+        farmId,
+        tileX: x,
+        tileY: y,
+        cropType: tile.cropType || CropType.None,
+        cropProgress: tile.cropProgress || 0,
+      });
+    } else if (tile && tile.isUnderConstruction) {
+        showError("A szántóföld csempe még építés alatt áll.");
+    } else if (tile && tile.ownerId !== currentPlayerId) {
+        showError("Ez a szántóföld csempe nem a tiéd.");
+    }
   };
 
   const cancelBuildingPlacement = () => {
@@ -1513,6 +1634,21 @@ const Game = () => {
         transactions={transactions}
         currentPlayerId={currentPlayerId}
       />
+
+      {farmlandActionState && (
+        <FarmlandActionDialog
+          isOpen={farmlandActionState.isOpen}
+          onClose={() => setFarmlandActionState(null)}
+          farmId={farmlandActionState.farmId}
+          tileX={farmlandActionState.tileX}
+          tileY={farmlandActionState.tileY}
+          cropType={farmlandActionState.cropType}
+          cropProgress={farmlandActionState.cropProgress}
+          onPlant={handlePlantCrop}
+          onHarvest={handleHarvestCrop}
+          playerMoney={currentPlayer.money}
+        />
+      )}
     </div>
   );
 

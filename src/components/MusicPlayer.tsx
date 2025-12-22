@@ -16,8 +16,8 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   const [isPlaying, setIsPlaying] = useState(true); // Alapértelmezetten bekapcsolva
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [volume, setVolume] = useState(0.4); // Kezdeti hangerő 40%
-  const [isShuffling, setIsShuffling] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none'); // none, one, all
+  const [isShuffling, setIsShuffling] = useState(true); // Alapértelmezetten keverés aktív
+  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('all'); // Alapértelmezetten összes ismétlése aktív
 
   const playNextTrack = useCallback(() => {
     if (tracks.length === 0) return;

@@ -17,6 +17,7 @@ interface PlayerInfoProps {
     stone: number; // Új: kő nyersanyag
     hoe: number; // Új: kapa
     tractor: number; // Új: traktor
+    wheat: number; // Új: búza
   };
   workplace: string;
   workplaceSalary: number; // Új: munkahelyi fizetés
@@ -49,6 +50,9 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({ playerName, money, inventory, w
           <ul className="ml-4 list-disc list-inside">
             <li className="flex items-center">
               <Wheat className="mr-2 h-3 w-3 text-yellow-600" /> Burgonya: {inventory.potato}
+            </li>
+            <li className="flex items-center">
+              <Wheat className="mr-2 h-3 w-3 text-amber-700" /> Búza: {inventory.wheat}
             </li>
             <li className="flex items-center">
               <Droplet className="mr-2 h-3 w-3 text-blue-500" /> Víz: {inventory.water}

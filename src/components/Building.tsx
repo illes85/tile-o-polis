@@ -1,11 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2 } from "lucide-react"; // ShoppingBag ikon a bolthoz, Trash2 ikon a bontáshoz
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat } from "lucide-react"; // ShoppingBag ikon a bolthoz, Trash2 ikon a bontáshoz, Wheat ikon a búzához
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; // Importáljuk a cn segédfüggvényt
 import satorImage from "@/images/sator.png"; // Importáljuk a sator.png képet
 import hazikoImage from "@/images/haziko.png"; // Importáljuk a haziko.png képet
+
+export enum CropType {
+  None = "none",
+  Wheat = "wheat",
+}
 
 export interface FarmlandTile {
   x: number;
@@ -13,6 +18,8 @@ export interface FarmlandTile {
   ownerId: string;
   isUnderConstruction?: boolean; // Új: szántóföld csempe építés alatt
   buildProgress?: number; // Új: szántóföld csempe építési folyamat
+  cropType: CropType; // Új: vetemény típusa
+  cropProgress?: number; // Új: vetemény növekedési állapota (0-100)
 }
 
 interface BuildingProps {
@@ -45,6 +52,9 @@ interface BuildingProps {
   hasRoadNeighborRight?: boolean;
   isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
   isDemolishingRoad: boolean; // Új: jelzi, ha a játékos út bontási módban van
+  // Crop adatok a farmland csempékhez
+  cropType?: CropType;
+  cropProgress?: number;
 }
 
 const Building: React.FC<BuildingProps> = ({
@@ -67,13 +77,14 @@ const Building: React.FC<BuildingProps> = ({
   buildProgress = 0,
   currentPlayerId,
   rotation,
-  // farmlandTiles, // Eltávolítva a propok közül, mert nem használjuk a rendereléshez
   hasRoadNeighborTop = false,
   hasRoadNeighborBottom = false,
   hasRoadNeighborLeft = false,
   hasRoadNeighborRight = false,
   isPlacementMode,
   isDemolishingRoad,
+  cropType = CropType.None,
+  cropProgress = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -229,13 +240,24 @@ const Building: React.FC<BuildingProps> = ({
             {isPlayerEmployedHere && (
               <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
             )}
-            {/* A szántóföld csempék renderelése eltávolítva innen, a Map.tsx kezeli */}
           </>
         );
         break;
       case "farmland":
         visualClasses += " bg-yellow-800/50 border border-yellow-900"; // Farmlandnek mindig van háttér és keret
         baseClasses += " p-1"; // Padding vissza
+        
+        let cropIcon = null;
+        let cropText = null;
+        
+        if (cropType === CropType.Wheat) {
+            cropIcon = <Wheat className="h-full w-full text-amber-700 p-1" />;
+            cropText = "Búza";
+        } else {
+            cropIcon = <Sprout className="h-full w-full text-green-300 p-1" />;
+            cropText = "Szántóföld";
+        }
+
         content = isUnderConstruction ? (
           <div className="flex flex-col items-center justify-center h-full w-full">
             <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
@@ -243,7 +265,14 @@ const Building: React.FC<BuildingProps> = ({
             <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress || 0)}%</span>
           </div>
         ) : (
-          <Sprout className="h-full w-full text-green-300 p-1" />
+          <div className="flex flex-col items-center justify-center h-full w-full">
+            {cropIcon}
+            {cropType !== CropType.None && (
+                <div className="absolute bottom-0 w-full bg-black/50 text-white text-[0.6rem] text-center">
+                    {cropText} ({Math.floor(cropProgress || 0)}%)
+                </div>
+            )}
+          </div>
         );
         break;
       case "road":
