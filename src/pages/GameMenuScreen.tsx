@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError } from "@/utils/toast"; // Helykitöltő üzenetekhez
+import { showSuccess, showError } from "@/utils/toast";
+import { saveGame, loadGame } from "@/utils/saveLoad";
 
 const GameMenuScreen: React.FC = () => {
   const navigate = useNavigate();
@@ -12,44 +13,41 @@ const GameMenuScreen: React.FC = () => {
   const [lastGameState, setLastGameState] = useState<any | null>(null);
 
   useEffect(() => {
-    // Ha a Game komponensből érkezünk, akkor a state-ben lesznek az adatok
     if (location.state && location.state.players && location.state.buildings) {
       setLastGameState(location.state);
     }
   }, [location.state]);
 
   const handleNewGame = () => {
-    setLastGameState(null); // Új játék indításakor töröljük az előző játékállapotot
-    navigate("/select-player"); // Navigálás az új játékosválasztó képernyőre
+    navigate("/select-player");
   };
 
   const handleResumeGame = () => {
     if (lastGameState) {
       navigate("/game", { state: lastGameState });
     } else {
-      showError("Nincs aktív játék, amit folytatni lehetne. Kezdj új játékot!");
+      showError("Nincs aktív játék a memóriában.");
     }
   };
 
   const handleSaveGame = () => {
-    showSuccess("Játék mentve (placeholder)");
-    // Itt lehetne implementálni a tényleges mentési logikát
+    if (lastGameState) {
+      const success = saveGame(lastGameState);
+      if (success) showSuccess("Játék sikeresen mentve a böngészőbe!");
+      else showError("Hiba történt a mentéskor.");
+    } else {
+      showError("Nincs mit elmenteni. Előbb kezdj el játszani!");
+    }
   };
 
   const handleLoadGame = () => {
-    showSuccess("Játék betöltve (placeholder)");
-    // Itt lehetne implementálni a tényleges betöltési logikát
-  };
-
-  const handleSettings = () => {
-    showSuccess("Beállítások megnyitva (placeholder)");
-    // Itt lehetne implementálni a tényleges beállítások dialógust/oldalt
-  };
-
-  const handleExit = () => {
-    // Webes alkalmazásban a "kilépés" általában azt jelenti, hogy visszatérünk a főmenübe.
-    // Mivel ez a főmenü, maradhatunk itt, vagy megjeleníthetünk egy üzenetet.
-    showSuccess("Kilépés (vissza a főmenübe)");
+    const savedData = loadGame();
+    if (savedData) {
+      showSuccess("Mentett játék betöltve!");
+      navigate("/game", { state: savedData });
+    } else {
+      showError("Nem található mentett játék.");
+    }
   };
 
   return (
@@ -65,8 +63,8 @@ const GameMenuScreen: React.FC = () => {
           <Button onClick={handleNewGame} className="w-full">Új Játék</Button>
           <Button onClick={handleSaveGame} className="w-full" variant="secondary">Játék Mentése</Button>
           <Button onClick={handleLoadGame} className="w-full" variant="secondary">Játék Betöltése</Button>
-          <Button onClick={handleSettings} className="w-full" variant="secondary">Beállítások</Button>
-          <Button onClick={handleExit} className="w-full" variant="destructive">Kilépés</Button>
+          <Button onClick={() => showError("Beállítások hamarosan...")} className="w-full" variant="secondary">Beállítások</Button>
+          <Button onClick={() => navigate('/select-player')} className="w-full" variant="destructive">Kilépés</Button>
         </CardContent>
       </Card>
     </div>

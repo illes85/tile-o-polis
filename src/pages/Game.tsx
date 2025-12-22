@@ -27,7 +27,6 @@ import ShopMenu from "@/components/ShopMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
-// Átállítva 48px-re a grafikákhoz
 const MAP_GRID_SIZE = 40;
 const CELL_SIZE_PX = 48; 
 const RENT_INTERVAL_MS = 30000;
@@ -231,7 +230,7 @@ const availableBuildingOptions: BuildingOption[] = [
 const Game = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
+  const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId, transactions: initialTransactions } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string, transactions?: Transaction[] };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
     { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
@@ -267,7 +266,7 @@ const Game = () => {
 
   const [isDemolishingRoad, setIsDemolishingRoad] = useState(false);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions || []);
 
   const [farmlandActionState, setFarmlandActionState] = useState<{
     isOpen: boolean;
@@ -294,6 +293,27 @@ const Game = () => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
   };
 
+  // Növekedési időzítő fix: biztosítjuk, hogy a state frissüljön
+  useEffect(() => {
+    const growthTimer = setInterval(() => {
+      setBuildings(prevBuildings => prevBuildings.map(b => {
+        if (b.type === 'farm' && b.farmlandTiles) {
+          const updatedTiles = b.farmlandTiles.map(ft => {
+            if (ft.cropType === CropType.Wheat && !ft.isUnderConstruction && (ft.cropProgress || 0) < 100) {
+              const progressIncrease = (1000 / WHEAT_GROW_TIME_MS) * 100;
+              const newProgress = Math.min(100, (ft.cropProgress || 0) + progressIncrease);
+              return { ...ft, cropProgress: newProgress };
+            }
+            return ft;
+          });
+          return { ...b, farmlandTiles: updatedTiles };
+        }
+        return b;
+      }));
+    }, 1000);
+    return () => clearInterval(growthTimer);
+  }, []);
+
   // Gazdasági Tick Feldolgozása
   const processEconomyTick = useCallback(() => {
     setPlayers(prevPlayers => {
@@ -301,7 +321,6 @@ const Game = () => {
       prevPlayers.forEach(p => playerBalanceChanges[p.id] = 0);
 
       buildings.forEach(building => {
-        // 1. Lakbérek feldolgozása
         if (building.type === "house" && building.renterId && building.ownerId && building.rentalPrice) {
           const tenant = prevPlayers.find(p => p.id === building.renterId);
           if (tenant && tenant.money >= building.rentalPrice) {
@@ -316,7 +335,6 @@ const Game = () => {
           }
         }
 
-        // 2. Fizetések feldolgozása
         if ((building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop") && building.salary) {
           building.employeeIds.forEach(empId => {
             playerBalanceChanges[empId] += building.salary!;
@@ -362,13 +380,9 @@ const Game = () => {
 
   const moveViewport = useCallback((dx: number, dy: number) => {
     if (!mainContentRef.current) return;
-    const viewportWidth = mainContentRef.current.clientWidth;
-    const viewportHeight = mainContentRef.current.clientHeight;
-    const stepX = viewportWidth * 0.8;
-    const stepY = viewportHeight * 0.8;
-
-    setMapOffsetX(prev => prev + (dx * stepX));
-    setMapOffsetY(prev => prev + (dy * stepY));
+    const step = CELL_SIZE_PX * 5;
+    setMapOffsetX(prev => prev + (dx * step));
+    setMapOffsetY(prev => prev + (dy * step));
   }, []);
 
   const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
@@ -477,17 +491,26 @@ const Game = () => {
            return;
        }
 
+       setIsPlacingFarmland(false);
+       setGhostBuildingCoords(null);
+       setIsBuildingInProgress(true);
+
+       const buildTime = FARMLAND_HOE_BUILD_DURATION_MS;
+       const tileX = gridX;
+       const tileY = gridY;
+
        setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p));
+       
        setBuildings(prev => prev.map(b => {
            if (b.id === selectedFarmId) {
                return {
                    ...b,
                    farmlandTiles: [...(b.farmlandTiles || []), {
-                       x: gridX,
-                       y: gridY,
+                       x: tileX,
+                       y: tileY,
                        ownerId: currentPlayerId,
-                       isUnderConstruction: false,
-                       buildProgress: 100,
+                       isUnderConstruction: true,
+                       buildProgress: 0,
                        cropType: CropType.None,
                        cropProgress: 0
                    }]
@@ -495,7 +518,27 @@ const Game = () => {
            }
            return b;
        }));
-       showSuccess("Szántóföld létrehozva!");
+
+       const toastId = showLoading(`Szántóföld kialakítása...`);
+       let progress = 0;
+       const interval = setInterval(() => {
+         progress += (100 / (buildTime / 100));
+         setBuildings(prev => prev.map(b => b.id === selectedFarmId ? {
+             ...b,
+             farmlandTiles: b.farmlandTiles?.map(t => t.x === tileX && t.y === tileY ? { ...t, buildProgress: Math.floor(progress) } : t)
+         } : b));
+         if (progress >= 100) clearInterval(interval);
+       }, 100);
+
+       setTimeout(() => {
+           dismissToast(toastId);
+           setIsBuildingInProgress(false);
+           setBuildings(prev => prev.map(b => b.id === selectedFarmId ? {
+               ...b,
+               farmlandTiles: b.farmlandTiles?.map(t => t.x === tileX && t.y === tileY ? { ...t, isUnderConstruction: false, buildProgress: 100 } : t)
+           } : b));
+           showSuccess("Szántóföld kész!");
+       }, buildTime);
     }
   };
 
@@ -512,6 +555,13 @@ const Game = () => {
 
   const handleJoinOffice = () => {
     if (!selectedBuilding || !selectedBuilding.salary) return;
+    
+    // Munkahely korlát: egyszerre csak egy munkahely
+    if (currentPlayer.workplace !== "Munkanélküli") {
+        showError("Már van munkahelyed! Előbb mondj fel (placeholder).");
+        return;
+    }
+
     if (selectedBuilding.employeeIds.length >= selectedBuilding.capacity) {
       showError("Nincs több szabad álláshely!");
       return;
@@ -674,6 +724,7 @@ const Game = () => {
           </div>
         )}
         <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold">Pénzmozgások</Button>
+        <Button onClick={() => navigate('/', { state: { players, buildings, currentPlayerId, transactions } })} className="w-full bg-gray-600 hover:bg-gray-700 text-white">Főmenü</Button>
       </div>
       <MusicPlayer tracks={musicTracks} />
       <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
@@ -733,6 +784,19 @@ const Game = () => {
               {selectedBuilding.salary && <p>Fizetés: {selectedBuilding.salary} pénz / ciklus</p>}
               <p>Férőhely: {selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length} / {selectedBuilding.capacity}</p>
               
+              {/* Lakók/Dolgozók nevei a tulajdonosnak */}
+              {selectedBuilding.ownerId === currentPlayerId && (
+                  <div className="mt-2 p-2 bg-muted rounded text-sm">
+                      <p className="font-semibold">{selectedBuilding.type === "house" ? "Lakók:" : "Dolgozók:"}</p>
+                      <ul className="list-disc list-inside">
+                          {(selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => (
+                              <li key={id}>{players.find(p => p.id === id)?.name}</li>
+                          ))}
+                          {(selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).length === 0 && <li>Senki</li>}
+                      </ul>
+                  </div>
+              )}
+
               {selectedBuilding.type === "shop" && (
                 <Button onClick={() => handleOpenShopMenu(selectedBuilding)} className="w-full bg-purple-600 text-white font-bold">Bolt megnyitása</Button>
               )}
