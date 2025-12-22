@@ -289,21 +289,22 @@ const Game = () => {
 
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad || isDemolishingRoad;
 
+  const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
+    setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
+  };
+
   // Gazdasági Tick Feldolgozása
   const processEconomyTick = useCallback(() => {
     setPlayers(prevPlayers => {
-      // Készítünk egy másolatot a játékosok egyenlegeiről a számoláshoz
       const playerBalanceChanges: Record<string, number> = {};
       prevPlayers.forEach(p => playerBalanceChanges[p.id] = 0);
 
-      // 1. Lakbérek feldolgozása (Bérlő -> Tulajdonos)
       buildings.forEach(building => {
+        // 1. Lakbérek feldolgozása
         if (building.type === "house" && building.renterId && building.ownerId && building.rentalPrice) {
           const tenant = prevPlayers.find(p => p.id === building.renterId);
           if (tenant && tenant.money >= building.rentalPrice) {
-            // Levonás a bérlőtől
             playerBalanceChanges[building.renterId] -= building.rentalPrice;
-            // Hozzáadás a tulajdonoshoz
             playerBalanceChanges[building.ownerId] += building.rentalPrice;
             
             if (building.renterId === currentPlayerId) showSuccess(`Levonva ${building.rentalPrice} pénz bérleti díjként (${building.name}).`);
@@ -311,13 +312,10 @@ const Game = () => {
             
             addTransaction(building.renterId, "expense", `Bérleti díj: ${building.name}`, building.rentalPrice);
             addTransaction(building.ownerId, "income", `Lakbér bevétel: ${building.name}`, building.rentalPrice);
-          } else if (tenant) {
-            // Ha nincs elég pénz, kilakoltatás (ezzel most nem bonyolítjuk túl, de a levonás elmarad)
-            if (building.renterId === currentPlayerId) showError(`Nincs elég pénzed a bérleti díjra! (${building.name})`);
           }
         }
 
-        // 2. Fizetések feldolgozása (Rendszer -> Alkalmazott)
+        // 2. Fizetések feldolgozása
         if ((building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop") && building.salary) {
           building.employeeIds.forEach(empId => {
             playerBalanceChanges[empId] += building.salary!;
@@ -327,7 +325,6 @@ const Game = () => {
         }
       });
 
-      // Alkalmazzuk a változásokat
       return prevPlayers.map(player => ({
         ...player,
         money: player.money + (playerBalanceChanges[player.id] || 0)
@@ -335,7 +332,6 @@ const Game = () => {
     });
   }, [buildings, currentPlayerId]);
 
-  // Gazdasági Időzítő (Másodpercenként fut a folyamatjelzőhöz)
   useEffect(() => {
     const timer = setInterval(() => {
       setMsUntilNextTick(prev => {
@@ -346,15 +342,11 @@ const Game = () => {
         return prev - 1000;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [processEconomyTick]);
 
-  // UI segédváltozók
   const tickProgress = ((RENT_INTERVAL_MS - msUntilNextTick) / RENT_INTERVAL_MS) * 100;
   const secondsRemaining = Math.ceil(msUntilNextTick / 1000);
-
-  // ... (többi useEffect és segédfüggvény változatlanul marad az előző verzióból) ...
 
   useEffect(() => {
     if (mainContentRef.current) {
@@ -388,6 +380,43 @@ const Game = () => {
     setSelectedBuilding(building || null);
   };
 
+  const handleGridMouseMove = (gridX: number, gridY: number) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      setGhostBuildingCoords({ x: gridX, y: gridY });
+    }
+  };
+
+  const handleMapClick = (gridX: number, gridY: number) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      if (isCellOccupied(gridX, gridY, buildings)) return;
+      
+      const newBuilding: BuildingData = {
+        id: `${buildingToPlace.name}-${Date.now()}`,
+        name: buildingToPlace.name,
+        x: gridX,
+        y: gridY,
+        width: buildingToPlace.width,
+        height: buildingToPlace.height,
+        type: buildingToPlace.type,
+        rentalPrice: buildingToPlace.rentalPrice,
+        salary: buildingToPlace.salary,
+        capacity: buildingToPlace.capacity,
+        ownerId: currentPlayerId,
+        residentIds: [],
+        employeeIds: [],
+        isUnderConstruction: false,
+        rotation: currentBuildingRotation,
+        farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined
+      };
+
+      setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p));
+      setBuildings(prev => [...prev, newBuilding]);
+      setIsPlacingBuilding(false);
+      setBuildingToPlace(null);
+      showSuccess(`${buildingToPlace.name} felépítve!`);
+    }
+  };
+
   const handleRentBuilding = () => {
     if (!selectedBuilding || selectedBuilding.type !== "house" || selectedBuilding.rentalPrice === undefined) return;
     if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) {
@@ -419,39 +448,6 @@ const Game = () => {
     setIsPlacingBuilding(true);
   };
 
-  const handleMapClick = (gridX: number, gridY: number) => {
-    if (isPlacingBuilding && buildingToPlace) {
-      if (isCellOccupied(gridX, gridY, buildings)) return;
-      
-      const newBuildingId = `${buildingToPlace.name}-${Date.now()}`;
-      const newBuilding: BuildingData = {
-        id: newBuildingId,
-        name: buildingToPlace.name,
-        x: gridX,
-        y: gridY,
-        width: buildingToPlace.width,
-        height: buildingToPlace.height,
-        type: buildingToPlace.type,
-        rentalPrice: buildingToPlace.rentalPrice,
-        salary: buildingToPlace.salary,
-        capacity: buildingToPlace.capacity,
-        ownerId: currentPlayerId,
-        residentIds: [],
-        employeeIds: [],
-        isUnderConstruction: false,
-        rotation: currentBuildingRotation,
-        farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined
-      };
-
-      setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p));
-      setBuildings(prev => [...prev, newBuilding]);
-      setIsPlacingBuilding(false);
-      setBuildingToPlace(null);
-      showSuccess(`${buildingToPlace.name} felépítve!`);
-    }
-  };
-
-  // Bolt Handlerek
   const handleOpenShopMenu = (shopBuilding: BuildingData) => {
     setSelectedShopBuilding(shopBuilding);
     setIsShopMenuOpen(true);
@@ -476,21 +472,21 @@ const Game = () => {
     setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - cost } : p));
     setShopInventories(prev => ({
       ...prev,
-      [shopId]: prev[shopId].map(i => i.type === type ? { ...i, orderedStock: i.orderedStock + quantity, isDelivering: true, deliveryEta: Date.now() + i.deliveryTimeMs } : i)
+      [shopId]: (prev[shopId] || []).map(i => i.type === type ? { ...i, orderedStock: i.orderedStock + quantity, isDelivering: true, deliveryEta: Date.now() + i.deliveryTimeMs } : i)
     }));
   };
 
   const handleUpdatePrice = (shopId: string, type: ProductType, newPrice: number) => {
     setShopInventories(prev => ({
       ...prev,
-      [shopId]: prev[shopId].map(i => i.type === type ? { ...i, sellPrice: newPrice } : i)
+      [shopId]: (prev[shopId] || []).map(i => i.type === type ? { ...i, sellPrice: newPrice } : i)
     }));
   };
 
   const handleRestock = (shopId: string, type: ProductType, quantity: number) => {
     setShopInventories(prev => ({
       ...prev,
-      [shopId]: prev[shopId]?.map(i => i.type === type ? { ...i, stock: i.stock + quantity, orderedStock: Math.max(0, i.orderedStock - quantity), isDelivering: i.orderedStock > quantity } : i) || []
+      [shopId]: (prev[shopId] || []).map(i => i.type === type ? { ...i, stock: i.stock + quantity, orderedStock: Math.max(0, i.orderedStock - quantity), isDelivering: i.orderedStock > quantity } : i)
     }));
   };
 
@@ -628,7 +624,6 @@ const Game = () => {
           onAddItem={(item) => handleAddShopItem(selectedShopBuilding.id, item)}
           onOrderStock={(type, quantity) => handleOrderStock(selectedShopBuilding.id, type, quantity)}
           onUpdatePrice={(type, newPrice) => handleUpdatePrice(selectedShopBuilding.id, type, newPrice)}
-          onRestock={(type, quantity) => handleRestock(selectedShopBuilding.id, type, quantity)}
           onBuyProduct={(type, quantity) => handleBuyProduct(selectedShopBuilding.id, type, quantity)}
         />
       )}
