@@ -735,23 +735,14 @@ const Game = () => {
     setCurrentBuildingRotation(prevRotation => (prevRotation + 90) % 360);
   };
 
-  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    const mapRect = event.currentTarget.getBoundingClientRect();
-    // A kurzor pozíciója a NEM ELTOLT térképhez képest:
-    const mouseXRelativeToMap = event.clientX - mapRect.left;
-    const mouseYRelativeToMap = event.clientY - mapRect.top;
-
-    // A rács koordináták kiszámítása az eltolás figyelembevételével
-    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
-    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
-
+  // Ezt a függvényt a Map komponens hívja meg, miután kiszámolta a pontos rács koordinátákat
+  const handleGridMouseMove = (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => {
     if (isPlacingBuilding && buildingToPlace) {
-      setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
+      setGhostBuildingCoords({ x: gridX, y: gridY });
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
-      // A húzás kezdőpontjának rács koordinátái (figyelembe véve az eltolást)
-      // A lastMousePos most már a globális egérpozíciót tárolja, így újra kell számolni a rács koordinátákat
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      // Ha húzunk, a lastMousePos-t a rács koordinátákban tároltuk a handleMapMouseDown-ban
+      const startGridX = lastMousePos.x;
+      const startGridY = lastMousePos.y;
 
       const minX = Math.min(startGridX, gridX);
       const maxX = Math.max(startGridX, gridX);
@@ -772,14 +763,14 @@ const Game = () => {
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
-        setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
+        setGhostBuildingCoords({ x: gridX, y: gridY });
       } else {
         setGhostBuildingCoords(null);
       }
     } else if (isPlacingRoad && isRoadDragging && lastMousePos) {
-      // A húzás kezdőpontjának rács koordinátái (figyelembe véve az eltolást)
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
+      // Ha húzunk, a lastMousePos-t a rács koordinátákban tároltuk a handleMapMouseDown-ban
+      const startGridX = lastMousePos.x;
+      const startGridY = lastMousePos.y;
 
       const newGhostTiles: { x: number; y: number }[] = [];
       const dx = Math.abs(gridX - startGridX);
@@ -804,12 +795,13 @@ const Game = () => {
       
       setGhostRoadTiles(newGhostTiles);
     } else if (isPlacingRoad && !isRoadDragging) {
-      setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
-    } else if (isDemolishingRoad) {
-      // Nincs szellem épület bontáskor, de a kurzor változhat
-      setGhostBuildingCoords(null);
+      setGhostBuildingCoords({ x: gridX, y: gridY });
     }
-    else if (isDragging && lastMousePos) {
+  };
+
+  // Ezt a függvényt a Map komponens hívja meg, de csak a panning (húzás) logikát kezeli
+  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isDragging && lastMousePos) {
       const deltaX = event.clientX - lastMousePos.x;
       const deltaY = event.clientY - lastMousePos.y;
       setMapOffsetX(prev => prev + deltaX);
@@ -823,14 +815,14 @@ const Game = () => {
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
+    // Rács koordináták számítása a nem eltolt térképhez képest
+    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
+    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
+
     if (isPlacingRoad) {
       setIsRoadDragging(true);
-      // A húzás kezdőpontját a viewport-hoz képest tároljuk, hogy a delta mozgás helyes legyen a handleMapMouseMove-ban
-      setLastMousePos({ x: event.clientX, y: event.clientY }); 
-      
-      // Rács koordináták számítása a nem eltolt térképhez képest
-      const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
-      const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
+      // Húzás kezdőpontját rács koordinátákban tároljuk, ha építési módban vagyunk
+      setLastMousePos({ x: gridX, y: gridY }); 
       
       // Csak akkor kezdjük el a húzást, ha a kezdő csempe nem foglalt
       if (!isCellOccupied(gridX, gridY, buildings)) {
@@ -841,11 +833,8 @@ const Game = () => {
       }
     } else if (isPlacingFarmland && selectedFarmId) {
       setIsFarmlandDragging(true);
-      setLastMousePos({ x: event.clientX, y: event.clientY }); 
-      
-      // Rács koordináták számítása a nem eltolt térképhez képest
-      const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
-      const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
+      // Húzás kezdőpontját rács koordinátákban tároljuk
+      setLastMousePos({ x: gridX, y: gridY }); 
       
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
@@ -855,6 +844,7 @@ const Game = () => {
         setIsFarmlandDragging(false);
       }
     } else if (!isPlacementMode) {
+      // Panning (térkép húzása) esetén globális egérpozíciót tárolunk
       setIsDragging(true);
       setLastMousePos({ x: event.clientX, y: event.clientY });
     }
@@ -862,7 +852,7 @@ const Game = () => {
 
   const handleMapMouseUp = () => {
     setIsDragging(false);
-    setLastMousePos(null);
+    // A lastMousePos-t csak a húzás (dragging) befejezésekor nullázzuk, de a placement logikában a rács koordinátákat használjuk.
 
     if (isPlacingRoad && isRoadDragging) {
       setIsRoadDragging(false);
@@ -1385,7 +1375,7 @@ const Game = () => {
         showSuccess(`Szántóföld csempe sikeresen létrehozva (${toolName})!`);
 
         if (sfxPlayerRef.current) {
-          sfxPlayerRef.current.stopAllSfx();
+            sfxPlayerRef.current.stopAllSfx();
         }
       }, buildDuration);
     }
@@ -1567,7 +1557,8 @@ const Game = () => {
           isPlacingBuilding={isPlacingBuilding}
           buildingToPlace={buildingToPlace}
           ghostBuildingCoords={ghostBuildingCoords} // Rács koordinátákat adunk át
-          onMapMouseMove={handleMapMouseMove}
+          onMapMouseMove={handleMapMouseMove} // Panning kezelése
+          onGridMouseMove={handleGridMouseMove} // Szellem épület pozíciójának frissítése
           onMapClick={handleMapClick}
           currentPlayerId={currentPlayerId}
           currentBuildingRotation={currentBuildingRotation}

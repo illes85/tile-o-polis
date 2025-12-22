@@ -40,6 +40,7 @@ interface MapProps {
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null; // Rács koordináták
   onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onGridMouseMove: (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => void; // ÚJ: rács koordináták visszaküldése
   onMapClick: (x: number, y: number) => void; // Rács koordinátákat fogad
   currentPlayerId: string; // Új prop
   currentBuildingRotation: number; // Új prop a szellem épület forgatásához
@@ -67,6 +68,7 @@ const Map: React.FC<MapProps> = ({
   buildingToPlace,
   ghostBuildingCoords,
   onMapMouseMove,
+  onGridMouseMove, // Hozzáadva
   onMapClick,
   currentPlayerId,
   currentBuildingRotation,
@@ -86,6 +88,21 @@ const Map: React.FC<MapProps> = ({
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
+
+  const handleMapMouseMoveInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+    onMapMouseMove(event); // Továbbítjuk a Game.tsx-nek a húzáshoz
+
+    const mapRect = event.currentTarget.getBoundingClientRect();
+    const mouseXRelativeToMap = event.clientX - mapRect.left;
+    const mouseYRelativeToMap = event.clientY - mapRect.top;
+
+    // A rács koordináták kiszámítása, figyelembe véve az eltolást
+    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
+    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
+
+    // Visszaküldjük a pontos rács koordinátákat a Game.tsx-nek
+    onGridMouseMove(gridX, gridY, event);
+  };
 
   const handleMapClickInternal = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
@@ -139,7 +156,7 @@ const Map: React.FC<MapProps> = ({
         transform: `translate(${mapOffsetX}px, ${mapOffsetY}px)`, // Térkép eltolása
         cursor: getCursorStyle(), // Kurzor változtatása
       }}
-      onMouseMove={onMapMouseMove}
+      onMouseMove={handleMapMouseMoveInternal} // Belső kezelő használata
       onClick={handleMapClickInternal}
       onMouseDown={onMapMouseDown}
       onMouseUp={onMapMouseUp}
@@ -147,7 +164,7 @@ const Map: React.FC<MapProps> = ({
     >
       {buildings.map((building) => {
         const commonProps = {
-          key: building.id,
+          key={building.id}
           ...building,
           cellSizePx: cellSizePx,
           onClick: onBuildingClick,
