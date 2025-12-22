@@ -737,19 +737,19 @@ const Game = () => {
 
   const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
-    const mouseXRelativeToMap = event.clientX - mapRect.left;
-    const mouseYRelativeToMap = event.clientY - mapRect.top;
+    // A kurzor pozíciója a nem eltolt térképhez képest:
+    const mouseXRelativeToMap = event.clientX - mapRect.left - mapOffsetX;
+    const mouseYRelativeToMap = event.clientY - mapRect.top - mapOffsetY;
 
-    // A térkép eltolása már benne van a mapRect.left/top értékekben,
-    // így nem kell újra levonni a mapOffsetX/Y értékeket.
     const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
     const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
 
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
     } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top) / CELL_SIZE_PX);
+      // A húzás kezdőpontjának rács koordinátái (figyelembe véve az eltolást)
+      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
+      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
 
       const minX = Math.min(startGridX, gridX);
       const maxX = Math.max(startGridX, gridX);
@@ -775,8 +775,9 @@ const Game = () => {
         setGhostBuildingCoords(null);
       }
     } else if (isPlacingRoad && isRoadDragging && lastMousePos) {
-      const startGridX = Math.floor((lastMousePos.x - mapRect.left) / CELL_SIZE_PX);
-      const startGridY = Math.floor((lastMousePos.y - mapRect.top) / CELL_SIZE_PX);
+      // A húzás kezdőpontjának rács koordinátái (figyelembe véve az eltolást)
+      const startGridX = Math.floor((lastMousePos.x - mapRect.left - mapOffsetX) / CELL_SIZE_PX);
+      const startGridY = Math.floor((lastMousePos.y - mapRect.top - mapOffsetY) / CELL_SIZE_PX);
 
       const newGhostTiles: { x: number; y: number }[] = [];
       const dx = Math.abs(gridX - startGridX);
@@ -816,14 +817,18 @@ const Game = () => {
   };
 
   const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    const mapRect = event.currentTarget.getBoundingClientRect();
+    const mouseXRelativeToMap = event.clientX - mapRect.left;
+    const mouseYRelativeToMap = event.clientY - mapRect.top;
+
     if (isPlacingRoad) {
       setIsRoadDragging(true);
-      const mapRect = event.currentTarget.getBoundingClientRect();
-      const mouseXRelativeToMap = event.clientX - mapRect.left;
-      const mouseYRelativeToMap = event.clientY - mapRect.top;
-      setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt a transformed maphez képest tároljuk a húzáshoz
-      const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
-      const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
+      // A húzás kezdőpontját a viewport-hoz képest tároljuk, hogy a delta mozgás helyes legyen a handleMapMouseMove-ban
+      setLastMousePos({ x: event.clientX, y: event.clientY }); 
+      
+      // Rács koordináták számítása a nem eltolt térképhez képest
+      const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
+      const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
       
       // Csak akkor kezdjük el a húzást, ha a kezdő csempe nem foglalt
       if (!isCellOccupied(gridX, gridY, buildings)) {
@@ -834,12 +839,11 @@ const Game = () => {
       }
     } else if (isPlacingFarmland && selectedFarmId) {
       setIsFarmlandDragging(true);
-      const mapRect = event.currentTarget.getBoundingClientRect();
-      const mouseXRelativeToMap = event.clientX - mapRect.left;
-      const mouseYRelativeToMap = event.clientY - mapRect.top;
-      setLastMousePos({ x: mouseXRelativeToMap, y: mouseYRelativeToMap }); // Ezt a transformed maphez képest tároljuk a húzáshoz
-      const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
-      const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
+      setLastMousePos({ x: event.clientX, y: event.clientY }); 
+      
+      // Rács koordináták számítása a nem eltolt térképhez képest
+      const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
+      const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
       
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
@@ -1447,7 +1451,7 @@ const Game = () => {
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Város Szimulátor</h2>
+        <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Tile-o-polis</h2>
         {/* PlayerSettings áthelyezve a PlayerInfo komponensbe */}
       </div>
 
@@ -1681,29 +1685,6 @@ const Game = () => {
                ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
                 <p className="text-red-600 font-medium">Ez az épület tele van!</p>
               )}
-            </div>
-            <DialogFooter>
-              {selectedBuilding.type === "house" && (
-                <Button
-                  onClick={handleRentBuilding}
-                  disabled={
-                    (selectedBuilding.ownerId === currentPlayerId && selectedBuilding.residentIds.includes(currentPlayerId)) ||
-                    (!selectedBuilding.ownerId && selectedBuilding.renterId === currentPlayerId) ||
-                    selectedBuilding.residentIds.length >= selectedBuilding.capacity
-                  }
-                >
-                  {selectedBuilding.ownerId === currentPlayerId ? "Beköltözik" : "Kibérlem"}
-                </Button>
-              )}
-              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && (
-                <Button
-                  onClick={handleJoinOffice}
-                  disabled={selectedBuilding.employeeIds.includes(currentPlayerId) || selectedBuilding.employeeIds.length >= selectedBuilding.capacity}
-                >
-                  Belépés alkalmazottként
-                </Button>
-              )}
-              <Button variant="outline" onClick={() => setSelectedBuilding(null)}>Mégsem</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

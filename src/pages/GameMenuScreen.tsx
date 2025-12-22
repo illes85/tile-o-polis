@@ -56,7 +56,7 @@ const GameMenuScreen: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900">
       <Card className="w-full max-w-sm p-6 space-y-4">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center">Játék Menü</CardTitle>
+          <CardTitle className="text-3xl font-bold text-center">Tile-o-polis Menü</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col space-y-4">
           {lastGameState && (
