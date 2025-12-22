@@ -361,9 +361,13 @@ const Game = () => {
 
   const moveViewport = useCallback((dx: number, dy: number) => {
     if (!mainContentRef.current) return;
-    const step = CELL_SIZE_PX * 5;
-    setMapOffsetX(prev => prev + (dx * step));
-    setMapOffsetY(prev => prev + (dy * step));
+    const viewportWidth = mainContentRef.current.clientWidth;
+    const viewportHeight = mainContentRef.current.clientHeight;
+    const stepX = viewportWidth * 0.8;
+    const stepY = viewportHeight * 0.8;
+
+    setMapOffsetX(prev => prev + (dx * stepX));
+    setMapOffsetY(prev => prev + (dy * stepY));
   }, []);
 
   const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
@@ -383,6 +387,8 @@ const Game = () => {
   const handleGridMouseMove = (gridX: number, gridY: number) => {
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
+    } else if (isPlacingRoad) {
+       setGhostBuildingCoords({ x: gridX, y: gridY });
     }
   };
 
@@ -390,8 +396,14 @@ const Game = () => {
     if (isPlacingBuilding && buildingToPlace) {
       if (isCellOccupied(gridX, gridY, buildings)) return;
       
-      const newBuilding: BuildingData = {
-        id: `${buildingToPlace.name}-${Date.now()}`,
+      setIsPlacingBuilding(false);
+      setBuildingToPlace(null);
+      setGhostBuildingCoords(null);
+      setIsBuildingInProgress(true);
+
+      const newBuildingId = `${buildingToPlace.name}-${Date.now()}`;
+      const tempBuilding: BuildingData = {
+        id: newBuildingId,
         name: buildingToPlace.name,
         x: gridX,
         y: gridY,
@@ -404,16 +416,36 @@ const Game = () => {
         ownerId: currentPlayerId,
         residentIds: [],
         employeeIds: [],
-        isUnderConstruction: false,
+        isUnderConstruction: true,
+        buildProgress: 0,
         rotation: currentBuildingRotation,
         farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined
       };
 
       setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p));
-      setBuildings(prev => [...prev, newBuilding]);
-      setIsPlacingBuilding(false);
-      setBuildingToPlace(null);
-      showSuccess(`${buildingToPlace.name} felépítve!`);
+      setBuildings(prev => [...prev, tempBuilding]);
+      
+      const toastId = showLoading(`${buildingToPlace.name} építése...`);
+
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += (100 / (buildingToPlace.duration / 100));
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(interval);
+        }
+        setBuildings(prev => prev.map(b => b.id === newBuildingId ? { ...b, buildProgress: Math.floor(progress) } : b));
+      }, 100);
+
+      setTimeout(() => {
+        dismissToast(toastId);
+        setIsBuildingInProgress(false);
+        setBuildings(prev => prev.map(b => b.id === newBuildingId ? { ...b, isUnderConstruction: false, buildProgress: 100 } : b));
+        showSuccess(`${buildingToPlace.name} felépült!`);
+      }, buildingToPlace.duration);
+
+    } else if (isPlacingRoad) {
+       // Útépítés logikája...
     }
   };
 
@@ -571,13 +603,19 @@ const Game = () => {
           onMapClick={handleMapClick}
           currentPlayerId={currentPlayerId}
           currentBuildingRotation={currentBuildingRotation}
-          isPlacingFarmland={false}
-          selectedFarmId={null}
-          onFarmlandClick={() => {}}
+          isPlacingFarmland={isPlacingFarmland}
+          selectedFarmId={selectedFarmId}
+          onFarmlandClick={(fid, x, y) => {
+            const b = buildings.find(b => b.id === fid);
+            const tile = b?.farmlandTiles?.find(t => t.x === x && t.y === y);
+            if (tile && tile.ownerId === currentPlayerId) {
+               setFarmlandActionState({ isOpen: true, farmId: fid, tileX: x, tileY: y, cropType: tile.cropType, cropProgress: tile.cropProgress || 0 });
+            }
+          }}
           ghostFarmlandTiles={[]}
-          isPlacingRoad={false}
+          isPlacingRoad={isPlacingRoad}
           ghostRoadTiles={[]}
-          isDemolishingRoad={false}
+          isDemolishingRoad={isDemolishingRoad}
           mapOffsetX={mapOffsetX}
           mapOffsetY={mapOffsetY}
           isPlacementMode={isPlacementMode}
@@ -589,7 +627,9 @@ const Game = () => {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{selectedBuilding.name}</DialogTitle>
-              <DialogDescription>Tulajdonos: {players.find(p => p.id === selectedBuilding.ownerId)?.name || "Nincs"}</DialogDescription>
+              <DialogDescription>
+                 {selectedBuilding.ownerId === currentPlayerId ? "Ez az épület a te tulajdonod!" : `Tulajdonos: ${players.find(p => p.id === selectedBuilding.ownerId)?.name || "Nincs"}`}
+              </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-2">
               {selectedBuilding.type === "house" && <p>Bérleti díj: {selectedBuilding.rentalPrice} pénz / ciklus</p>}
@@ -598,6 +638,19 @@ const Game = () => {
               
               {selectedBuilding.type === "shop" && (
                 <Button onClick={() => handleOpenShopMenu(selectedBuilding)} className="w-full bg-purple-600">Bolt megnyitása</Button>
+              )}
+
+              {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
+                <Button 
+                  onClick={() => {
+                    setSelectedFarmId(selectedBuilding.id);
+                    setIsPlacingFarmland(true);
+                    setSelectedBuilding(null);
+                  }} 
+                  className="w-full bg-green-600"
+                >
+                  Szántóföld bővítése
+                </Button>
               )}
             </div>
             <DialogFooter>
@@ -639,6 +692,22 @@ const Game = () => {
         playerStone={currentPlayer.inventory.stone}
         isBuildingInProgress={isPlacementMode}
       />
+
+      {farmlandActionState && (
+        <FarmlandActionDialog
+          {...farmlandActionState}
+          onClose={() => setFarmlandActionState(null)}
+          playerMoney={currentPlayer.money}
+          onPlant={(fid, x, y, type) => {
+            setBuildings(prev => prev.map(b => b.id === fid ? { ...b, farmlandTiles: b.farmlandTiles?.map(t => t.x === x && t.y === y ? { ...t, cropType: type, cropProgress: 0 } : t) } : b));
+          }}
+          onHarvest={(fid, x, y) => {
+            setBuildings(prev => prev.map(b => b.id === fid ? { ...b, farmlandTiles: b.farmlandTiles?.map(t => t.x === x && t.y === y ? { ...t, cropType: CropType.None, cropProgress: 0 } : t) } : b));
+            setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, inventory: { ...p.inventory, wheat: p.inventory.wheat + 10 } } : p));
+            showSuccess("Leltárba került 10 búza!");
+          }}
+        />
+      )}
     </div>
   );
 
