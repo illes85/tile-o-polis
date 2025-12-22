@@ -13,9 +13,9 @@ interface MusicPlayerProps {
 
 const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true); // Alapértelmezetten bekapcsolva
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
-  const [volume, setVolume] = useState(0.5); // Kezdeti hangerő 50%
+  const [volume, setVolume] = useState(0.4); // Kezdeti hangerő 40%
   const [isShuffling, setIsShuffling] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none'); // none, one, all
 
@@ -59,32 +59,27 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     }
 
     if (audioRef.current) {
-      const wasPlaying = !audioRef.current.paused; // Check if it was playing before src change
       audioRef.current.src = tracks[currentTrackIndex];
       audioRef.current.load(); // Reload the new source
-      if (wasPlaying || isPlaying) { // Ha játszott, vagy ha az állapot szerint játszania kellene
+      
+      // Ha isPlaying true, indítsuk el a lejátszást
+      if (isPlaying) { 
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
   }, [currentTrackIndex, tracks]);
 
-  // Effect to handle play/pause toggle
+  // Effect to handle play/pause toggle and initial volume setting
   useEffect(() => {
     if (audioRef.current) {
+      audioRef.current.volume = volume; // Hangerő beállítása
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       } else {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying]);
-
-  // Effect to update volume without restarting playback
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-    }
-  }, [volume]);
+  }, [isPlaying, volume]); // Hozzáadtam a volume-ot a függőségekhez
 
   // Effect to handle track ending
   useEffect(() => {

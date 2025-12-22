@@ -15,7 +15,7 @@ export interface SfxPlayerRef {
 }
 
 const SfxPlayer = forwardRef<SfxPlayerRef, SfxPlayerProps>(({ sfxUrls }, ref) => {
-  const [volume, setVolume] = useState(0.5); // Kezdeti hangerő 50%
+  const [volume, setVolume] = useState(0.8); // Kezdeti hangerő 80%
   const activeAudios = useRef<HTMLAudioElement[]>([]);
 
   const playSfx = (key: string, loop: boolean = false) => {
