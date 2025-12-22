@@ -47,9 +47,6 @@ const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ide
 const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
 const DEMOLISH_REFUND_PERCENTAGE = 0.5; // 50% visszatérítés bontáskor
 
-// Navigációs konstansok
-const VIEWPORT_MOVE_STEP = 10; // Ennyi pixelt mozdítunk a térképet egy lépésben
-
 interface Player {
   id: string;
   name: string;
@@ -287,8 +284,41 @@ const Game = () => {
 
   // Navigációs funkciók
   const moveViewport = useCallback((dx: number, dy: number) => {
-    setMapOffsetX(prev => prev + dx);
-    setMapOffsetY(prev => prev + dy);
+    if (!mainContentRef.current) return;
+
+    const viewportWidth = mainContentRef.current.clientWidth;
+    const viewportHeight = mainContentRef.current.clientHeight;
+    const mapTotalWidthPx = MAP_GRID_SIZE * CELL_SIZE_PX;
+    const mapTotalHeightPx = MAP_GRID_SIZE * 1.5 * CELL_SIZE_PX;
+
+    // Lépésméret beállítása a viewport méretéhez (kisebb eltolás, hogy ne ugorjon túl sokat)
+    const stepX = viewportWidth * 0.8;
+    const stepY = viewportHeight * 0.8;
+
+    setMapOffsetX(prevX => {
+      let newX = prevX + (dx * stepX);
+      // Határok ellenőrzése (ne mozduljon el annyira, hogy a térkép eltűnjön)
+      // Max eltolás jobbra (a térkép bal széle a viewport jobb szélénél van)
+      const maxOffsetX = viewportWidth - CELL_SIZE_PX; 
+      // Max eltolás balra (a térkép jobb széle a viewport bal szélénél van)
+      const minOffsetX = -mapTotalWidthPx + CELL_SIZE_PX; 
+
+      if (newX > maxOffsetX) return maxOffsetX;
+      if (newX < minOffsetX) return minOffsetX;
+      return newX;
+    });
+
+    setMapOffsetY(prevY => {
+      let newY = prevY + (dy * stepY);
+      // Max eltolás lefelé
+      const maxOffsetY = viewportHeight - CELL_SIZE_PX;
+      // Max eltolás felfelé
+      const minOffsetY = -mapTotalHeightPx + CELL_SIZE_PX;
+
+      if (newY > maxOffsetY) return maxOffsetY;
+      if (newY < minOffsetY) return minOffsetY;
+      return newY;
+    });
   }, []);
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
@@ -760,6 +790,20 @@ const Game = () => {
     } else if (isPlacingRoad && !isRoadDragging) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
     }
+  };
+
+  // Ezt a függvényt a Map komponens hívja meg, de csak a panning (húzás) logikát kezeli
+  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    // Ezt a függvényt most már nem használjuk a panning-re, de meghagyjuk a Map propok kompatibilitása miatt.
+    // A Map komponensben a handleMapMouseMoveInternal hívja meg a onGridMouseMove-ot.
+  };
+
+  const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    // A húzás (dragging) funkció eltávolítva.
+  };
+
+  const handleMapMouseUp = () => {
+    // A húzás (dragging) funkció eltávolítva.
   };
 
   const handleMapClick = (gridX: number, gridY: number) => { // Itt már rács koordinátákat kapunk
@@ -1244,7 +1288,7 @@ const Game = () => {
         variant="outline"
         size="icon"
         className="absolute top-1/2 left-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white"
-        onClick={() => moveViewport(VIEWPORT_MOVE_STEP, 0)} // Balra
+        onClick={() => moveViewport(1, 0)} // Balra (pozitív X eltolás)
         aria-label="Térkép mozgatása balra"
       >
         <ChevronLeft className="h-6 w-6" />
@@ -1253,7 +1297,7 @@ const Game = () => {
         variant="outline"
         size="icon"
         className="absolute top-1/2 right-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white"
-        onClick={() => moveViewport(-VIEWPORT_MOVE_STEP, 0)} // Jobbra
+        onClick={() => moveViewport(-1, 0)} // Jobbra (negatív X eltolás)
         aria-label="Térkép mozgatása jobbra"
       >
         <ChevronRight className="h-6 w-6" />
@@ -1262,7 +1306,7 @@ const Game = () => {
         variant="outline"
         size="icon"
         className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 hover:bg-white"
-        onClick={() => moveViewport(0, VIEWPORT_MOVE_STEP)} // Fel
+        onClick={() => moveViewport(0, 1)} // Fel (pozitív Y eltolás)
         aria-label="Térkép mozgatása felfelé"
       >
         <ChevronUp className="h-6 w-6" />
@@ -1271,7 +1315,7 @@ const Game = () => {
         variant="outline"
         size="icon"
         className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 hover:bg-white"
-        onClick={() => moveViewport(0, -VIEWPORT_MOVE_STEP)} // Le
+        onClick={() => moveViewport(0, -1)} // Le (negatív Y eltolás)
         aria-label="Térkép mozgatása lefelé"
       >
         <ChevronDown className="h-6 w-6" />

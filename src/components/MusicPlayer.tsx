@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Volume2, VolumeX, SkipForward, SkipBack, Volume1, Volume } from "lucide-react";
+import { Volume2, VolumeX, SkipForward, SkipBack, Volume1, Shuffle, Repeat } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider"; // Importáljuk a Slider komponenst
+import { Slider } from "@/components/ui/slider";
+import { cn } from "@/lib/utils";
 
 interface MusicPlayerProps {
   tracks: string[];
@@ -15,6 +16,36 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [volume, setVolume] = useState(0.5); // Kezdeti hangerő 50%
+  const [isShuffling, setIsShuffling] = useState(false);
+  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none'); // none, one, all
+
+  const playNextTrack = useCallback(() => {
+    if (tracks.length === 0) return;
+
+    setCurrentTrackIndex(prevIndex => {
+      if (repeatMode === 'one') {
+        return prevIndex; // Marad az aktuális track
+      }
+      
+      if (isShuffling) {
+        let newIndex;
+        do {
+          newIndex = Math.floor(Math.random() * tracks.length);
+        } while (newIndex === prevIndex && tracks.length > 1);
+        return newIndex;
+      }
+
+      const nextIndex = (prevIndex + 1) % tracks.length;
+      
+      if (repeatMode === 'none' && nextIndex === 0) {
+        setIsPlaying(false); // Leáll, ha vége a listának és nincs ismétlés
+        return prevIndex;
+      }
+      
+      return nextIndex;
+    });
+    setIsPlaying(true);
+  }, [tracks, isShuffling, repeatMode]);
 
   // Effect to load new track when currentTrackIndex or tracks change
   useEffect(() => {
@@ -31,7 +62,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
       const wasPlaying = !audioRef.current.paused; // Check if it was playing before src change
       audioRef.current.src = tracks[currentTrackIndex];
       audioRef.current.load(); // Reload the new source
-      if (wasPlaying) { // If it was playing, try to play again
+      if (wasPlaying || isPlaying) { // Ha játszott, vagy ha az állapot szerint játszania kellene
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
@@ -55,14 +86,18 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     }
   }, [volume]);
 
+  // Effect to handle track ending
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.addEventListener('ended', playNextTrack);
+      return () => audio.removeEventListener('ended', playNextTrack);
+    }
+  }, [playNextTrack]);
+
+
   const togglePlayPause = () => {
     setIsPlaying(prev => !prev);
-  };
-
-  const playNextTrack = () => {
-    if (tracks.length === 0) return;
-    setCurrentTrackIndex(prevIndex => (prevIndex + 1) % tracks.length);
-    setIsPlaying(true);
   };
 
   const playPreviousTrack = () => {
@@ -75,9 +110,23 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     setVolume(newVolume[0] / 100); // A Slider 0-100 közötti értéket ad vissza
   };
 
+  const toggleShuffle = () => {
+    setIsShuffling(prev => !prev);
+  };
+
+  const toggleRepeat = () => {
+    setRepeatMode(prevMode => {
+      if (prevMode === 'none') return 'all';
+      if (prevMode === 'all') return 'one';
+      return 'none';
+    });
+  };
+
   if (tracks.length === 0) {
     return null;
   }
+
+  const currentTrackName = tracks[currentTrackIndex].split('/').pop()?.replace('.mp3', '') || `Track ${currentTrackIndex + 1}`;
 
   return (
     <Card className="w-full mt-4 bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border shadow-none">
@@ -85,10 +134,37 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
         <CardTitle className="text-lg font-semibold">Háttérzene</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col space-y-2">
+        <p className="text-sm truncate" title={currentTrackName}>
+          {currentTrackName}
+        </p>
         <div className="flex items-center justify-between">
-          <p className="text-sm">
-            {`Track ${currentTrackIndex + 1}/${tracks.length}`}
-          </p>
+          <div className="flex space-x-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleShuffle}
+              className={cn(
+                "h-8 w-8",
+                isShuffling ? "text-primary" : "text-gray-500 hover:text-primary"
+              )}
+              title="Keverés"
+            >
+              <Shuffle className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleRepeat}
+              className={cn(
+                "h-8 w-8",
+                repeatMode !== 'none' ? "text-primary" : "text-gray-500 hover:text-primary"
+              )}
+              title={repeatMode === 'one' ? "Ismétlés: egy dal" : repeatMode === 'all' ? "Ismétlés: összes" : "Ismétlés kikapcsolva"}
+            >
+              <Repeat className="h-4 w-4" />
+              {repeatMode === 'one' && <span className="absolute text-[0.6rem] bottom-1 right-1">1</span>}
+            </Button>
+          </div>
           <div className="flex space-x-2">
             <Button
               variant="outline"
@@ -126,7 +202,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
             className="w-[60%]"
           />
         </div>
-        <audio ref={audioRef} preload="auto" onEnded={playNextTrack} />
+        <audio ref={audioRef} preload="auto" />
       </CardContent>
     </Card>
   );
