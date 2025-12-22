@@ -399,8 +399,8 @@ const Game = () => {
   const handleGridMouseMove = (gridX: number, gridY: number) => {
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
-    } else if (isPlacingRoad) {
-       setGhostBuildingCoords({ x: gridX, y: gridY });
+    } else if (isPlacingFarmland || isPlacingRoad) {
+      setGhostBuildingCoords({ x: gridX, y: gridY });
     }
   };
 
@@ -466,8 +466,35 @@ const Game = () => {
         showSuccess(`${buildingToPlace.name} felépült!`);
       }, buildingToPlace.duration);
 
-    } else if (isPlacingRoad) {
-       // Útépítés logikája...
+    } else if (isPlacingFarmland && selectedFarmId) {
+       if (isCellOccupied(gridX, gridY, buildings)) {
+           showError("Ez a hely már foglalt!");
+           return;
+       }
+       if (currentPlayer.money < FARMLAND_COST_PER_TILE) {
+           showError("Nincs elég pénzed!");
+           return;
+       }
+
+       setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p));
+       setBuildings(prev => prev.map(b => {
+           if (b.id === selectedFarmId) {
+               return {
+                   ...b,
+                   farmlandTiles: [...(b.farmlandTiles || []), {
+                       x: gridX,
+                       y: gridY,
+                       ownerId: currentPlayerId,
+                       isUnderConstruction: false,
+                       buildProgress: 100,
+                       cropType: CropType.None,
+                       cropProgress: 0
+                   }]
+               };
+           }
+           return b;
+       }));
+       showSuccess("Szántóföld létrehozva!");
     }
   };
 
@@ -545,6 +572,12 @@ const Game = () => {
   };
 
   const handleBuyProduct = (shopId: string, productType: ProductType, quantity: number) => {
+    const shopBuilding = buildings.find(b => b.id === shopId);
+    if (!shopBuilding || shopBuilding.employeeIds.length === 0) {
+      showError("A bolt zárva van, mert nincs alkalmazott!");
+      return;
+    }
+
     const item = shopInventories[shopId]?.find(i => i.type === productType);
     if (!item || item.stock < quantity) return;
     const cost = item.sellPrice * quantity;
@@ -754,6 +787,13 @@ const Game = () => {
         playerBrick={currentPlayer.inventory.brick}
         playerStone={currentPlayer.inventory.stone}
         isBuildingInProgress={isPlacementMode}
+      />
+
+      <MoneyHistory
+        isOpen={isMoneyHistoryOpen}
+        onClose={() => setIsMoneyHistoryOpen(false)}
+        transactions={transactions}
+        currentPlayerId={currentPlayerId}
       />
 
       {farmlandActionState && (
