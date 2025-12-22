@@ -18,7 +18,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer"; // Importálju
 import { musicTracks } from "@/utils/musicFiles"; // Dinamikusan betöltött zenék
 import { sfxUrls } from "@/utils/sfxFiles"; // Dinamikusan betöltött hangeffektek
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2 } from "lucide-react"; // Coins ikon importálása, Building és Road ikonok, Wrench és Trash2 ikonok
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown } from "lucide-react"; // Új ikonok a navigációhoz
 import { allProducts, ProductType, getProductByType } from "@/utils/products"; // Importáljuk a termékdefiníciókat
 
 import { useNavigate, useLocation } from "react-router-dom";
@@ -46,6 +46,9 @@ const FARMLAND_HOE_BUILD_DURATION_MS = 15000; // Szántóföld építési ideje 
 const FARMLAND_TRACTOR_BUILD_DURATION_MS = 5000; // Szántóföld építési ideje traktorral (5 másodperc)
 const FARMLAND_MAX_DISTANCE = 3; // Szántóföld max távolsága a farmtól
 const DEMOLISH_REFUND_PERCENTAGE = 0.5; // 50% visszatérítés bontáskor
+
+// Navigációs konstansok
+const VIEWPORT_MOVE_STEP = 10; // Ennyi pixelt mozdítunk a térképet egy lépésben
 
 interface Player {
   id: string;
@@ -247,11 +250,9 @@ const Game = () => {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Térkép húzogatás állapotok
+  // Térkép pozícionálás állapotok (gombokkal mozgatva)
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const [lastMousePos, setLastMousePos] = useState<{ x: number; y: number } | null>(null); // Pixel koordináták a húzáshoz
 
   // Ref a fő tartalom div-hez a méretek lekéréséhez
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -283,6 +284,12 @@ const Game = () => {
       setMapOffsetY(initialOffsetY);
     }
   }, []); // Csak egyszer fusson le a komponens mountolásakor
+
+  // Navigációs funkciók
+  const moveViewport = useCallback((dx: number, dy: number) => {
+    setMapOffsetX(prev => prev + dx);
+    setMapOffsetY(prev => prev + dy);
+  }, []);
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
@@ -739,27 +746,8 @@ const Game = () => {
   const handleGridMouseMove = (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => {
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
-    } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging && lastMousePos) {
-      // Ha húzunk, a lastMousePos-t a rács koordinátákban tároltuk a handleMapMouseDown-ban
-      const startGridX = lastMousePos.x;
-      const startGridY = lastMousePos.y;
-
-      const minX = Math.min(startGridX, gridX);
-      const maxX = Math.max(startGridX, gridX);
-      const minY = Math.min(startGridY, gridY);
-      const maxY = Math.max(startGridY, gridY);
-
-      const newGhostTiles: { x: number; y: number }[] = [];
-      const farm = buildings.find(b => b.id === selectedFarmId);
-
-      for (let x = minX; x <= maxX; x++) {
-        for (let y = minY; y <= maxY; y++) {
-          if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, x, y)) {
-            newGhostTiles.push({ x, y });
-          }
-        }
-      }
-      setGhostFarmlandTiles(newGhostTiles);
+    } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging) {
+      // A húzás logikája már nem aktív, de biztonság kedvéért
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
       const farm = buildings.find(b => b.id === selectedFarmId);
       if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
@@ -767,307 +755,10 @@ const Game = () => {
       } else {
         setGhostBuildingCoords(null);
       }
-    } else if (isPlacingRoad && isRoadDragging && lastMousePos) {
-      // Ha húzunk, a lastMousePos-t a rács koordinátákban tároltuk a handleMapMouseDown-ban
-      const startGridX = lastMousePos.x;
-      const startGridY = lastMousePos.y;
-
-      const newGhostTiles: { x: number; y: number }[] = [];
-      const dx = Math.abs(gridX - startGridX);
-      const dy = Math.abs(gridY - startGridY);
-      const sx = (startGridX < gridX) ? 1 : -1;
-      const sy = (startGridY < gridY) ? 1 : -1;
-      let err = dx - dy;
-
-      let x = startGridX;
-      let y = startGridY;
-
-      while (true) {
-        // Csak akkor adjuk hozzá a szellem csempét, ha nincs rajta már épület
-        if (!isCellOccupied(x, y, buildings)) {
-          newGhostTiles.push({ x, y });
-        }
-        if (x === gridX && y === gridY) break;
-        const e2 = 2 * err;
-        if (e2 > -dy) { err -= dy; x += sx; }
-        if (e2 < dx) { err += dx; y += sy; }
-      }
-      
-      setGhostRoadTiles(newGhostTiles);
+    } else if (isPlacingRoad && isRoadDragging) {
+      // A húzás logikája már nem aktív, de biztonság kedvéért
     } else if (isPlacingRoad && !isRoadDragging) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
-    }
-  };
-
-  // Ezt a függvényt a Map komponens hívja meg, de csak a panning (húzás) logikát kezeli
-  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isDragging && lastMousePos) {
-      const deltaX = event.clientX - lastMousePos.x;
-      const deltaY = event.clientY - lastMousePos.y;
-      setMapOffsetX(prev => prev + deltaX);
-      setMapOffsetY(prev => prev + deltaY);
-      setLastMousePos({ x: event.clientX, y: event.clientY });
-    }
-  };
-
-  const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    const mapRect = event.currentTarget.getBoundingClientRect();
-    const mouseXRelativeToMap = event.clientX - mapRect.left;
-    const mouseYRelativeToMap = event.clientY - mapRect.top;
-
-    // Rács koordináták számítása a nem eltolt térképhez képest
-    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
-    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
-
-    if (isPlacingRoad) {
-      setIsRoadDragging(true);
-      // Húzás kezdőpontját rács koordinátákban tároljuk, ha építési módban vagyunk
-      setLastMousePos({ x: gridX, y: gridY }); 
-      
-      // Csak akkor kezdjük el a húzást, ha a kezdő csempe nem foglalt
-      if (!isCellOccupied(gridX, gridY, buildings)) {
-        setGhostRoadTiles([{ x: gridX, y: gridY }]);
-      } else {
-        showError("Nem lehet utat építeni foglalt területekre!");
-        setIsRoadDragging(false); // Megszakítjuk a húzást, ha foglalt a kezdőpont
-      }
-    } else if (isPlacingFarmland && selectedFarmId) {
-      setIsFarmlandDragging(true);
-      // Húzás kezdőpontját rács koordinátákban tároljuk
-      setLastMousePos({ x: gridX, y: gridY }); 
-      
-      const farm = buildings.find(b => b.id === selectedFarmId);
-      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
-        setGhostFarmlandTiles([{ x: gridX, y: gridY }]);
-      } else {
-        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni!`);
-        setIsFarmlandDragging(false);
-      }
-    } else if (!isPlacementMode) {
-      // Panning (térkép húzása) esetén globális egérpozíciót tárolunk
-      setIsDragging(true);
-      setLastMousePos({ x: event.clientX, y: event.clientY });
-    }
-  };
-
-  const handleMapMouseUp = () => {
-    setIsDragging(false);
-    // A lastMousePos-t csak a húzás (dragging) befejezésekor nullázzuk, de a placement logikában a rács koordinátákat használjuk.
-
-    if (isPlacingRoad && isRoadDragging) {
-      setIsRoadDragging(false);
-      // Szűrjük ki a foglalt csempéket a ghostRoadTiles-ból, mielőtt építjük őket
-      const buildableRoadTiles = ghostRoadTiles.filter(tile => !isCellOccupied(tile.x, tile.y, buildings));
-
-      if (buildableRoadTiles.length === 0) {
-        showError("Nem lehet utat építeni foglalt területekre!");
-        setGhostRoadTiles([]);
-        setIsPlacingRoad(false); // Kilépünk az útépítési módból
-        return;
-      }
-
-      const totalCost = buildableRoadTiles.length * ROAD_COST_PER_TILE;
-      const totalStoneCost = buildableRoadTiles.length * ROAD_STONE_COST_PER_TILE;
-
-      if (currentPlayer.money < totalCost) {
-        showError(`Nincs elég pénzed az utak építéséhez! Szükséges: ${totalCost} pénz.`);
-        setGhostRoadTiles([]);
-        setIsPlacingRoad(false); // Kilépünk az útépítési módból
-        return;
-      }
-      if (currentPlayer.inventory.stone < totalStoneCost) {
-        showError(`Nincs elég kő az utak építéséhez! Szükséges: ${totalStoneCost} kő.`);
-        setGhostRoadTiles([]);
-        setIsPlacingRoad(false); // Kilépünk az útépítési módból
-        return;
-      }
-
-      setPlayers(prevPlayers =>
-        prevPlayers.map(p =>
-          p.id === currentPlayerId ? { ...p, money: p.money - totalCost, inventory: { ...p.inventory, stone: p.inventory.stone - totalStoneCost } } : p
-        )
-      );
-      addTransaction(currentPlayerId, "expense", `Út építése (${buildableRoadTiles.length} csempe)`, totalCost);
-      addTransaction(currentPlayerId, "expense", `Kő felhasználás útépítéshez (${buildableRoadTiles.length} csempe)`, totalStoneCost);
-
-      setIsBuildingInProgress(true);
-
-      const newRoads: BuildingData[] = buildableRoadTiles.map(tile => ({
-        id: `road-${Date.now()}-${tile.x}-${tile.y}`,
-        name: "Út",
-        x: tile.x,
-        y: tile.y,
-        width: 1,
-        height: 1,
-        type: "road",
-        capacity: 0,
-        ownerId: currentPlayerId,
-        residentIds: [],
-        employeeIds: [],
-        isUnderConstruction: true,
-        buildProgress: 0,
-        rotation: 0,
-      }));
-
-      setBuildings(prevBuildings => [...prevBuildings, ...newRoads]);
-      const toastId = showLoading(`Út építése folyamatban (${buildableRoadTiles.length} csempe)...`);
-
-      if (sfxPlayerRef.current) {
-        sfxPlayerRef.current.stopAllSfx(); // Leállítjuk az előző SFX-et, ha volt
-        sfxPlayerRef.current.playSfx("construction-01", true); // Építési hang loopolva
-      }
-
-      const progressIntervals: NodeJS.Timeout[] = [];
-      newRoads.forEach(road => {
-        let currentProgress = 0;
-        const interval = setInterval(() => {
-          currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
-          if (currentProgress >= 100) {
-            currentProgress = 100;
-            clearInterval(interval);
-          }
-          setBuildings(prevBuildings =>
-            prevBuildings.map(b =>
-              b.id === road.id ? { ...b, buildProgress: Math.floor(currentProgress) } : b
-            )
-          );
-        }, 100);
-        progressIntervals.push(interval);
-      });
-
-      setTimeout(() => {
-        progressIntervals.forEach(clearInterval);
-        dismissToast(toastId);
-        setIsBuildingInProgress(false);
-
-        setBuildings(prevBuildings =>
-          prevBuildings.map(b =>
-            newRoads.some(nr => nr.id === b.id)
-              ? { ...b, isUnderConstruction: false, buildProgress: 100 }
-              : b
-          )
-        );
-        showSuccess(`Út sikeresen felépült (${buildableRoadTiles.length} csempe)!`);
-
-        if (sfxPlayerRef.current) {
-          sfxPlayerRef.current.stopAllSfx();
-        }
-      }, ROAD_BUILD_DURATION_MS);
-      setGhostRoadTiles([]);
-      setIsPlacingRoad(false);
-    } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging) {
-      setIsFarmlandDragging(false);
-      if (ghostFarmlandTiles.length > 0) {
-        const farm = buildings.find(b => b.id === selectedFarmId);
-        if (!farm || farm.type !== "farm" || farm.ownerId !== currentPlayerId) {
-          showError("Ez nem a te farmod, vagy nem farm típusú épület!");
-          setGhostFarmlandTiles([]);
-          return;
-        }
-
-        const hasHoe = currentPlayer.inventory.hoe > 0;
-        const hasTractor = currentPlayer.inventory.tractor > 0;
-        const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
-        const toolName = hasTractor ? "traktorral" : "kapával";
-
-        if (!hasHoe && !hasTractor) {
-          showError("Nincs kapád vagy traktorod a szántóföld létrehozásához!");
-          setGhostFarmlandTiles([]);
-          return;
-        }
-
-        const totalCost = ghostFarmlandTiles.length * FARMLAND_COST_PER_TILE;
-        if (currentPlayer.money < totalCost) {
-          showError(`Nincs elég pénzed szántóföld létrehozásához! Szükséges: ${totalCost} pénz.`);
-          setGhostFarmlandTiles([]);
-          return;
-        }
-
-        setPlayers(prevPlayers =>
-          prevPlayers.map(p =>
-            p.id === currentPlayerId ? { ...p, money: p.money - totalCost } : p
-          )
-        );
-        addTransaction(currentPlayerId, "expense", `Szántóföld létrehozása (${farm.name}, ${ghostFarmlandTiles.length} csempe)`, totalCost);
-
-        setIsBuildingInProgress(true);
-
-        const newFarmlandTiles: FarmlandTile[] = ghostFarmlandTiles.map(tile => ({
-          x: tile.x,
-          y: tile.y,
-          ownerId: currentPlayerId,
-          isUnderConstruction: true,
-          buildProgress: 0,
-        }));
-
-        setBuildings(prevBuildings =>
-          prevBuildings.map(b =>
-            b.id === selectedFarmId
-              ? { ...b, farmlandTiles: [...(b.farmlandTiles || []), ...newFarmlandTiles] }
-              : b
-          )
-        );
-        const toastId = showLoading(`Szántóföld építése folyamatban (${ghostFarmlandTiles.length} csempe, ${toolName})...`);
-
-        if (sfxPlayerRef.current) {
-          sfxPlayerRef.current.stopAllSfx();
-          sfxPlayerRef.current.playSfx("construction-01", true);
-        }
-
-        const progressIntervals: NodeJS.Timeout[] = [];
-        newFarmlandTiles.forEach(tile => {
-          let currentProgress = 0;
-          const interval = setInterval(() => {
-            currentProgress += (100 / (buildDuration / 100));
-            if (currentProgress >= 100) {
-              currentProgress = 100;
-              clearInterval(interval);
-            }
-            setBuildings(prevBuildings =>
-              prevBuildings.map(b =>
-                b.id === selectedFarmId
-                  ? {
-                      ...b,
-                      farmlandTiles: b.farmlandTiles?.map(ft =>
-                        ft.x === tile.x && ft.y === tile.y ? { ...ft, buildProgress: Math.floor(currentProgress) } : ft
-                      ),
-                    }
-                  : b
-              )
-            );
-          }, 100);
-          progressIntervals.push(interval);
-        });
-
-        setTimeout(() => {
-          progressIntervals.forEach(clearInterval);
-          dismissToast(toastId);
-          setIsBuildingInProgress(false);
-
-          setBuildings(prevBuildings =>
-            prevBuildings.map(b =>
-              b.id === selectedFarmId
-                ? {
-                    ...b,
-                    farmlandTiles: b.farmlandTiles?.map(ft =>
-                      newFarmlandTiles.some(nft => nft.x === ft.x && nft.y === ft.y)
-                        ? { ...ft, isUnderConstruction: false, buildProgress: 100 }
-                        : ft
-                    ),
-                  }
-                : b
-            )
-          );
-          showSuccess(`Szántóföld sikeresen létrehozva (${ghostFarmlandTiles.length} csempe, ${toolName})!`);
-
-          if (sfxPlayerRef.current) {
-            sfxPlayerRef.current.stopAllSfx();
-          }
-        }, buildDuration);
-      }
-      setGhostFarmlandTiles([]);
-      setIsPlacingFarmland(false);
-      setSelectedFarmId(null);
     }
   };
 
@@ -1546,8 +1237,46 @@ const Game = () => {
   const mainContent = (
     <div
       ref={mainContentRef} // Hozzáadva a ref
-      className="flex flex-col h-full items-center justify-center relative"
+      className="flex flex-col h-full items-center justify-center relative overflow-hidden" // overflow-hidden a gombok miatt
     >
+      {/* Navigációs gombok a térkép szélein */}
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute top-1/2 left-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white"
+        onClick={() => moveViewport(VIEWPORT_MOVE_STEP, 0)} // Balra
+        aria-label="Térkép mozgatása balra"
+      >
+        <ChevronLeft className="h-6 w-6" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute top-1/2 right-2 transform -translate-y-1/2 z-10 bg-white/80 hover:bg-white"
+        onClick={() => moveViewport(-VIEWPORT_MOVE_STEP, 0)} // Jobbra
+        aria-label="Térkép mozgatása jobbra"
+      >
+        <ChevronRight className="h-6 w-6" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute top-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 hover:bg-white"
+        onClick={() => moveViewport(0, VIEWPORT_MOVE_STEP)} // Fel
+        aria-label="Térkép mozgatása felfelé"
+      >
+        <ChevronUp className="h-6 w-6" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10 bg-white/80 hover:bg-white"
+        onClick={() => moveViewport(0, -VIEWPORT_MOVE_STEP)} // Le
+        aria-label="Térkép mozgatása lefelé"
+      >
+        <ChevronDown className="h-6 w-6" />
+      </Button>
+
       <div className="flex-grow flex items-center justify-center">
         <Map
           buildings={buildings}
@@ -1557,7 +1286,6 @@ const Game = () => {
           isPlacingBuilding={isPlacingBuilding}
           buildingToPlace={buildingToPlace}
           ghostBuildingCoords={ghostBuildingCoords} // Rács koordinátákat adunk át
-          onMapMouseMove={handleMapMouseMove} // Panning kezelése
           onGridMouseMove={handleGridMouseMove} // Szellem épület pozíciójának frissítése
           onMapClick={handleMapClick}
           currentPlayerId={currentPlayerId}
@@ -1572,9 +1300,6 @@ const Game = () => {
           mapOffsetX={mapOffsetX} // Átadjuk az eltolást a Map komponensnek
           mapOffsetY={mapOffsetY} // Átadjuk az eltolást a Map komponensnek
           isPlacementMode={isPlacementMode} // Átadjuk az isPlacementMode állapotot
-          onMapMouseDown={handleMapMouseDown} // Átadjuk a Map komponensnek
-          onMapMouseUp={handleMapMouseUp}     // Átadjuk a Map komponensnek
-          onMapMouseLeave={handleMapMouseUp}  // Átadjuk a Map komponensnek
         />
       </div>
 

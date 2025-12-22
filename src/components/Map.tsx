@@ -39,7 +39,6 @@ interface MapProps {
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null; // Rács koordináták
-  onMapMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
   onGridMouseMove: (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => void; // ÚJ: rács koordináták visszaküldése
   onMapClick: (x: number, y: number) => void; // Rács koordinátákat fogad
   currentPlayerId: string; // Új prop
@@ -54,9 +53,6 @@ interface MapProps {
   mapOffsetX: number; // Új: térkép eltolás X irányban
   mapOffsetY: number; // Új: térkép eltolás Y irányban
   isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
-  onMapMouseDown: (event: React.MouseEvent<HTMLDivElement>) => void; // Új: egér lenyomás esemény
-  onMapMouseUp: (event: React.MouseEvent<HTMLDivElement>) => void;   // Új: egér felengedés esemény
-  onMapMouseLeave: (event: React.MouseEvent<HTMLDivElement>) => void; // Új: egér elhagyja az elemet esemény
 }
 
 const Map: React.FC<MapProps> = ({
@@ -67,7 +63,6 @@ const Map: React.FC<MapProps> = ({
   isPlacingBuilding,
   buildingToPlace,
   ghostBuildingCoords,
-  onMapMouseMove,
   onGridMouseMove, // Hozzáadva
   onMapClick,
   currentPlayerId,
@@ -82,16 +77,11 @@ const Map: React.FC<MapProps> = ({
   mapOffsetX,
   mapOffsetY,
   isPlacementMode,
-  onMapMouseDown,
-  onMapMouseUp,
-  onMapMouseLeave,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
 
   const handleMapMouseMoveInternal = (event: React.MouseEvent<HTMLDivElement>) => {
-    onMapMouseMove(event); // Továbbítjuk a Game.tsx-nek a húzáshoz
-
     const mapRect = event.currentTarget.getBoundingClientRect();
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
@@ -144,7 +134,7 @@ const Map: React.FC<MapProps> = ({
     if (isDemolishingRoad) {
       return "url('/public/demolish_cursor.png'), cell"; // Egyedi bontó kurzor, ha van
     }
-    return "grab";
+    return "default"; // Alap kurzor, nincs húzás
   };
 
   return (
@@ -158,9 +148,6 @@ const Map: React.FC<MapProps> = ({
       }}
       onMouseMove={handleMapMouseMoveInternal} // Belső kezelő használata
       onClick={handleMapClickInternal}
-      onMouseDown={onMapMouseDown}
-      onMouseUp={onMapMouseUp}
-      onMapMouseLeave={onMapMouseLeave}
     >
       {buildings.map((building) => {
         const commonProps = {
