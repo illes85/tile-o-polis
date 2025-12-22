@@ -1714,7 +1714,7 @@ const Game = () => {
               )}
 
               {/* Új feltétel a Bolt menü megnyitásához */}
-              {selectedBuilding.type === "shop" && selectedBuilding.ownerId === currentPlayerId && (
+              {selectedBuilding.type === "shop" && (
                 <Button
                   onClick={() => {
                     handleOpenShopMenu(selectedBuilding);
