@@ -737,12 +737,13 @@ const Game = () => {
 
   const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
-    // A kurzor pozíciója a nem eltolt térképhez képest:
-    const mouseXRelativeToMap = event.clientX - mapRect.left - mapOffsetX;
-    const mouseYRelativeToMap = event.clientY - mapRect.top - mapOffsetY;
+    // A kurzor pozíciója a NEM ELTOLT térképhez képest:
+    const mouseXRelativeToMap = event.clientX - mapRect.left;
+    const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    const gridX = Math.floor(mouseXRelativeToMap / CELL_SIZE_PX);
-    const gridY = Math.floor(mouseYRelativeToMap / CELL_SIZE_PX);
+    // A rács koordináták kiszámítása az eltolás figyelembevételével
+    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / CELL_SIZE_PX);
+    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / CELL_SIZE_PX);
 
     if (isPlacingBuilding && buildingToPlace) {
       setGhostBuildingCoords({ x: gridX, y: gridY }); // Rács koordinátákat tárolunk
