@@ -9,15 +9,16 @@ export enum ProductType {
   Stone = "stone",
   Hoe = "hoe",
   Tractor = "tractor",
+  WheatSeed = "wheat_seed", // Új: Búza vetőmag
 }
 
 export interface Product {
   type: ProductType;
   name: string;
-  wholesalePrice: number; // Nagykereskedelmi ár, amennyiért a bolt berendelheti
-  deliveryTimeMs: number; // Szállítási idő milliszekundumban
-  baseSellPrice: number; // Alap eladási ár, amit a boltos felülírhat
-  baseBuyPrice?: number; // Alap vételár, amennyiért a bolt veszi a terméket a játékostól
+  wholesalePrice: number;
+  deliveryTimeMs: number;
+  baseSellPrice: number;
+  baseBuyPrice?: number;
 }
 
 export const allProducts: Product[] = [
@@ -27,8 +28,9 @@ export const allProducts: Product[] = [
   { type: ProductType.Wood, name: "Fa", wholesalePrice: 2, deliveryTimeMs: 2000, baseSellPrice: 4 },
   { type: ProductType.Brick, name: "Tégla", wholesalePrice: 4, deliveryTimeMs: 4000, baseSellPrice: 7 },
   { type: ProductType.Stone, name: "Kő", wholesalePrice: 3, deliveryTimeMs: 3500, baseSellPrice: 6 },
-  { type: ProductType.Hoe, name: "Kapa", wholesalePrice: 50, deliveryTimeMs: 15000, baseSellPrice: 80, baseBuyPrice: 30 },
-  { type: ProductType.Tractor, name: "Traktor", wholesalePrice: 500, deliveryTimeMs: 30000, baseSellPrice: 800, baseBuyPrice: 400 },
+  { type: ProductType.Hoe, name: "Kapa", wholesalePrice: 50, deliveryTimeMs: 15000, baseSellPrice: 80 },
+  { type: ProductType.Tractor, name: "Traktor", wholesalePrice: 500, deliveryTimeMs: 30000, baseSellPrice: 800 },
+  { type: ProductType.WheatSeed, name: "Búza vetőmag", wholesalePrice: 2, deliveryTimeMs: 3000, baseSellPrice: 4 }, // Új termék
 ];
 
 export const getProductByType = (type: ProductType) => allProducts.find(p => p.type === type);
