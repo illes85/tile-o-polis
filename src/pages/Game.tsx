@@ -23,7 +23,6 @@ import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
 import ShopMenu from "@/components/ShopMenu";
-import ShopInventory from "@/components/ShopInventory";
 
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
@@ -88,7 +87,145 @@ interface ShopItem {
 }
 
 const availableBuildingOptions: BuildingOption[] = [
-  // ... (épület opciók - változatlanok) ...
+  {
+    type: "house",
+    category: "residential",
+    name: "Sátor",
+    cost: 200,
+    duration: 4000,
+    width: 2,
+    height: 1,
+    rentalPrice: 0,
+    capacity: 1,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Házikó",
+    cost: BUILD_HOUSE_COST,
+    duration: BUILD_HOUSE_DURATION_MS,
+    width: 2,
+    height: 2,
+    rentalPrice: 10,
+    capacity: 2,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Normál Ház",
+    cost: 750,
+    duration: 15000,
+    width: 3,
+    height: 2,
+    rentalPrice: 15,
+    capacity: 3,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Kádárkocka",
+    cost: 1200,
+    duration: 20000,
+    width: 3,
+    height: 3,
+    rentalPrice: 25,
+    capacity: 4,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Családi Ház",
+    cost: 1800,
+    duration: 25000,
+    width: 4,
+    height: 2,
+    rentalPrice: 35,
+    capacity: 5,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Villa (kétszintes)",
+    cost: 2500,
+    duration: 30000,
+    width: 3,
+    height: 3,
+    rentalPrice: 50,
+    capacity: 6,
+  },
+  {
+    type: "house",
+    category: "residential",
+    name: "Nagy Villa",
+    cost: 3500,
+    duration: 40000,
+    width: 4,
+    height: 4,
+    rentalPrice: 70,
+    capacity: 8,
+  },
+  {
+    type: "office",
+    category: "business",
+    name: "Közszolgálati Iroda",
+    cost: BUILD_OFFICE_COST,
+    duration: BUILD_OFFICE_DURATION_MS,
+    width: 3,
+    height: 8,
+    salary: OFFICE_SALARY_PER_INTERVAL,
+    capacity: OFFICE_MAX_EMPLOYEES,
+  },
+  {
+    type: "forestry",
+    category: "business",
+    name: "Erdészház",
+    cost: BUILD_FORESTRY_HOUSE_COST,
+    woodCost: BUILD_FORESTRY_HOUSE_WOOD_COST,
+    duration: BUILD_FORESTRY_HOUSE_DURATION_MS,
+    width: 4,
+    height: 4,
+    salary: FORESTRY_HOUSE_SALARY_PER_INTERVAL,
+    capacity: FORESTRY_HOUSE_MAX_EMPLOYEES,
+  },
+  {
+    type: "farm",
+    category: "business",
+    name: "Farm",
+    cost: 1000,
+    brickCost: 5,
+    woodCost: 3,
+    duration: 10000,
+    width: 4,
+    height: 4,
+    salary: 5,
+    capacity: 2,
+  },
+  {
+    type: "office",
+    category: "business",
+    name: "Polgármesteri Hivatal",
+    cost: 2500,
+    woodCost: 10,
+    brickCost: 15,
+    duration: 30000,
+    width: 4,
+    height: 3,
+    salary: 20,
+    capacity: 5,
+  },
+  {
+    type: "shop",
+    category: "business",
+    name: "Bolt",
+    cost: 1500,
+    woodCost: 8,
+    brickCost: 10,
+    duration: 20000,
+    width: 3,
+    height: 3,
+    salary: 10,
+    capacity: 3,
+  },
 ];
 
 const Game = () => {
@@ -97,7 +234,12 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    // ... (játékosok - változatlanok) ...
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2, wheat: 50 }, workplace: "Tesztelő", workplaceSalary: 0 },
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -153,7 +295,157 @@ const Game = () => {
 
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland || isPlacingRoad || isDemolishingRoad;
 
-  // ... (useEffect, segédfüggvények - változatlanok) ...
+  // Kamera pozicionálása
+  useEffect(() => {
+    if (mainContentRef.current) {
+      const viewportWidth = mainContentRef.current.clientWidth;
+      const viewportHeight = mainContentRef.current.clientHeight;
+
+      const mapTotalWidthPx = MAP_GRID_SIZE * CELL_SIZE_PX;
+      const mapTotalHeightPx = MAP_GRID_SIZE * 1.5 * CELL_SIZE_PX;
+
+      const mapCenterPxX = mapTotalWidthPx / 2;
+      const mapCenterPxY = mapTotalHeightPx / 2;
+
+      const initialOffsetX = (viewportWidth / 2) - mapCenterPxX;
+      const initialOffsetY = (viewportHeight / 2) - mapCenterPxY;
+
+      setMapOffsetX(initialOffsetX);
+      setMapOffsetY(initialOffsetY);
+    }
+  }, []);
+
+  // Navigációs funkciók
+  const moveViewport = useCallback((dx: number, dy: number) => {
+    if (!mainContentRef.current) return;
+
+    const viewportWidth = mainContentRef.current.clientWidth;
+    const viewportHeight = mainContentRef.current.clientHeight;
+    const mapTotalWidthPx = MAP_GRID_SIZE * CELL_SIZE_PX;
+    const mapTotalHeightPx = MAP_GRID_SIZE * 1.5 * CELL_SIZE_PX;
+
+    const stepX = viewportWidth * 0.8;
+    const stepY = viewportHeight * 0.8;
+
+    setMapOffsetX(prevX => {
+      let newX = prevX + (dx * stepX);
+      const maxOffsetX = viewportWidth - CELL_SIZE_PX;
+      const minOffsetX = -mapTotalWidthPx + CELL_SIZE_PX;
+
+      if (newX > maxOffsetX) return maxOffsetX;
+      if (newX < minOffsetX) return minOffsetX;
+      return newX;
+    });
+
+    setMapOffsetY(prevY => {
+      let newY = prevY + (dy * stepY);
+      const maxOffsetY = viewportHeight - CELL_SIZE_PX;
+      const minOffsetY = -mapTotalHeightPx + CELL_SIZE_PX;
+
+      if (newY > maxOffsetY) return maxOffsetY;
+      if (newY < minOffsetY) return minOffsetY;
+      return newY;
+    });
+  }, []);
+
+  const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
+    setTransactions(prev => [...prev, { id: `tx-${Date.now()}-${Math.random()}`, playerId, type, description, amount, timestamp: Date.now() }]);
+  };
+
+  const getOccupiedCells = (currentBuildings: BuildingData[]) => {
+    const occupied = new Set<string>();
+    currentBuildings.forEach(b => {
+      if (!b.isUnderConstruction && !b.isGhost) {
+        const effectiveWidth = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+        const effectiveHeight = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+
+        for (let x = b.x; x < b.x + effectiveWidth; x++) {
+          for (let y = b.y; y < b.y + effectiveHeight; y++) {
+            occupied.add(`${x},${y}`);
+          }
+        }
+      }
+    });
+    return occupied;
+  };
+
+  const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
+    const isOccupiedByBuilding = currentBuildings.some(b => {
+      if (b.isUnderConstruction || b.isGhost) return false;
+      const effectiveWidth = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+      const effectiveHeight = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+      return x >= b.x && x < b.x + effectiveWidth && y >= b.y && y < b.y + effectiveHeight;
+    });
+
+    const isOccupiedByFarmland = currentBuildings.some(b =>
+        b.type === 'farm' && b.farmlandTiles?.some(ft => ft.x === x && ft.y === y && !ft.isUnderConstruction)
+    );
+
+    return isOccupiedByBuilding || isOccupiedByFarmland;
+  };
+
+  const isRoadAt = (checkX: number, checkY: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
+    const existingRoad = currentBuildings.some(b =>
+      b.type === "road" && b.x === checkX && b.y === checkY && !b.isUnderConstruction && !b.isGhost
+    );
+    const ghostRoad = currentGhostRoadTiles.some(t => t.x === checkX && t.y === checkY);
+    return existingRoad || ghostRoad;
+  };
+
+  const isAdjacentToRoad = (targetX: number, targetY: number, buildingWidth: number, buildingHeight: number, rotation: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
+    const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+    const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
+    for (let x = targetX; x < targetX + effectiveWidth; x++) {
+      for (let y = targetY; y < targetY + effectiveHeight; y++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (dx === 0 && dy === 0) continue;
+            const checkX = x + dx;
+            const checkY = y + dy;
+
+            if (isRoadAt(checkX, checkY, currentBuildings, currentGhostRoadTiles)) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  const canPlaceBuilding = (
+    targetX: number,
+    targetY: number,
+    buildingWidth: number,
+    buildingHeight: number,
+    rotation: number,
+    buildingType: "house" | "office" | "forestry" | "farm" | "shop",
+    currentBuildings: BuildingData[],
+    currentGhostRoadTiles: { x: number; y: number }[]
+  ): boolean => {
+    const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+    const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
+    if (
+      targetX < 0 ||
+      targetY < 0 ||
+      targetX + effectiveWidth > MAP_GRID_SIZE ||
+      targetY + effectiveHeight > MAP_GRID_SIZE * 1.5
+    ) {
+      return false;
+    }
+
+    for (let x = targetX; x < targetX + effectiveWidth; x++) {
+      for (let y = targetY; y < targetY + effectiveHeight; y++) {
+        if (isCellOccupied(x, y, currentBuildings)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  };
 
   const getDistance = (x1: number, y1: number, x2: number, y2: number) => {
     return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
@@ -223,7 +515,762 @@ const Game = () => {
     return isConnected;
   };
 
-  // ... (többi függvény - változatlanok) ...
+  useEffect(() => {
+    if (buildings.length === 0 && !initialBuildingsState) {
+      const initialBuildings: BuildingData[] = [];
+      const tempOccupiedCells = new Set<string>();
+
+      const placeInitialBuilding = (
+        buildingId: string,
+        buildingName: string,
+        buildingType: "house" | "office" | "forestry" | "farm" | "road" | "shop",
+        buildingWidth: number,
+        buildingHeight: number,
+        rentalPrice?: number,
+        salary?: number,
+        capacity: number = 0,
+        ownerId?: string,
+        rotation: number = 0,
+        maxAttempts = 200,
+        initialX?: number,
+        initialY?: number
+      ): BuildingData | null => {
+        const effectiveWidth = (rotation === 90 || rotation === 270) ? buildingHeight : buildingWidth;
+        const effectiveHeight = (rotation === 90 || rotation === 270) ? buildingWidth : buildingHeight;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const randomX = initialX !== undefined ? initialX : Math.floor(Math.random() * (MAP_GRID_SIZE - effectiveWidth + 1));
+          const randomY = initialY !== undefined ? initialY : Math.floor(Math.random() * (MAP_GRID_SIZE * 1.5 - effectiveHeight + 1));
+
+          let overlaps = false;
+          for (let x = randomX; x < randomX + effectiveWidth; x++) {
+            for (let y = randomY; y < randomY + effectiveHeight; y++) {
+              if (tempOccupiedCells.has(`${x},${y}`)) {
+                overlaps = true;
+                break;
+              }
+            }
+            if (overlaps) break;
+          }
+
+          if (!overlaps) {
+            for (let x = randomX; x < randomX + effectiveWidth; x++) {
+              for (let y = randomY; y < randomY + effectiveHeight; y++) {
+                tempOccupiedCells.add(`${x},${y}`);
+              }
+            }
+            return {
+              id: buildingId,
+              name: buildingName,
+              x: randomX,
+              y: randomY,
+              width: buildingWidth,
+              height: buildingHeight,
+              type: buildingType,
+              rentalPrice: rentalPrice,
+              salary: salary,
+              capacity: capacity,
+              ownerId: ownerId,
+              renterId: undefined,
+              residentIds: [],
+              employeeIds: [],
+              isUnderConstruction: false,
+              buildProgress: 100,
+              rotation: rotation,
+              farmlandTiles: buildingType === "farm" ? [] : undefined,
+            };
+          }
+          if (initialX !== undefined && initialY !== undefined) break;
+        }
+        console.warn(`Nem sikerült elhelyezni az épületet ${buildingId} ${maxAttempts} próbálkozás után.`);
+        return null;
+      };
+
+      const initialHouseOptions = availableBuildingOptions.filter(opt => opt.type === "house");
+      for (let i = 0; i < 4; i++) {
+        const houseOption = initialHouseOptions[Math.floor(Math.random() * initialHouseOptions.length)];
+        const house = placeInitialBuilding(
+          `house-${i + 1}`,
+          houseOption.name,
+          houseOption.type,
+          houseOption.width,
+          houseOption.height,
+          houseOption.rentalPrice,
+          houseOption.salary,
+          houseOption.capacity,
+          undefined,
+          0
+        );
+        if (house) {
+          initialBuildings.push(house);
+        }
+      }
+
+      const centerRoad = placeInitialBuilding(
+        "road-center",
+        "Út",
+        "road",
+        1,
+        1,
+        undefined,
+        undefined,
+        0,
+        undefined,
+        0,
+        1,
+        Math.floor(MAP_GRID_SIZE / 2),
+        Math.floor(MAP_GRID_SIZE * 1.5 / 2)
+      );
+      if (centerRoad) {
+        initialBuildings.push(centerRoad);
+      }
+
+      setBuildings(initialBuildings);
+    }
+  }, [buildings.length, initialBuildingsState]);
+
+  // Növekedési időzítő
+  useEffect(() => {
+    const growthTimer = setInterval(() => {
+      setBuildings(prevBuildings => prevBuildings.map(b => {
+        if (b.type === 'farm' && b.farmlandTiles) {
+          const updatedTiles = b.farmlandTiles.map(ft => {
+            if (ft.cropType === CropType.Wheat && !ft.isUnderConstruction && (ft.cropProgress || 0) < 100) {
+              const timeElapsed = 1000;
+              const progressIncrease = (timeElapsed / WHEAT_GROW_TIME_MS) * 100;
+              const newProgress = Math.min(100, (ft.cropProgress || 0) + progressIncrease);
+
+              if (newProgress >= 100 && (ft.cropProgress || 0) < 100) {
+                if (b.ownerId === currentPlayerId) {
+                    showSuccess(`A búza beérett a farmodon! (${ft.x}, ${ft.y})`);
+                }
+              }
+
+              return { ...ft, cropProgress: newProgress };
+            }
+            return ft;
+          });
+          return { ...b, farmlandTiles: updatedTiles };
+        }
+        return b;
+      }));
+    }, 1000);
+
+    return () => clearInterval(growthTimer);
+  }, [currentPlayerId]);
+
+
+  useEffect(() => {
+    const gameTickTimer = setInterval(() => {
+      setPlayers(prevPlayers => prevPlayers.map(player => {
+        let newMoney = player.money;
+        let totalRent = 0;
+        let totalSalary = 0;
+        let currentWorkplaceSalary = 0;
+
+        const playerRentedBuildings = buildings.filter(b => b.renterId === player.id && b.ownerId !== player.id);
+        playerRentedBuildings.forEach(building => {
+          if (building.rentalPrice) {
+            totalRent += building.rentalPrice;
+          }
+        });
+
+        const playerEmployedBuildings = buildings.filter(b => b.employeeIds.includes(player.id));
+        playerEmployedBuildings.forEach(building => {
+          if (building.salary) {
+            totalSalary += building.salary;
+            currentWorkplaceSalary = building.salary;
+          }
+        });
+
+        if (totalRent > 0) {
+          if (newMoney >= totalRent) {
+            newMoney -= totalRent;
+            addTransaction(player.id, "expense", "Bérleti díj fizetése", totalRent);
+            if (player.id === currentPlayerId) showSuccess(`Levonva ${totalRent} pénz bérleti díjként.`);
+          } else {
+            if (player.id === currentPlayerId) showError(`Nincs elég pénz a bérleti díjra (${totalRent} pénz). A bérelt házak kiürültek.`);
+            setBuildings(prevBuildings =>
+              prevBuildings.map(b =>
+                b.renterId === player.id && b.ownerId !== player.id
+                  ? { ...b, renterId: undefined, residentIds: b.residentIds.filter(id => id !== player.id) }
+                  : b
+              )
+            );
+          }
+        }
+
+        if (totalSalary > 0) {
+          newMoney += totalSalary;
+          addTransaction(player.id, "income", `Fizetés (${player.workplace})`, totalSalary);
+          if (player.id === currentPlayerId) showSuccess(`Jóváírva ${totalSalary} pénz fizetésként.`);
+        }
+
+        return { ...player, money: newMoney, workplaceSalary: currentWorkplaceSalary };
+      }));
+    }, RENT_INTERVAL_MS);
+
+    return () => clearInterval(gameTickTimer);
+  }, [buildings, currentPlayerId]);
+
+  const updatePlayerName = (newName: string) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, name: newName } : p
+      )
+    );
+  };
+
+  // Új: handleBuildingClick függvény
+  const handleBuildingClick = (buildingId: string) => {
+    if (isPlacementMode) return;
+    const building = buildings.find(b => b.id === buildingId);
+    setSelectedBuilding(building || null);
+    setSelectedShopBuilding(null);
+    setIsShopMenuOpen(false);
+    setIsPlacingFarmland(false);
+    setSelectedFarmId(null);
+    setIsFarmlandDragging(false);
+    setGhostFarmlandTiles([]);
+    setIsPlacingRoad(false);
+    setIsRoadDragging(false);
+    setGhostRoadTiles([]);
+    setIsDemolishingRoad(false);
+  };
+
+  const handleRentBuilding = () => {
+    if (!selectedBuilding || selectedBuilding.type !== "house" || selectedBuilding.rentalPrice === undefined) {
+      return;
+    }
+
+    const isOwner = selectedBuilding.ownerId === currentPlayerId;
+    const isAlreadyRentedByPlayer = selectedBuilding.renterId === currentPlayerId;
+    const isAlreadyResident = selectedBuilding.residentIds.includes(currentPlayerId);
+
+    if (isOwner) {
+      if (isAlreadyResident) {
+        showError("Már beköltöztél a saját házadba!");
+        return;
+      }
+      if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) {
+        showError("Ez a ház már tele van!");
+        return;
+      }
+      setBuildings(prevBuildings =>
+        prevBuildings.map(b =>
+          b.id === selectedBuilding.id
+            ? { ...b, renterId: currentPlayerId, residentIds: [...b.residentIds, currentPlayerId] }
+            : b
+        )
+      );
+      showSuccess(`Sikeresen beköltöztél a saját ${selectedBuilding.name} házadba!`);
+      setSelectedBuilding(null);
+      return;
+    }
+
+    if (isAlreadyRentedByPlayer) {
+      showError("Ezt a házat már kibérelted!");
+      return;
+    }
+    if (selectedBuilding.residentIds.length >= selectedBuilding.capacity) {
+      showError("Ez a ház már tele van!");
+      return;
+    }
+    if (selectedBuilding.rentalPrice > 0 && currentPlayer.money < selectedBuilding.rentalPrice) {
+      showError("Nincs elég pénzed a bérléshez!");
+      return;
+    }
+
+    if (selectedBuilding.rentalPrice && selectedBuilding.rentalPrice > 0) {
+      setPlayers(prevPlayers =>
+        prevPlayers.map(p =>
+          p.id === currentPlayerId ? { ...p, money: p.money - selectedBuilding.rentalPrice! } : p
+        )
+      );
+      addTransaction(currentPlayerId, "expense", `Bérleti díj (${selectedBuilding.name})`, selectedBuilding.rentalPrice);
+    }
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === selectedBuilding.id
+          ? { ...b, renterId: currentPlayerId, residentIds: [...b.residentIds, currentPlayerId] }
+          : b
+      )
+    );
+    showSuccess(`Sikeresen kibérelted a ${selectedBuilding.name} házat ${selectedBuilding.rentalPrice === 0 ? "ingyen" : `${selectedBuilding.rentalPrice} pénz/perc`} áron!`);
+    setSelectedBuilding(null);
+  };
+
+  const handleJoinOffice = () => {
+    if (!selectedBuilding || (selectedBuilding.type !== "office" && selectedBuilding.type !== "forestry" && selectedBuilding.type !== "farm" && selectedBuilding.type !== "shop") || selectedBuilding.salary === undefined) {
+      return;
+    }
+
+    if (selectedBuilding.employeeIds.includes(currentPlayerId)) {
+      showError("Már dolgozol ebben az épületben!");
+      return;
+    }
+    if (selectedBuilding.employeeIds.length >= selectedBuilding.capacity) {
+      showError("Ez az épület már tele van!");
+      return;
+    }
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === selectedBuilding.id
+          ? { ...b, employeeIds: [...b.employeeIds, currentPlayerId] }
+          : b
+      )
+    );
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, workplace: selectedBuilding.name, workplaceSalary: selectedBuilding.salary! } : p
+      )
+    );
+    showSuccess(`Sikeresen beléptél alkalmazottként a ${selectedBuilding.name} épületbe! Fizetés: ${selectedBuilding.salary === 0 ? "Ingyenes" : `${selectedBuilding.salary} pénz/perc`}.`);
+    setSelectedBuilding(null);
+  };
+
+  const handleBuildBuilding = (buildingName: string) => {
+    const buildingOption = availableBuildingOptions.find(opt => opt.name === buildingName);
+
+    if (!buildingOption) {
+      showError("Ismeretlen épület típus!");
+      return;
+    }
+
+    if (currentPlayer.money < buildingOption.cost) {
+      showError(`Nincs elég pénzed ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.cost} pénz.`);
+      return;
+    }
+    if (buildingOption.woodCost && currentPlayer.inventory.wood < buildingOption.woodCost) {
+      showError(`Nincs elég fa ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.woodCost} fa.`);
+      return;
+    }
+    if (buildingOption.brickCost && currentPlayer.inventory.brick < buildingOption.brickCost) {
+      showError(`Nincs elég tégla ${buildingOption.name} építéséhez! Szükséges: ${buildingOption.brickCost} tégla.`);
+      return;
+    }
+
+    setIsBuildMenuOpen(false);
+    setBuildingToPlace(buildingOption);
+    setIsPlacingBuilding(true);
+    setCurrentBuildingRotation(0);
+    showSuccess(`Kattints a térképre, ahova a ${buildingOption.name} épületet szeretnéd helyezni. Használd a 'Forgatás' gombot az irány megváltoztatásához.`);
+  };
+
+  const handleRotateBuilding = () => {
+    setCurrentBuildingRotation(prevRotation => (prevRotation + 90) % 360);
+  };
+
+  const handleGridMouseMove = (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      setGhostBuildingCoords({ x: gridX, y: gridY });
+    } else if (isPlacingFarmland && selectedFarmId && isFarmlandDragging) {
+    } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
+      const farm = buildings.find(b => b.id === selectedFarmId);
+      if (farm && canPlaceFarmlandAt(farm, gridX, gridY)) {
+        setGhostBuildingCoords({ x: gridX, y: gridY });
+      } else {
+        setGhostBuildingCoords(null);
+      }
+    } else if (isPlacingRoad && isRoadDragging) {
+    } else if (isPlacingRoad && !isRoadDragging) {
+      setGhostBuildingCoords({ x: gridX, y: gridY });
+    }
+  };
+
+  const handleMapClick = (gridX: number, gridY: number) => {
+    if (isPlacingBuilding && buildingToPlace) {
+      if (canPlaceBuilding(gridX, gridY, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildingToPlace.type, buildings, ghostRoadTiles)) {
+        setIsPlacingBuilding(false);
+        setBuildingToPlace(null);
+        setGhostBuildingCoords(null);
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId
+              ? {
+                  ...p,
+                  money: p.money - buildingToPlace.cost,
+                  inventory: {
+                    ...p.inventory,
+                    wood: p.inventory.wood - (buildingToPlace.woodCost || 0),
+                    brick: p.inventory.brick - (buildingToPlace.brickCost || 0),
+                  },
+                }
+              : p
+          )
+        );
+        addTransaction(currentPlayerId, "expense", `Építés: ${buildingToPlace.name}`, buildingToPlace.cost);
+        if (buildingToPlace.woodCost) addTransaction(currentPlayerId, "expense", `Fa felhasználás: ${buildingToPlace.name}`, buildingToPlace.woodCost);
+        if (buildingToPlace.brickCost) addTransaction(currentPlayerId, "expense", `Tégla felhasználás: ${buildingToPlace.name}`, buildingToPlace.brickCost);
+
+        setIsBuildingInProgress(true);
+
+        const newBuildingId = `${buildingToPlace.name}-${Date.now()}`;
+        const tempBuilding: BuildingData = {
+          id: newBuildingId,
+          name: buildingToPlace.name,
+          x: gridX,
+          y: gridY,
+          width: buildingToPlace.width,
+          height: buildingToPlace.height,
+          type: buildingToPlace.type,
+          rentalPrice: buildingToPlace.rentalPrice,
+          salary: buildingToPlace.salary,
+          capacity: buildingToPlace.capacity,
+          ownerId: currentPlayerId,
+          renterId: undefined,
+          residentIds: [],
+          employeeIds: [],
+          isUnderConstruction: true,
+          buildProgress: 0,
+          rotation: currentBuildingRotation,
+          farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
+        };
+
+        setBuildings(prevBuildings => [...prevBuildings, tempBuilding]);
+        const toastId = showLoading(`${buildingToPlace.name} építése folyamatban...`);
+
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+          const sfxKey = buildingToPlace.type === "house" ? "construction-01" : "construction-02";
+          sfxPlayerRef.current.playSfx(sfxKey, true);
+        }
+
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += (100 / (buildingToPlace.duration / 100));
+          if (currentProgress >= 100) {
+            currentProgress = 100;
+            clearInterval(interval);
+          }
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newBuildingId ? { ...b, buildProgress: Math.floor(currentProgress) } : b
+            )
+          );
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          dismissToast(toastId);
+          setIsBuildingInProgress(false);
+
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newBuildingId
+                ? { ...b, isUnderConstruction: false, buildProgress: 100 }
+                : b
+            )
+          );
+          showSuccess(`Új ${buildingToPlace.name} sikeresen felépült!`);
+
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
+          }
+        }, buildingToPlace.duration);
+      } else {
+      }
+    } else if (isPlacingRoad && !isRoadDragging) {
+      if (!isCellOccupied(gridX, gridY, buildings)) {
+        if (currentPlayer.money < ROAD_COST_PER_TILE) {
+          showError(`Nincs elég pénzed út építéséhez! Szükséges: ${ROAD_COST_PER_TILE} pénz.`);
+          return;
+        }
+        if (currentPlayer.inventory.stone < ROAD_STONE_COST_PER_TILE) {
+          showError(`Nincs elég kő út építéséhez! Szükséges: ${ROAD_STONE_COST_PER_TILE} kő.`);
+          return;
+        }
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - ROAD_COST_PER_TILE, inventory: { ...p.inventory, stone: p.inventory.stone - ROAD_STONE_COST_PER_TILE } } : p
+          )
+        );
+        addTransaction(currentPlayerId, "expense", "Út építése", ROAD_COST_PER_TILE);
+        addTransaction(currentPlayerId, "expense", "Kő felhasználás útépítéshez", ROAD_STONE_COST_PER_TILE);
+
+        setIsBuildingInProgress(true);
+
+        const newRoadId = `road-${Date.now()}`;
+        const newRoad: BuildingData = {
+          id: newRoadId,
+          name: "Út",
+          x: gridX,
+          y: gridY,
+          width: 1,
+          height: 1,
+          type: "road",
+          capacity: 0,
+          ownerId: currentPlayerId,
+          residentIds: [],
+          employeeIds: [],
+          isUnderConstruction: true,
+          buildProgress: 0,
+          rotation: 0,
+        };
+        setBuildings(prevBuildings => [...prevBuildings, newRoad]);
+        const toastId = showLoading(`Út építése folyamatban...`);
+
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.stopAllSfx();
+          sfxPlayerRef.current.playSfx("construction-01", true);
+        }
+
+        let currentProgress = 0;
+        const interval = setInterval(() => {
+          currentProgress += (100 / (ROAD_BUILD_DURATION_MS / 100));
+          if (currentProgress >= 100) {
+            currentProgress = 100;
+            clearInterval(interval);
+          }
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newRoadId ? { ...b, buildProgress: Math.floor(currentProgress) } : b
+            )
+          );
+        }, 100);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          dismissToast(toastId);
+          setIsBuildingInProgress(false);
+
+          setBuildings(prevBuildings =>
+            prevBuildings.map(b =>
+              b.id === newRoadId
+                ? { ...b, isUnderConstruction: false, buildProgress: 100 }
+                : b
+            )
+          );
+          showSuccess("Út csempe sikeresen elhelyezve!");
+
+          if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
+          }
+        }, ROAD_BUILD_DURATION_MS);
+      } else {
+        showError("Ez a hely már foglalt!");
+      }
+    } else if (isDemolishingRoad) {
+      const roadToDemolish = buildings.find(b => b.type === "road" && b.x === gridX && b.y === gridY && b.ownerId === currentPlayerId && !b.isUnderConstruction);
+
+      if (roadToDemolish) {
+        const refundAmount = Math.floor(ROAD_COST_PER_TILE * DEMOLISH_REFUND_PERCENTAGE);
+        const refundStone = Math.floor(ROAD_STONE_COST_PER_TILE * DEMOLISH_REFUND_PERCENTAGE);
+
+        setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money + refundAmount, inventory: { ...p.inventory, stone: p.inventory.stone + refundStone } } : p
+          )
+        );
+        addTransaction(currentPlayerId, "income", `Út bontása (visszatérítés)`, refundAmount);
+        addTransaction(currentPlayerId, "income", `Kő visszatérítés út bontásakor`, refundStone);
+
+        setBuildings(prevBuildings => prevBuildings.filter(b => b.id !== roadToDemolish.id));
+        showSuccess(`Út sikeresen lebontva! Visszatérítve: ${refundAmount} pénz és ${refundStone} kő.`);
+
+        if (sfxPlayerRef.current) {
+          sfxPlayerRef.current.playSfx("demolition-01");
+        }
+      } else {
+        showError("Nincs itt út, amit lebontani lehetne, vagy nem a te tulajdonod!");
+      }
+    } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
+      const farm = buildings.find(b => b.id === selectedFarmId);
+      if (!farm || farm.type !== "farm" || farm.ownerId !== currentPlayerId) {
+        showError("Ez nem a te farmod, vagy nem farm típusú épület!");
+        return;
+      }
+
+      if (!canPlaceFarmlandAt(farm, gridX, gridY)) {
+        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni, és szomszédosnak kell lennie a farmmal vagy egy másik szántóföld csempével!`);
+        return;
+      }
+
+      const isTileOccupied = farm.farmlandTiles?.some(tile => tile.x === gridX && tile.y === gridY);
+      if (isTileOccupied) {
+        showError("Ez a szántóföld csempe már foglalt!");
+        return;
+      }
+
+      if (isCellOccupied(gridX, gridY, buildings)) {
+          showError("Ez a hely már foglalt más épület által!");
+          return;
+      }
+
+      const hasHoe = currentPlayer.inventory.hoe > 0;
+      const hasTractor = currentPlayer.inventory.tractor > 0;
+      const buildDuration = hasTractor ? FARMLAND_TRACTOR_BUILD_DURATION_MS : FARMLAND_HOE_BUILD_DURATION_MS;
+      const toolName = hasTractor ? "traktorral" : "kapával";
+
+      if (!hasHoe && !hasTractor) {
+        showError("Nincs kapád vagy traktorod a szántóföld létrehozásához!");
+        return;
+      }
+
+      if (currentPlayer.money < FARMLAND_COST_PER_TILE) {
+        showError(`Nincs elég pénzed szántóföld létrehozásához! Szükséges: ${FARMLAND_COST_PER_TILE} pénz.`);
+        return;
+      }
+
+      setPlayers(prevPlayers =>
+          prevPlayers.map(p =>
+            p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p
+          )
+        );
+      addTransaction(currentPlayerId, "expense", `Szántóföld létrehozása (${farm.name})`, FARMLAND_COST_PER_TILE);
+
+      setIsBuildingInProgress(true);
+
+      const newFarmlandTile: FarmlandTile = {
+        x: gridX,
+        y: gridY,
+        ownerId: currentPlayerId,
+        isUnderConstruction: true,
+        buildProgress: 0,
+        cropType: CropType.None,
+        cropProgress: 0,
+      };
+
+      setBuildings(prevBuildings =>
+        prevBuildings.map(b =>
+          b.id === selectedFarmId
+            ? { ...b, farmlandTiles: [...(b.farmlandTiles || []), newFarmlandTile] }
+            : b
+        )
+      );
+      const toastId = showLoading(`Szántóföld építése folyamatban (${toolName})...`);
+
+      if (sfxPlayerRef.current) {
+        sfxPlayerRef.current.stopAllSfx();
+        sfxPlayerRef.current.playSfx("construction-01", true);
+      }
+
+      let currentProgress = 0;
+      const interval = setInterval(() => {
+        currentProgress += (100 / (buildDuration / 100));
+        if (currentProgress >= 100) {
+          currentProgress = 100;
+          clearInterval(interval);
+        }
+        setBuildings(prevBuildings =>
+          prevBuildings.map(b =>
+            b.id === selectedFarmId
+              ? {
+                  ...b,
+                  farmlandTiles: b.farmlandTiles?.map(ft =>
+                    ft.x === gridX && ft.y === gridY ? { ...ft, buildProgress: Math.floor(currentProgress) } : ft
+                  ),
+                }
+              : b
+          )
+        );
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        dismissToast(toastId);
+        setIsBuildingInProgress(false);
+
+        setBuildings(prevBuildings =>
+          prevBuildings.map(b =>
+            b.id === selectedFarmId
+              ? {
+                  ...b,
+                  farmlandTiles: b.farmlandTiles?.map(ft =>
+                    ft.x === gridX && ft.y === gridY ? { ...ft, isUnderConstruction: false, buildProgress: 100 } : ft
+                  ),
+                }
+              : b
+          )
+        );
+        showSuccess(`Szántóföld csempe sikeresen létrehozva (${toolName})!`);
+
+        if (sfxPlayerRef.current) {
+            sfxPlayerRef.current.stopAllSfx();
+        }
+      }, buildDuration);
+    }
+  };
+
+  const handlePlantCrop = (farmId: string, tileX: number, tileY: number, cropType: CropType) => {
+    if (cropType !== CropType.Wheat) return;
+
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId ? { ...p, money: p.money - WHEAT_SEED_COST } : p
+      )
+    );
+    addTransaction(currentPlayerId, "expense", `Vetés: Búza`, WHEAT_SEED_COST);
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === farmId
+          ? {
+              ...b,
+              farmlandTiles: b.farmlandTiles?.map(ft =>
+                ft.x === tileX && ft.y === tileY
+                  ? { ...ft, cropType: CropType.Wheat, cropProgress: 0 }
+                  : ft
+              ),
+            }
+          : b
+      )
+    );
+    showSuccess(`Búza elvetve a csempén (${tileX}, ${tileY})!`);
+  };
+
+  const handleHarvestCrop = (farmId: string, tileX: number, tileY: number) => {
+    setPlayers(prevPlayers =>
+      prevPlayers.map(p =>
+        p.id === currentPlayerId
+          ? { ...p, inventory: { ...p.inventory, wheat: p.inventory.wheat + WHEAT_HARVEST_YIELD } }
+          : p
+      )
+    );
+    showSuccess(`Sikeres aratás! Kaptál ${WHEAT_HARVEST_YIELD} búzát.`);
+    addTransaction(currentPlayerId, "income", `Aratás: Búza`, 0);
+
+    setBuildings(prevBuildings =>
+      prevBuildings.map(b =>
+        b.id === farmId
+          ? {
+              ...b,
+              farmlandTiles: b.farmlandTiles?.map(ft =>
+                ft.x === tileX && ft.y === tileY
+                  ? { ...ft, cropType: CropType.None, cropProgress: 0 }
+                  : ft
+              ),
+            }
+          : b
+      )
+    );
+  };
+
+  const handleFarmlandClick = (farmId: string, x: number, y: number) => {
+    if (isPlacementMode) return;
+
+    const farm = buildings.find(b => b.id === farmId);
+    const tile = farm?.farmlandTiles?.find(ft => ft.x === x && ft.y === y);
+
+    if (tile && !tile.isUnderConstruction && tile.ownerId === currentPlayerId) {
+      setFarmlandActionState({
+        isOpen: true,
+        farmId,
+        tileX: x,
+        tileY: y,
+        cropType: tile.cropType || CropType.None,
+        cropProgress: tile.cropProgress || 0,
+      });
+    } else if (tile && tile.isUnderConstruction) {
+        showError("A szántóföld csempe még építés alatt áll.");
+    } else if (tile && tile.ownerId !== currentPlayerId) {
+        showError("Ez a szántóföld csempe nem a tiéd.");
+    }
+  };
 
   // Új handler függvények a ShopMenu-hoz
   const handleOpenShopMenu = (shopBuilding: BuildingData) => {
@@ -380,14 +1427,206 @@ const Game = () => {
     return () => clearInterval(deliveryTimer);
   }, [shopInventories]);
 
-  // ... (többi függvény - változatlanok) ...
+  const cancelBuildingPlacement = () => {
+    setIsPlacingBuilding(false);
+    setBuildingToPlace(null);
+    setGhostBuildingCoords(null);
+    showError("Építés megszakítva.");
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
+    }
+  };
+
+  const cancelFarmlandPlacement = () => {
+    setIsPlacingFarmland(false);
+    setSelectedFarmId(null);
+    setGhostFarmlandTiles([]);
+    setIsFarmlandDragging(false);
+    setGhostBuildingCoords(null);
+    showError("Szántóföld építés megszakítva.");
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
+    }
+  };
+
+  const cancelRoadMode = () => {
+    setIsPlacingRoad(false);
+    setIsRoadDragging(false);
+    setGhostRoadTiles([]);
+    setIsDemolishingRoad(false);
+    setGhostBuildingCoords(null);
+    showError("Út mód megszakítva.");
+    if (sfxPlayerRef.current) {
+      sfxPlayerRef.current.stopAllSfx();
+    }
+  };
+
+  const handleNextPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    setCurrentPlayerId(players[nextIndex].id);
+  };
+
+  const handlePreviousPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const prevIndex = (currentIndex - 1 + players.length) % players.length;
+    setCurrentPlayerId(players[prevIndex].id);
+  };
+
+  const handleGoToMenu = () => {
+    navigate('/', { state: { players: players, buildings: buildings, currentPlayerId: currentPlayerId, transactions: transactions } });
+  };
+
+  const ownedBusinesses = buildings.filter(b => b.ownerId === currentPlayerId && (b.type === "office" || b.type === "forestry" || b.type === "farm" || b.type === "shop"));
+  const ownedMayorsOffice = buildings.find(b => b.ownerId === currentPlayerId && b.name === "Polgármesteri Hivatal");
+
+  const sidebarContent = (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Tile-o-polis</h2>
+        <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={updatePlayerName} />
+      </div>
+
+      <div className="mb-4">
+        <Label htmlFor="player-switcher" className="text-sidebar-foreground mb-2 block">Játékos váltása:</Label>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" size="icon" onClick={handlePreviousPlayer} className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+            <SelectTrigger id="player-switcher" className="w-full bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border">
+              <SelectValue placeholder="Válassz játékost" />
+            </SelectTrigger>
+            <SelectContent className="bg-sidebar text-sidebar-foreground border-sidebar-border">
+              {players.map((player) => (
+                <SelectItem key={player.id} value={player.id}>
+                  {player.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={handleNextPlayer} className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <PlayerInfo
+        playerName={currentPlayer.name}
+        money={currentPlayer.money}
+        inventory={currentPlayer.inventory}
+        workplace={currentPlayer.workplace}
+        workplaceSalary={currentPlayer.workplaceSalary}
+        ownedBusinesses={ownedBusinesses}
+        playerSettingsButton={null}
+      />
+      <div className="mt-4">
+        <Button
+          onClick={() => setIsBuildMenuOpen(true)}
+          disabled={isPlacementMode}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Építés
+        </Button>
+        {isPlacingBuilding && (
+          <>
+            <Button
+              onClick={handleRotateBuilding}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white mt-2"
+            >
+              <RotateCw className="h-4 w-4 mr-2" /> Forgatás ({currentBuildingRotation}°)
+            </Button>
+            <Button
+              onClick={cancelBuildingPlacement}
+              className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+            >
+              Építés megszakítása
+            </Button>
+          </>
+        )}
+        {isPlacingFarmland && (
+          <Button
+            onClick={cancelFarmlandPlacement}
+            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+          >
+            Szántóföld építés megszakítása
+          </Button>
+        )}
+        {(isPlacingRoad || isDemolishingRoad) && (
+          <Button
+            onClick={cancelRoadMode}
+            className="w-full bg-red-600 hover:bg-red-700 text-white mt-2"
+          >
+            Út mód megszakítása
+          </Button>
+        )}
+        <Button
+          onClick={() => setIsMoneyHistoryOpen(true)}
+          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white mt-2"
+        >
+          Pénzmozgások
+        </Button>
+        <Button
+          onClick={handleGoToMenu}
+          className="w-full bg-gray-600 hover:bg-gray-700 text-white mt-4"
+        >
+          Menü
+        </Button>
+      </div>
+      <MusicPlayer tracks={musicTracks} />
+      <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
+      <div className="mt-auto">
+        <MadeWithDyad />
+      </div>
+    </>
+  );
 
   const mainContent = (
     <div
       ref={mainContentRef}
       className="flex flex-col h-full items-center justify-center relative overflow-hidden"
     >
-      {/* ... (navigációs gombok - változatlanok) ... */}
+      {/* Navigációs gombok a térkép szélein */}
+      
+      {/* Felső gomb - Teljes szélességű */}
+      <Button
+        variant="outline"
+        className="absolute top-0 left-0 right-0 z-10 bg-white/80 hover:bg-white rounded-none h-8"
+        onClick={() => moveViewport(0, 1)}
+        aria-label="Térkép mozgatása felfelé"
+      >
+        <ChevronUp className="h-5 w-5" />
+      </Button>
+      
+      {/* Alsó gomb - Teljes szélességű */}
+      <Button
+        variant="outline"
+        className="absolute bottom-0 left-0 right-0 z-10 bg-white/80 hover:bg-white rounded-none h-8"
+        onClick={() => moveViewport(0, -1)}
+        aria-label="Térkép mozgatása lefelé"
+      >
+        <ChevronDown className="h-5 w-5" />
+      </Button>
+      
+      {/* Bal gomb - Teljes magasságú */}
+      <Button
+        variant="outline"
+        className="absolute left-0 top-0 bottom-0 z-10 bg-white/80 hover:bg-white rounded-none w-8"
+        onClick={() => moveViewport(1, 0)}
+        aria-label="Térkép mozgatása balra"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </Button>
+      
+      {/* Jobb gomb - Teljes magasságú */}
+      <Button
+        variant="outline"
+        className="absolute right-0 top-0 bottom-0 z-10 bg-white/80 hover:bg-white rounded-none w-8"
+        onClick={() => moveViewport(-1, 0)}
+        aria-label="Térkép mozgatása jobbra"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </Button>
 
       <div className="flex-grow flex items-center justify-center">
         <Map
@@ -415,7 +1654,154 @@ const Game = () => {
         />
       </div>
 
-      {/* ... (dialógusok - változatlanok) ... */}
+      {selectedBuilding && (
+        <Dialog open={!!selectedBuilding} onOpenChange={() => setSelectedBuilding(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Épület részletei: {selectedBuilding.name}</DialogTitle>
+              <DialogDescription>
+                Ez egy {selectedBuilding.width}x{selectedBuilding.height} méretű {selectedBuilding.type === "house" ? "ház" : selectedBuilding.type === "office" ? "iroda" : selectedBuilding.type === "forestry" ? "erdészház" : selectedBuilding.type === "farm" ? "farm" : selectedBuilding.type === "shop" ? "bolt" : "út"}.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <p>Tulajdonos: <span className="font-semibold">{selectedBuilding.ownerId ? (players.find(p => p.id === selectedBuilding.ownerId)?.name || "Ismeretlen") : "Nincs"}</span></p>
+
+              {selectedBuilding.type === "house" && selectedBuilding.rentalPrice !== undefined && (
+                <p>Bérleti díj: <span className="font-semibold">{selectedBuilding.rentalPrice === 0 ? "Ingyenes" : `${selectedBuilding.rentalPrice} pénz/perc`}</span></p>
+              )}
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.salary !== undefined && (
+                <p>Fizetés: <span className="font-semibold">{selectedBuilding.salary === 0 ? "Ingyenes" : `${selectedBuilding.salary} pénz/perc`}</span></p>
+              )}
+              <p>{selectedBuilding.type === "house" ? "Lakók" : "Dolgozók"}: <span className="font-semibold">{selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length}/{selectedBuilding.capacity}</span></p>
+
+              {selectedBuilding.type === "house" && selectedBuilding.residentIds.length > 0 && (
+                <div>
+                  <h4 className="font-medium mt-2">Lakók:</h4>
+                  <ul className="list-disc list-inside ml-4">
+                    {selectedBuilding.residentIds.map(residentId => (
+                      <li key={residentId}>{players.find(p => p.id === residentId)?.name || "Ismeretlen"}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length > 0 && (
+                <div>
+                  <h4 className="font-medium mt-2">Dolgozók:</h4>
+                  <ul className="list-disc list-inside ml-4">
+                    {selectedBuilding.employeeIds.map(employeeId => (
+                      <li key={employeeId}>{players.find(p => p.id === employeeId)?.name || "Ismeretlen"}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
+                <Button
+                  onClick={() => {
+                    setIsPlacingFarmland(true);
+                    setSelectedFarmId(selectedBuilding.id);
+                    setSelectedBuilding(null);
+                    showSuccess(`Kattints a farm területére szántóföld csempe létrehozásához (${FARMLAND_COST_PER_TILE} pénz/csempe), vagy húzd az egeret a folyamatos építéshez.`);
+                  }}
+                  className="w-full mt-4 bg-green-500 hover:bg-green-600"
+                >
+                  Szántóföld létrehozása
+                  <span className="ml-2 text-xs opacity-80">
+                    ({FARMLAND_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" />/csempe, {FARMLAND_HOE_BUILD_DURATION_MS / 1000} mp)
+                  </span>
+                </Button>
+              )}
+
+              {/* Új feltétel a Bolt menü megnyitásához */}
+              {selectedBuilding.type === "shop" && selectedBuilding.ownerId === currentPlayerId && (
+                <Button
+                  onClick={() => {
+                    handleOpenShopMenu(selectedBuilding);
+                  }}
+                  className="w-full mt-4 bg-purple-500 hover:bg-purple-600"
+                >
+                  Bolt menü megnyitása
+                </Button>
+              )}
+
+              {selectedBuilding.name === "Polgármesteri Hivatal" && selectedBuilding.ownerId === currentPlayerId && (
+                <div className="flex flex-col space-y-2 mt-4">
+                  <Button
+                    onClick={() => {
+                      setIsPlacingRoad(true);
+                      setSelectedBuilding(null);
+                      showSuccess(`Kattints a térképre út csempe elhelyezéséhez (${ROAD_COST_PER_TILE} pénz/csempe, ${ROAD_STONE_COST_PER_TILE} kő/csempe), vagy húzd az egeret a folyamatos építéshez.`);
+                    }}
+                    className="w-full bg-gray-500 hover:bg-gray-600"
+                  >
+                    <Route className="h-4 w-4 mr-2" /> Út építése
+                    <span className="ml-2 text-xs opacity-80">
+                      ({ROAD_COST_PER_TILE} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" /> + {ROAD_STONE_COST_PER_TILE} kő/csempe, {ROAD_BUILD_DURATION_MS / 1000} mp)
+                    </span>
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsDemolishingRoad(true);
+                      setSelectedBuilding(null);
+                      showSuccess("Kattints egy útcsempére a lebontásához. A költség 50%-át visszakapod.");
+                    }}
+                    className="w-full bg-red-500 hover:bg-red-600"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Út bontása
+                  </Button>
+                </div>
+              )}
+
+              {selectedBuilding.renterId === currentPlayerId && selectedBuilding.ownerId !== currentPlayerId && (
+                <p className="text-blue-600 font-medium">Ezt a házat már kibérelted!</p>
+              )}
+              {selectedBuilding.ownerId === currentPlayerId && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                <p className="text-yellow-600 font-medium">Ez az épület a te tulajdonod!</p>
+              )}
+              {selectedBuilding.employeeIds.includes(currentPlayerId) && (
+                <p className="text-green-600 font-medium">Itt dolgozol!</p>
+              )}
+              {(selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId)) ||
+               ((selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId)) && (
+                <p className="text-red-600 font-medium">Ez az épület tele van!</p>
+              )}
+            </div>
+            <DialogFooter>
+              {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                <Button onClick={handleRentBuilding}>
+                  {selectedBuilding.ownerId === currentPlayerId ? "Beköltözés" : "Bérlés"}
+                </Button>
+              )}
+              {(selectedBuilding.type === "office" || selectedBuilding.type === "forestry" || selectedBuilding.type === "farm" || selectedBuilding.type === "shop") && !selectedBuilding.employeeIds.includes(currentPlayerId) && selectedBuilding.ownerId !== currentPlayerId && (
+                <Button onClick={handleJoinOffice}>
+                  Alkalmazottként csatlakozás
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setSelectedBuilding(null)}>Bezárás</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <BuildMenu
+        isOpen={isBuildMenuOpen}
+        onClose={() => setIsBuildMenuOpen(false)}
+        onSelectBuilding={handleBuildBuilding}
+        availableBuildings={availableBuildingOptions}
+        playerMoney={currentPlayer.money}
+        playerWood={currentPlayer.inventory.wood}
+        playerBrick={currentPlayer.inventory.brick}
+        playerStone={currentPlayer.inventory.stone}
+        isBuildingInProgress={isPlacementMode}
+      />
+
+      <MoneyHistory
+        isOpen={isMoneyHistoryOpen}
+        onClose={() => setIsMoneyHistoryOpen(false)}
+        transactions={transactions}
+        currentPlayerId={currentPlayerId}
+      />
 
       {/* Új ShopMenu dialógus */}
       {selectedShopBuilding && (
@@ -437,7 +1823,20 @@ const Game = () => {
         />
       )}
 
-      {/* ... (többi dialógus - változatlanok) ... */}
+      {farmlandActionState && (
+        <FarmlandActionDialog
+          isOpen={farmlandActionState.isOpen}
+          onClose={() => setFarmlandActionState(null)}
+          farmId={farmlandActionState.farmId}
+          tileX={farmlandActionState.tileX}
+          tileY={farmlandActionState.tileY}
+          cropType={farmlandActionState.cropType}
+          cropProgress={farmlandActionState.cropProgress}
+          onPlant={handlePlantCrop}
+          onHarvest={handleHarvestCrop}
+          playerMoney={currentPlayer.money}
+        />
+      )}
     </div>
   );
 
