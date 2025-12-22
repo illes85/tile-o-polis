@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,15 +102,18 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {shopItems.filter(i => i.stock > 0).length === 0 ? (
+            {shopItems.length === 0 ? (
               <div className="col-span-2 py-8 text-center text-muted-foreground italic">
-                A bolt jelenleg üres.
+                A bolt kínálata jelenleg üres.
               </div>
             ) : (
-              shopItems.filter(i => i.stock > 0).map(item => (
-                <Card key={item.type}>
+              shopItems.map(item => (
+                <Card key={item.type} className={item.stock <= 0 ? "opacity-60" : ""}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-md">{item.name}</CardTitle>
+                    <CardTitle className="text-md flex justify-between">
+                      {item.name}
+                      {item.stock <= 0 && <span className="text-xs text-red-500 font-normal">Elfogyott</span>}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-baseline">
@@ -120,7 +123,13 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">Készleten: {item.stock} db</div>
-                    <Button className="w-full" onClick={() => handleBuy(item)}>Vásárlás</Button>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleBuy(item)}
+                      disabled={item.stock <= 0}
+                    >
+                      Vásárlás
+                    </Button>
                   </CardContent>
                 </Card>
               ))

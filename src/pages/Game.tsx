@@ -18,7 +18,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -378,6 +378,18 @@ const Game = () => {
     }) || currentBuildings.some(b => b.farmlandTiles?.some(ft => ft.x === x && ft.y === y));
   };
 
+  const isAreaOccupied = (startX: number, startY: number, width: number, height: number, rotation: number, currentBuildings: BuildingData[]): boolean => {
+    const effectiveWidth = (rotation === 90 || rotation === 270) ? height : width;
+    const effectiveHeight = (rotation === 90 || rotation === 270) ? width : height;
+
+    for (let x = startX; x < startX + effectiveWidth; x++) {
+      for (let y = startY; y < startY + effectiveHeight; y++) {
+        if (isCellOccupied(x, y, currentBuildings)) return true;
+      }
+    }
+    return false;
+  };
+
   const handleBuildingClick = (buildingId: string) => {
     if (isPlacementMode) return;
     const building = buildings.find(b => b.id === buildingId);
@@ -394,7 +406,10 @@ const Game = () => {
 
   const handleMapClick = (gridX: number, gridY: number) => {
     if (isPlacingBuilding && buildingToPlace) {
-      if (isCellOccupied(gridX, gridY, buildings)) return;
+      if (isAreaOccupied(gridX, gridY, buildingToPlace.width, buildingToPlace.height, currentBuildingRotation, buildings)) {
+        showError("Ez a terület már foglalt!");
+        return;
+      }
       
       setIsPlacingBuilding(false);
       setBuildingToPlace(null);
@@ -426,6 +441,10 @@ const Game = () => {
       setBuildings(prev => [...prev, tempBuilding]);
       
       const toastId = showLoading(`${buildingToPlace.name} építése...`);
+      
+      if (sfxPlayerRef.current) {
+        sfxPlayerRef.current.playSfx("construction-01", true);
+      }
 
       let progress = 0;
       const interval = setInterval(() => {
@@ -440,6 +459,7 @@ const Game = () => {
       setTimeout(() => {
         dismissToast(toastId);
         setIsBuildingInProgress(false);
+        if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx();
         setBuildings(prev => prev.map(b => b.id === newBuildingId ? { ...b, isUnderConstruction: false, buildProgress: 100 } : b));
         showSuccess(`${buildingToPlace.name} felépült!`);
       }, buildingToPlace.duration);
@@ -534,6 +554,21 @@ const Game = () => {
     handleRestock(shopId, productType, -quantity);
   };
 
+  // Kiszállítások figyelése
+  useEffect(() => {
+    const timer = setInterval(() => {
+      Object.entries(shopInventories).forEach(([shopId, items]) => {
+        items.forEach(item => {
+          if (item.isDelivering && item.deliveryEta && Date.now() >= item.deliveryEta) {
+            handleRestock(shopId, item.type, item.orderedStock);
+            showSuccess(`Megérkezett a rendelés a boltba: ${item.name} (${item.orderedStock} db)`);
+          }
+        });
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [shopInventories]);
+
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -575,8 +610,34 @@ const Game = () => {
         timeRemaining={secondsRemaining}
       />
       <div className="mt-4 space-y-2">
-        <Button onClick={() => setIsBuildMenuOpen(true)} disabled={isPlacementMode} className="w-full bg-blue-600 hover:bg-blue-700">Építés</Button>
-        <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 hover:bg-yellow-700">Pénzmozgások</Button>
+        {!isPlacementMode ? (
+          <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold">Építés</Button>
+        ) : (
+          <div className="space-y-2">
+            {isPlacingBuilding && (
+              <Button 
+                onClick={() => setCurrentBuildingRotation(prev => (prev + 90) % 360)} 
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <RotateCw className="h-4 w-4 mr-2" /> Forgatás
+              </Button>
+            )}
+            <Button 
+              onClick={() => {
+                setIsPlacingBuilding(false);
+                setIsPlacingFarmland(false);
+                setIsPlacingRoad(false);
+                setBuildingToPlace(null);
+                setGhostBuildingCoords(null);
+                showError("Művelet megszakítva.");
+              }} 
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+            >
+              <X className="h-4 w-4 mr-2" /> Mégsem
+            </Button>
+          </div>
+        )}
+        <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold">Pénzmozgások</Button>
       </div>
       <MusicPlayer tracks={musicTracks} />
       <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
@@ -637,7 +698,7 @@ const Game = () => {
               <p>Férőhely: {selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length} / {selectedBuilding.capacity}</p>
               
               {selectedBuilding.type === "shop" && (
-                <Button onClick={() => handleOpenShopMenu(selectedBuilding)} className="w-full bg-purple-600">Bolt megnyitása</Button>
+                <Button onClick={() => handleOpenShopMenu(selectedBuilding)} className="w-full bg-purple-600 text-white font-bold">Bolt megnyitása</Button>
               )}
 
               {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
@@ -647,7 +708,7 @@ const Game = () => {
                     setIsPlacingFarmland(true);
                     setSelectedBuilding(null);
                   }} 
-                  className="w-full bg-green-600"
+                  className="w-full bg-green-600 text-white font-bold"
                 >
                   Szántóföld bővítése
                 </Button>
