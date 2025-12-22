@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Building, { FarmlandTile } from "./Building";
+import Building, { FarmlandTile, CropType } from "./Building";
 import { BuildingOption } from "./BuildMenu";
 import { Sprout, Route } from "lucide-react";
 
@@ -111,7 +111,7 @@ const Map: React.FC<MapProps> = ({
   };
 
   const isRoadAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
-    return currentBuildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction && !b.isGhost) ||
+    return currentBuildings.some(b => b.type === "road" && b.x === x && b.y === y && !b.isUnderConstruction) ||
            currentGhostRoadTiles.some(t => t.x === x && t.y === y);
   };
 
@@ -129,7 +129,7 @@ const Map: React.FC<MapProps> = ({
       return "crosshair";
     }
     if (isDemolishingRoad) {
-      return "url('/public/demolish_cursor.png'), cell";
+      return "cell";
     }
     return "default";
   };
@@ -196,9 +196,6 @@ const Map: React.FC<MapProps> = ({
             />
           );
         }
-        if (building.type === "farm") {
-             return <Building key={building.id} {...commonProps} farmlandTiles={undefined} />;
-        }
         
         return <Building key={building.id} {...commonProps} />;
       })}
@@ -212,12 +209,11 @@ const Map: React.FC<MapProps> = ({
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as "house" | "office" | "forestry" | "farm" | "shop"}
+          type={buildingToPlace.type as any}
           cellSizePx={cellSizePx}
           onClick={() => {}}
           capacity={buildingToPlace.capacity}
           ownerId={currentPlayerId}
-          renterId={undefined}
           residentIds={[]}
           employeeIds={[]}
           isGhost={true}
@@ -229,38 +225,10 @@ const Map: React.FC<MapProps> = ({
           isDemolishingRoad={isDemolishingRoad}
         />
       )}
-      {(isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.length > 0) ? (
-        ghostFarmlandTiles.map((tile, index) => (
-          <Building
-            key={`ghost-farmland-${index}`}
-            id={`ghost-farmland-${index}`}
-            name="Szántóföld"
-            x={tile.x}
-            y={tile.y}
-            width={1}
-            height={1}
-            type="farmland"
-            cellSizePx={cellSizePx}
-            onClick={() => {}}
-            capacity={0}
-            ownerId={currentPlayerId}
-            residentIds={[]}
-            employeeIds={[]}
-            isGhost={true}
-            isUnderConstruction={false}
-            buildProgress={0}
-            currentPlayerId={currentPlayerId}
-            rotation={0}
-            isPlacementMode={isPlacementMode}
-            isDemolishingRoad={isDemolishingRoad}
-            cropType={CropType.None} // Átmeneti érték
-            cropProgress={0} // Átmeneti érték
-          />
-        ))
-      ) : (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
+      {isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
         <Building
-          id="ghost-farmland-single"
-          key="ghost-farmland-single"
+          id="ghost-farmland"
+          key="ghost-farmland"
           name="Szántóföld"
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
@@ -280,66 +248,8 @@ const Map: React.FC<MapProps> = ({
           rotation={0}
           isPlacementMode={isPlacementMode}
           isDemolishingRoad={isDemolishingRoad}
-          cropType={CropType.None} // Átmeneti érték
-          cropProgress={0} // Átmeneti érték
-        />
-      ))}
-      {isPlacingRoad && ghostRoadTiles.map((tile, index) => (
-        <Building
-          key={`ghost-road-${index}`}
-          id={`ghost-road-${index}`}
-          name="Út"
-          x={tile.x}
-          y={tile.y}
-          width={1}
-          height={1}
-          type="road"
-          cellSizePx={cellSizePx}
-          onClick={() => {}}
-          capacity={0}
-          ownerId={currentPlayerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={true}
-          isUnderConstruction={false}
-          buildProgress={0}
-          currentPlayerId={currentPlayerId}
-          rotation={0}
-          hasRoadNeighborTop={isRoadAt(tile.x, tile.y - 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborBottom={isRoadAt(tile.x, tile.y + 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborLeft={isRoadAt(tile.x - 1, tile.y, buildings, ghostRoadTiles)}
-          hasRoadNeighborRight={isRoadAt(tile.x + 1, tile.y, buildings, ghostRoadTiles)}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad}
-        />
-      ))}
-      {isPlacingRoad && !ghostRoadTiles.length && ghostBuildingCoords && (
-        <Building
-          id="ghost-road-single"
-          key="ghost-road-single"
-          name="Út"
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
-          width={1}
-          height={1}
-          type="road"
-          cellSizePx={cellSizePx}
-          onClick={() => {}}
-          capacity={0}
-          ownerId={currentPlayerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={true}
-          isUnderConstruction={false}
-          buildProgress={0}
-          currentPlayerId={currentPlayerId}
-          rotation={0}
-          hasRoadNeighborTop={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y - 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborBottom={isRoadAt(ghostBuildingCoords.x, ghostBuildingCoords.y + 1, buildings, ghostRoadTiles)}
-          hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
-          hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad}
+          cropType={CropType.None}
+          cropProgress={0}
         />
       )}
     </div>
