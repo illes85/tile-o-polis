@@ -27,8 +27,9 @@ import ShopMenu from "@/components/ShopMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
+// Átállítva 48px-re a grafikákhoz
 const MAP_GRID_SIZE = 40;
-const CELL_SIZE_PX = 40;
+const CELL_SIZE_PX = 48; 
 const RENT_INTERVAL_MS = 30000;
 const BUILD_HOUSE_COST = 500;
 const BUILD_HOUSE_DURATION_MS = 10000;
