@@ -160,11 +160,10 @@ const Map: React.FC<MapProps> = ({
       onClick={handleMapClickInternal}
       onMouseDown={onMapMouseDown}
       onMouseUp={onMapMouseUp}
-      onMouseLeave={onMapMouseLeave}
+      onMapMouseLeave={onMapMouseLeave}
     >
       {buildings.map((building) => {
         const commonProps = {
-          key={building.id}
           ...building,
           cellSizePx: cellSizePx,
           onClick: onBuildingClick,
@@ -176,6 +175,7 @@ const Map: React.FC<MapProps> = ({
         if (building.type === "road") {
           return (
             <Building
+              key={building.id} // Helyes key prop
               {...commonProps}
               hasRoadNeighborTop={isRoadAt(building.x, building.y - 1, buildings, ghostRoadTiles)}
               hasRoadNeighborBottom={isRoadAt(building.x, building.y + 1, buildings, ghostRoadTiles)}
@@ -184,11 +184,12 @@ const Map: React.FC<MapProps> = ({
             />
           );
         }
-        return <Building {...commonProps} />;
+        return <Building key={building.id} {...commonProps} />; // Helyes key prop
       })}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
           id="ghost-building"
+          key="ghost-building"
           name={buildingToPlace.name}
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
@@ -239,6 +240,7 @@ const Map: React.FC<MapProps> = ({
       {isPlacingFarmland && selectedFarmId && !ghostFarmlandTiles.length && ghostBuildingCoords && (
         <Building
           id="ghost-farmland-single"
+          key="ghost-farmland-single"
           name="Szántóföld"
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
@@ -292,6 +294,7 @@ const Map: React.FC<MapProps> = ({
       {isPlacingRoad && !ghostRoadTiles.length && ghostBuildingCoords && (
         <Building
           id="ghost-road-single"
+          key="ghost-road-single"
           name="Út"
           x={ghostBuildingCoords.x}
           y={ghostBuildingCoords.y}
