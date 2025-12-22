@@ -343,12 +343,20 @@ const Game = () => {
   };
 
   const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
-    return currentBuildings.some(b => {
+    // Ellenőrizzük, hogy a csempe foglalt-e egy fő épület által
+    const isOccupiedByBuilding = currentBuildings.some(b => {
       if (b.isUnderConstruction || b.isGhost) return false;
       const effectiveWidth = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
       const effectiveHeight = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
       return x >= b.x && x < b.x + effectiveWidth && y >= b.y && y < b.y + effectiveHeight;
     });
+
+    // Ellenőrizzük, hogy a csempe foglalt-e egy már létező szántóföld csempe által
+    const isOccupiedByFarmland = currentBuildings.some(b => 
+        b.type === 'farm' && b.farmlandTiles?.some(ft => ft.x === x && ft.y === y && !ft.isUnderConstruction)
+    );
+
+    return isOccupiedByBuilding || isOccupiedByFarmland;
   };
 
   const isRoadAt = (checkX: number, checkY: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
@@ -433,51 +441,43 @@ const Game = () => {
   };
 
   const canPlaceFarmlandAt = (farm: BuildingData, targetX: number, targetY: number): boolean => {
+    // 1. Ellenőrzés: Foglalt-e a csempe más épület által (beleértve a farm épületet is)
     if (isCellOccupied(targetX, targetY, buildings)) {
-        return false; // Nem lehet más épületen
+        return false; 
     }
 
-    // 1. Ellenőrzés: Távolság a farm épülettől (max 3 csempe)
+    // 2. Ellenőrzés: Távolság és szomszédság
     const effectiveFarmWidth = (farm.rotation === 90 || farm.rotation === 270) ? farm.height : farm.width;
     const effectiveFarmHeight = (farm.rotation === 90 || farm.rotation === 270) ? farm.width : farm.height;
 
+    // Ellenőrizzük, hogy a csempe a farmtól 3 csempényi távolságon belül van-e
     let isWithinRangeOfFarm = false;
     for (let fx = farm.x - FARMLAND_MAX_DISTANCE; fx < farm.x + effectiveFarmWidth + FARMLAND_MAX_DISTANCE; fx++) {
         for (let fy = farm.y - FARMLAND_MAX_DISTANCE; fy < farm.y + effectiveFarmHeight + FARMLAND_MAX_DISTANCE; fy++) {
             if (fx === targetX && fy === targetY) {
-                // Ha a csempe a kiterjesztett területen belül van
                 isWithinRangeOfFarm = true;
                 break;
             }
         }
         if (isWithinRangeOfFarm) break;
     }
+    
+    if (!isWithinRangeOfFarm) return false;
 
-    // 2. Ellenőrzés: Szomszédság a már létező szántóföld csempékkel
+    // 3. Ellenőrzés: Szomszédság a farm épülettel VAGY egy már létező szántóföld csempével
     const existingFarmlandTiles = farm.farmlandTiles || [];
     let isAdjacentToExistingFarmland = false;
+    let isAdjacentToFarmBuilding = false;
 
-    if (existingFarmlandTiles.length > 0) {
-        for (const tile of existingFarmlandTiles) {
-            if (getDistance(tile.x, tile.y, targetX, targetY) === 1) {
-                isAdjacentToExistingFarmland = true;
-                break;
-            }
+    // Szomszédság ellenőrzése a már létező szántóföld csempékkel
+    for (const tile of existingFarmlandTiles) {
+        if (getDistance(tile.x, tile.y, targetX, targetY) === 1) {
+            isAdjacentToExistingFarmland = true;
+            break;
         }
     }
 
-    // A csempe elhelyezhető, ha:
-    // 1. A farmtól 3 csempényi távolságon belül van, ÉS
-    // 2. Vagy a farm közvetlen szomszédságában van, VAGY egy már létező szántóföld csempe szomszédságában van.
-    
-    // Mivel a kérés szerint "nem lehet messzebb mint 3 csempe távolságra a FARM-tól VAGY szomszédos másik szántóföld csempével"
-    // Ezt úgy értelmezem, hogy a csempe elhelyezhető, ha:
-    // A) A farmtól 3 csempényi távolságon belül van, ÉS
-    // B) Vagy a farm épülethez, VAGY egy már létező szántóföld csempéhez szomszédos.
-    
-    // Egyszerűsített szabály: A csempe elhelyezhető, ha a farmtól 3 csempényi távolságon belül van, ÉS szomszédos a farm épülettel VAGY egy már létező szántóföld csempével.
-    
-    let isAdjacentToFarmBuilding = false;
+    // Szomszédság ellenőrzése a farm épület csempéivel
     for (let fx = farm.x; fx < farm.x + effectiveFarmWidth; fx++) {
         for (let fy = farm.y; fy < farm.y + effectiveFarmHeight; fy++) {
             if (getDistance(fx, fy, targetX, targetY) === 1) {
@@ -490,7 +490,7 @@ const Game = () => {
 
     const isConnected = isAdjacentToFarmBuilding || isAdjacentToExistingFarmland;
 
-    return isWithinRangeOfFarm && isConnected;
+    return isConnected;
   };
 
   useEffect(() => {
@@ -1146,9 +1146,9 @@ const Game = () => {
   };
 
   const handleFarmlandClick = (farmId: string, x: number, y: number) => {
-    // Ez a függvény már nem lesz közvetlenül meghívva a Map-ből, hanem a handleMapClick kezeli.
-    // A folyamatos építés miatt a handleMapMouseUp fogja feldolgozni a ghostFarmlandTiles-t.
-    // Azonban a single-tile kattintásos logikát meghagyom a handleMapClick-ben.
+    // Ez a függvény most már a Map.tsx-ből hívódik meg, amikor egy már létező szántóföld csempére kattintunk.
+    // Itt lehetne kezelni a termelést vagy a bontást.
+    showSuccess(`Kattintottál a szántóföld csempére: (${x}, ${y})`);
   };
 
   const cancelBuildingPlacement = () => {

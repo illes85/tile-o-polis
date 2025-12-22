@@ -119,13 +119,15 @@ const Map: React.FC<MapProps> = ({
            currentGhostRoadTiles.some(t => t.x === x && t.y === y);
   };
 
-  const isFarmlandAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostFarmlandTiles: { x: number; y: number }[], farmId: string | null): boolean => {
-    const targetFarm = currentBuildings.find(b => b.id === farmId);
-    if (targetFarm && targetFarm.farmlandTiles) {
-      if (targetFarm.farmlandTiles.some(ft => ft.x === x && ft.y === y && !ft.isUnderConstruction)) return true;
+  // Összegyűjtjük az összes szántóföld csempét, hogy külön renderelhessük őket
+  const allFarmlandTiles: (FarmlandTile & { farmId: string })[] = [];
+  buildings.forEach(b => {
+    if (b.type === 'farm' && b.farmlandTiles) {
+      b.farmlandTiles.forEach(ft => {
+        allFarmlandTiles.push({ ...ft, farmId: b.id });
+      });
     }
-    return currentGhostFarmlandTiles.some(t => t.x === x && t.y === y);
-  };
+  });
 
   const getCursorStyle = () => {
     if (isPlacingBuilding || isPlacingFarmland || isPlacingRoad) {
@@ -149,6 +151,34 @@ const Map: React.FC<MapProps> = ({
       onMouseMove={handleMapMouseMoveInternal} // Belső kezelő használata
       onClick={handleMapClickInternal}
     >
+      {/* 1. Szántóföld csempék renderelése (alul) */}
+      {allFarmlandTiles.map((tile, index) => (
+        <Building
+          key={`farmland-${tile.farmId}-${tile.x}-${tile.y}`}
+          id={`farmland-${tile.farmId}-${tile.x}-${tile.y}`}
+          name="Szántóföld"
+          x={tile.x}
+          y={tile.y}
+          width={1}
+          height={1}
+          type="farmland"
+          cellSizePx={cellSizePx}
+          onClick={() => onFarmlandClick(tile.farmId, tile.x, tile.y)} // Kattintáskezelő hozzáadva
+          capacity={0}
+          ownerId={tile.ownerId}
+          residentIds={[]}
+          employeeIds={[]}
+          isGhost={false}
+          isUnderConstruction={tile.isUnderConstruction}
+          buildProgress={tile.buildProgress}
+          currentPlayerId={currentPlayerId}
+          rotation={0}
+          isPlacementMode={isPlacementMode}
+          isDemolishingRoad={isDemolishingRoad}
+        />
+      ))}
+
+      {/* 2. Épületek és utak renderelése (felette) */}
       {buildings.map((building) => {
         const commonProps = {
           ...building,
@@ -171,8 +201,15 @@ const Map: React.FC<MapProps> = ({
             />
           );
         }
+        // Farm épület renderelése (farmlandTiles nélkül, mert azokat külön rendereljük)
+        if (building.type === "farm") {
+             return <Building key={building.id} {...commonProps} farmlandTiles={undefined} />;
+        }
+        
         return <Building key={building.id} {...commonProps} />; // Helyes key prop
       })}
+      
+      {/* 3. Szellem épületek renderelése (legfelül) */}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
           id="ghost-building"
@@ -199,32 +236,34 @@ const Map: React.FC<MapProps> = ({
           isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
         />
       )}
-      {isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.map((tile, index) => (
-        <Building
-          key={`ghost-farmland-${index}`}
-          id={`ghost-farmland-${index}`}
-          name="Szántóföld"
-          x={tile.x}
-          y={tile.y}
-          width={1}
-          height={1}
-          type="farmland"
-          cellSizePx={cellSizePx}
-          onClick={() => {}}
-          capacity={0}
-          ownerId={currentPlayerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={true}
-          isUnderConstruction={false}
-          buildProgress={0}
-          currentPlayerId={currentPlayerId}
-          rotation={0}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
-        />
-      ))}
-      {isPlacingFarmland && selectedFarmId && !ghostFarmlandTiles.length && ghostBuildingCoords && (
+      {/* Szellem szántóföld csempék */}
+      {(isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.length > 0) ? (
+        ghostFarmlandTiles.map((tile, index) => (
+          <Building
+            key={`ghost-farmland-${index}`}
+            id={`ghost-farmland-${index}`}
+            name="Szántóföld"
+            x={tile.x}
+            y={tile.y}
+            width={1}
+            height={1}
+            type="farmland"
+            cellSizePx={cellSizePx}
+            onClick={() => {}}
+            capacity={0}
+            ownerId={currentPlayerId}
+            residentIds={[]}
+            employeeIds={[]}
+            isGhost={true}
+            isUnderConstruction={false}
+            buildProgress={0}
+            currentPlayerId={currentPlayerId}
+            rotation={0}
+            isPlacementMode={isPlacementMode}
+            isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+          />
+        ))
+      ) : (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
         <Building
           id="ghost-farmland-single"
           key="ghost-farmland-single"
@@ -248,7 +287,8 @@ const Map: React.FC<MapProps> = ({
           isPlacementMode={isPlacementMode}
           isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
         />
-      )}
+      ))}
+      {/* Szellem út csempék */}
       {isPlacingRoad && ghostRoadTiles.map((tile, index) => (
         <Building
           key={`ghost-road-${index}`}

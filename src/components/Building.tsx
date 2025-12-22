@@ -37,7 +37,7 @@ interface BuildingProps {
   buildProgress?: number;
   currentPlayerId: string;
   rotation: number;
-  farmlandTiles?: FarmlandTile[];
+  farmlandTiles?: FarmlandTile[]; // Ezt a propot most már csak a Map.tsx használja az adatok kinyerésére, de a Building komponensben nem rendereljük
   // Új propok az út csempékhez
   hasRoadNeighborTop?: boolean;
   hasRoadNeighborBottom?: boolean;
@@ -67,7 +67,7 @@ const Building: React.FC<BuildingProps> = ({
   buildProgress = 0,
   currentPlayerId,
   rotation,
-  farmlandTiles,
+  // farmlandTiles, // Eltávolítva a propok közül, mert nem használjuk a rendereléshez
   hasRoadNeighborTop = false,
   hasRoadNeighborBottom = false,
   hasRoadNeighborLeft = false,
@@ -86,7 +86,7 @@ const Building: React.FC<BuildingProps> = ({
     top: actualY,
     width: width * cellSizePx,
     height: height * cellSizePx,
-    zIndex: isGhost ? 50 : 1,
+    zIndex: isGhost ? 50 : (type === "farmland" ? 0 : 1), // Szántóföld legyen a legalul (Z-index 0)
     opacity: isGhost ? 0.7 : 1,
     pointerEvents: isGhost ? 'none' : 'auto',
     transform: `rotate(${rotation}deg)`,
@@ -229,36 +229,7 @@ const Building: React.FC<BuildingProps> = ({
             {isPlayerEmployedHere && (
               <span className="absolute top-1 left-1 text-[0.6rem] text-green-200 font-bold">Alkalmazott</span>
             )}
-            {farmlandTiles && farmlandTiles.length > 0 && (
-              <div className="absolute inset-0 flex flex-wrap opacity-70">
-                {farmlandTiles.map((tile, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "bg-yellow-800/50 border border-yellow-900",
-                      tile.isUnderConstruction && "opacity-70 bg-gray-400"
-                    )}
-                    style={{
-                      position: 'absolute',
-                      left: (tile.x - x) * cellSizePx,
-                      top: (tile.y - y) * cellSizePx,
-                      width: cellSizePx,
-                      height: cellSizePx,
-                    }}
-                  >
-                    {tile.isUnderConstruction ? (
-                      <div className="flex flex-col items-center justify-center h-full w-full">
-                        <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
-                        <Progress value={tile.buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
-                        <span className="text-gray-700 text-[0.6rem]">{Math.floor(tile.buildProgress || 0)}%</span>
-                      </div>
-                    ) : (
-                      <Sprout className="h-full w-full text-green-300 p-1" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* A szántóföld csempék renderelése eltávolítva innen, a Map.tsx kezeli */}
           </>
         );
         break;
@@ -269,7 +240,7 @@ const Building: React.FC<BuildingProps> = ({
           <div className="flex flex-col items-center justify-center h-full w-full">
             <Hammer className="h-4 w-4 text-gray-700 mb-0.5" />
             <Progress value={buildProgress} className="w-3/4 h-1 mt-0.5" indicatorColor="bg-yellow-400" />
-            <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress)}%</span>
+            <span className="text-gray-700 text-[0.6rem]">{Math.floor(buildProgress || 0)}%</span>
           </div>
         ) : (
           <Sprout className="h-full w-full text-green-300 p-1" />
