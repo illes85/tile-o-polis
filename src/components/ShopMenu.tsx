@@ -1,12 +1,25 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, ShoppingCart, Package, Pickaxe, Drill } from "lucide-react"; // Pickaxe a kapához, Drill a traktorhoz
-import { Product, ProductType, allProducts } from "@/utils/products";
-import { showSuccess, showError } from "@/utils/toast";
+import { Coins, ShoppingCart, Package, Pickaxe, Drill, User, Truck } from "lucide-react";
+import { ProductType, allProducts, getProductByType } from "@/utils/products";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
+import ShopInventory from "./ShopInventory";
+
+interface ShopItem {
+  type: ProductType;
+  name: string;
+  wholesalePrice: number;
+  deliveryTimeMs: number;
+  sellPrice: number;
+  stock: number;
+  orderedStock: number;
+  isDelivering: boolean;
+  deliveryEta?: number;
+}
 
 interface ShopMenuProps {
   isOpen: boolean;
@@ -14,15 +27,12 @@ interface ShopMenuProps {
   shopOwnerId: string;
   currentPlayerId: string;
   currentPlayerMoney: number;
-  currentPlayerInventory: {
-    [key: string]: number;
-    // Kifejezetten definiáljuk a szükséges kulcsokat is a típusosság kedvéért
-    hoe?: number;
-    tractor?: number;
-    // ... többi termék
-  };
+  shopItems: ShopItem[];
+  onAddItem: (item: Omit<ShopItem, 'stock' | 'orderedStock' | 'isDelivering'>) => void;
+  onOrderStock: (type: ProductType, quantity: number) => void;
+  onUpdatePrice: (type: ProductType, newPrice: number) => void;
+  onRestock: (type: ProductType, quantity: number) => void;
   onBuyProduct: (productType: ProductType, quantity: number) => void;
-  onSellProduct: (productType: ProductType, quantity: number) => void;
 }
 
 const ShopMenu: React.FC<ShopMenuProps> = ({
@@ -31,79 +41,141 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
   shopOwnerId,
   currentPlayerId,
   currentPlayerMoney,
-  currentPlayerInventory,
+  shopItems,
+  onAddItem,
+  onOrderStock,
+  onUpdatePrice,
+  onRestock,
   onBuyProduct,
-  onSellProduct,
 }) => {
   const isOwner = currentPlayerId === shopOwnerId;
+  const [activeTab, setActiveTab] = useState<"shop" | "inventory">("shop");
 
-  // Szűrjük le a termékeket, amiket a bolt támogat (pl. csak eszközök)
-  const shopProducts = allProducts.filter(p => 
-    p.type === ProductType.Hoe || p.type === ProductType.Tractor
-  );
+  // Szállítási időzítő
+  useEffect(() => {
+    const deliveryTimer = setInterval(() => {
+      shopItems.forEach(item => {
+        if (item.isDelivering && item.deliveryEta && Date.now() >= item.deliveryEta) {
+          // Szállítás befejezve
+          onRestock(item.type, item.orderedStock);
+          showSuccess(`Szállítás befejezve: ${item.orderedStock} db ${item.name} érkezett!`);
+        }
+      });
+    }, 1000);
 
-  const handleBuy = (product: Product) => {
-    if (currentPlayerMoney < product.baseSellPrice!) {
-      showError(`Nincs elég pénzed ${product.name} vásárlásához! Szükséges: ${product.baseSellPrice} pénz.`);
+    return () => clearInterval(deliveryTimer);
+  }, [shopItems, onRestock]);
+
+  const handleBuy = (productType: ProductType) => {
+    const item = shopItems.find(i => i.type === productType);
+    if (!item) {
+      showError("Ez a termék jelenleg nem elérhető.");
       return;
     }
-    onBuyProduct(product.type, 1);
-    showSuccess(`Sikeresen vásároltál 1 ${product.name}!`);
-    onClose();
-  };
-
-  const handleSell = (product: Product) => {
-    const inventoryKey = product.type;
-    const quantityInInventory = currentPlayerInventory[inventoryKey] || 0;
     
-    if (quantityInInventory <= 0) {
-      showError(`Nincs ${product.name} a készletedben!`);
+    if (item.stock <= 0) {
+      showError("Ez a termék jelenleg nincs készleten.");
       return;
     }
     
-    if (!product.baseBuyPrice) {
-        showError(`Ez a termék nem eladható a boltban.`);
-        return;
+    if (currentPlayerMoney < item.sellPrice) {
+      showError(`Nincs elég pénzed ${item.name} vásárlásához! Szükséges: ${item.sellPrice} pénz.`);
+      return;
     }
-
-    onSellProduct(product.type, 1);
-    showSuccess(`Sikeresen eladtál 1 ${product.name}! Jóváírva: ${product.baseBuyPrice} pénz.`);
+    
+    onBuyProduct(productType, 1);
+    showSuccess(`Sikeresen vásároltál 1 ${item.name}!`);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Bolt</DialogTitle>
           <DialogDescription>
-            Vásárolj vagy adj el termékeket.
+            {isOwner ? "Tulajdonosként kezelheted a bolt készletét." : "Vásárolj termékeket a boltból."}
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4 max-h-[400px] overflow-y-auto">
-          {shopProducts.length === 0 ? (
-            <p className="text-center text-muted-foreground">Nincsenek elérhető termékek.</p>
-          ) : (
-            shopProducts.map((product) => {
-              const inventoryKey = product.type;
-              const quantityInInventory = currentPlayerInventory[inventoryKey] || 0;
-              const canAfford = currentPlayerMoney >= (product.baseSellPrice || 0);
-              const hasInInventory = quantityInInventory > 0;
-              
-              let productIcon = <Package className="h-5 w-5" />;
-              if (product.type === ProductType.Hoe) {
-                  productIcon = <Pickaxe className="h-5 w-5" />;
-              } else if (product.type === ProductType.Tractor) {
-                  productIcon = <Drill className="h-5 w-5" />;
-              }
-
-              return (
-                <Card key={product.type} className="w-full">
+        {isOwner ? (
+          <div className="space-y-4">
+            <div className="flex border-b">
+              <Button
+                variant={activeTab === "shop" ? "default" : "ghost"}
+                className="rounded-none"
+                onClick={() => setActiveTab("shop")}
+              >
+                <ShoppingCart className="h-4 w-4 mr-2" /> Bolt
+              </Button>
+              <Button
+                variant={activeTab === "inventory" ? "default" : "ghost"}
+                className="rounded-none"
+                onClick={() => setActiveTab("inventory")}
+              >
+                <Package className="h-4 w-4 mr-2" /> Készlet
+              </Button>
+            </div>
+            
+            {activeTab === "shop" ? (
+              <div className="space-y-4">
+                <h3 className="font-semibold">Elérhető termékek a vásárláshoz</h3>
+                {shopItems.filter(item => item.stock > 0).length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Nincs elérhető termék a vásárláshoz.</p>
+                ) : (
+                  shopItems.filter(item => item.stock > 0).map((item) => (
+                    <Card key={item.type} className="w-full">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-lg flex items-center">
+                          <Package className="h-5 w-5 mr-2" />
+                          {item.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-sm font-medium">Ár:</span>
+                          <span className="flex items-center">
+                            <Coins className="h-4 w-4 text-green-500 mr-1" />
+                            {item.sellPrice}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mb-4">
+                          <span className="text-sm font-medium">Készleten:</span>
+                          <span>{item.stock} db</span>
+                        </div>
+                        <Button
+                          onClick={() => handleBuy(item.type)}
+                          className="w-full bg-green-600 hover:bg-green-700"
+                        >
+                          <ShoppingCart className="h-4 w-4 mr-2" /> Vásárlás
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            ) : (
+              <ShopInventory
+                shopItems={shopItems}
+                onAddItem={onAddItem}
+                onOrderStock={onOrderStock}
+                onUpdatePrice={onUpdatePrice}
+                onRestock={onRestock}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="font-semibold">Elérhető termékek</h3>
+            {shopItems.filter(item => item.stock > 0).length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Nincs elérhető termék a boltban.</p>
+            ) : (
+              shopItems.filter(item => item.stock > 0).map((item) => (
+                <Card key={item.type} className="w-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg flex items-center">
-                      {productIcon}
-                      <span className="ml-2">{product.name}</span>
+                      <Package className="h-5 w-5 mr-2" />
+                      {item.name}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -111,48 +183,25 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
                       <span className="text-sm font-medium">Ár:</span>
                       <span className="flex items-center">
                         <Coins className="h-4 w-4 text-green-500 mr-1" />
-                        {product.baseSellPrice} (vétel)
+                        {item.sellPrice}
                       </span>
                     </div>
-                    {product.baseBuyPrice !== undefined && (
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium">Eladási ár:</span>
-                        <span className="flex items-center">
-                          <Coins className="h-4 w-4 text-green-500 mr-1" />
-                          {product.baseBuyPrice} (eladás)
-                        </span>
-                      </div>
-                    )}
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-sm font-medium">Készleteden:</span>
-                      <span>{quantityInInventory} db</span>
+                      <span className="text-sm font-medium">Készleten:</span>
+                      <span>{item.stock} db</span>
                     </div>
-                    
-                    <div className="flex space-x-2">
-                      <Button
-                        onClick={() => handleBuy(product)}
-                        disabled={!canAfford}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
-                      >
-                        <ShoppingCart className="h-4 w-4 mr-2" /> Vásárlás
-                      </Button>
-                      
-                      {product.baseBuyPrice !== undefined && (
-                        <Button
-                          onClick={() => handleSell(product)}
-                          disabled={!hasInInventory}
-                          className="flex-1 bg-red-600 hover:bg-red-700"
-                        >
-                          Eladás
-                        </Button>
-                      )}
-                    </div>
+                    <Button
+                      onClick={() => handleBuy(item.type)}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      <ShoppingCart className="h-4 w-4 mr-2" /> Vásárlás
+                    </Button>
                   </CardContent>
                 </Card>
-              );
-            })
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
