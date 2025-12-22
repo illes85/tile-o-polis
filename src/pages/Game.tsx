@@ -291,7 +291,7 @@ const Game = () => {
     const mapTotalWidthPx = MAP_GRID_SIZE * CELL_SIZE_PX;
     const mapTotalHeightPx = MAP_GRID_SIZE * 1.5 * CELL_SIZE_PX;
 
-    // Lépésméret beállítása a viewport méretéhez (kisebb eltolás, hogy ne ugorjon túl sokat)
+    // Lépésméret beállítása a viewport méretéhez (oldalnyi ugrás)
     const stepX = viewportWidth * 0.8;
     const stepY = viewportHeight * 0.8;
 
@@ -432,28 +432,65 @@ const Game = () => {
     return Math.max(Math.abs(x1 - x2), Math.abs(y1 - y2));
   };
 
-  const isFarmlandWithinRange = (farmX: number, farmY: number, farmWidth: number, farmHeight: number, farmRotation: number, targetX: number, targetY: number): boolean => {
-    const effectiveFarmWidth = (farmRotation === 90 || farmRotation === 270) ? farmHeight : farmWidth;
-    const effectiveFarmHeight = (farmRotation === 90 || farmRotation === 270) ? farmWidth : farmHeight;
+  const canPlaceFarmlandAt = (farm: BuildingData, targetX: number, targetY: number): boolean => {
+    if (isCellOccupied(targetX, targetY, buildings)) {
+        return false; // Nem lehet más épületen
+    }
 
-    // A farm épület határai
-    const farmMinX = farmX;
-    const farmMaxX = farmX + effectiveFarmWidth - 1;
-    const farmMinY = farmY;
-    const farmMaxY = farmY + effectiveFarmHeight - 1;
+    // 1. Ellenőrzés: Távolság a farm épülettől (max 3 csempe)
+    const effectiveFarmWidth = (farm.rotation === 90 || farm.rotation === 270) ? farm.height : farm.width;
+    const effectiveFarmHeight = (farm.rotation === 90 || farm.rotation === 270) ? farm.width : farm.height;
 
-    // Kiterjesztett határok a FARMLAND_MAX_DISTANCE alapján
-    const extendedMinX = farmMinX - FARMLAND_MAX_DISTANCE;
-    const extendedMaxX = farmMaxX + effectiveFarmWidth - 1 + FARMLAND_MAX_DISTANCE;
-    const extendedMinY = farmMinY - FARMLAND_MAX_DISTANCE;
-    const extendedMaxY = farmMaxY + effectiveFarmHeight - 1 + FARMLAND_MAX_DISTANCE;
+    let isWithinRangeOfFarm = false;
+    for (let fx = farm.x - FARMLAND_MAX_DISTANCE; fx < farm.x + effectiveFarmWidth + FARMLAND_MAX_DISTANCE; fx++) {
+        for (let fy = farm.y - FARMLAND_MAX_DISTANCE; fy < farm.y + effectiveFarmHeight + FARMLAND_MAX_DISTANCE; fy++) {
+            if (fx === targetX && fy === targetY) {
+                // Ha a csempe a kiterjesztett területen belül van
+                isWithinRangeOfFarm = true;
+                break;
+            }
+        }
+        if (isWithinRangeOfFarm) break;
+    }
 
-    return (
-      targetX >= extendedMinX &&
-      targetX <= extendedMaxX &&
-      targetY >= extendedMinY &&
-      targetY <= extendedMaxY
-    );
+    // 2. Ellenőrzés: Szomszédság a már létező szántóföld csempékkel
+    const existingFarmlandTiles = farm.farmlandTiles || [];
+    let isAdjacentToExistingFarmland = false;
+
+    if (existingFarmlandTiles.length > 0) {
+        for (const tile of existingFarmlandTiles) {
+            if (getDistance(tile.x, tile.y, targetX, targetY) === 1) {
+                isAdjacentToExistingFarmland = true;
+                break;
+            }
+        }
+    }
+
+    // A csempe elhelyezhető, ha:
+    // 1. A farmtól 3 csempényi távolságon belül van, ÉS
+    // 2. Vagy a farm közvetlen szomszédságában van, VAGY egy már létező szántóföld csempe szomszédságában van.
+    
+    // Mivel a kérés szerint "nem lehet messzebb mint 3 csempe távolságra a FARM-tól VAGY szomszédos másik szántóföld csempével"
+    // Ezt úgy értelmezem, hogy a csempe elhelyezhető, ha:
+    // A) A farmtól 3 csempényi távolságon belül van, ÉS
+    // B) Vagy a farm épülethez, VAGY egy már létező szántóföld csempéhez szomszédos.
+    
+    // Egyszerűsített szabály: A csempe elhelyezhető, ha a farmtól 3 csempényi távolságon belül van, ÉS szomszédos a farm épülettel VAGY egy már létező szántóföld csempével.
+    
+    let isAdjacentToFarmBuilding = false;
+    for (let fx = farm.x; fx < farm.x + effectiveFarmWidth; fx++) {
+        for (let fy = farm.y; fy < farm.y + effectiveFarmHeight; fy++) {
+            if (getDistance(fx, fy, targetX, targetY) === 1) {
+                isAdjacentToFarmBuilding = true;
+                break;
+            }
+        }
+        if (isAdjacentToFarmBuilding) break;
+    }
+
+    const isConnected = isAdjacentToFarmBuilding || isAdjacentToExistingFarmland;
+
+    return isWithinRangeOfFarm && isConnected;
   };
 
   useEffect(() => {
@@ -780,7 +817,7 @@ const Game = () => {
       // A húzás logikája már nem aktív, de biztonság kedvéért
     } else if (isPlacingFarmland && selectedFarmId && !isFarmlandDragging) {
       const farm = buildings.find(b => b.id === selectedFarmId);
-      if (farm && isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
+      if (farm && canPlaceFarmlandAt(farm, gridX, gridY)) {
         setGhostBuildingCoords({ x: gridX, y: gridY });
       } else {
         setGhostBuildingCoords(null);
@@ -790,20 +827,6 @@ const Game = () => {
     } else if (isPlacingRoad && !isRoadDragging) {
       setGhostBuildingCoords({ x: gridX, y: gridY });
     }
-  };
-
-  // Ezt a függvényt a Map komponens hívja meg, de csak a panning (húzás) logikát kezeli
-  const handleMapMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    // Ezt a függvényt most már nem használjuk a panning-re, de meghagyjuk a Map propok kompatibilitása miatt.
-    // A Map komponensben a handleMapMouseMoveInternal hívja meg a onGridMouseMove-ot.
-  };
-
-  const handleMapMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    // A húzás (dragging) funkció eltávolítva.
-  };
-
-  const handleMapMouseUp = () => {
-    // A húzás (dragging) funkció eltávolítva.
   };
 
   const handleMapClick = (gridX: number, gridY: number) => { // Itt már rács koordinátákat kapunk
@@ -1012,8 +1035,8 @@ const Game = () => {
         return;
       }
 
-      if (!isFarmlandWithinRange(farm.x, farm.y, farm.width, farm.height, farm.rotation, gridX, gridY)) {
-        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni!`);
+      if (!canPlaceFarmlandAt(farm, gridX, gridY)) {
+        showError(`A szántóföldet csak a farmtól számított ${FARMLAND_MAX_DISTANCE} mezőn belül lehet elhelyezni, és szomszédosnak kell lennie a farmmal vagy egy másik szántóföld csempével!`);
         return;
       }
 
@@ -1021,6 +1044,12 @@ const Game = () => {
       if (isTileOccupied) {
         showError("Ez a szántóföld csempe már foglalt!");
         return;
+      }
+      
+      // Ellenőrizzük, hogy a csempe nem foglalt-e más épület által (ezt a canPlaceFarmlandAt már ellenőrzi, de megerősítjük)
+      if (isCellOccupied(gridX, gridY, buildings)) {
+          showError("Ez a hely már foglalt más épület által!");
+          return;
       }
 
       const hasHoe = currentPlayer.inventory.hoe > 0;
