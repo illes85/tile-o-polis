@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react"; // useEffect és useState importálása
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CropType } from "./Building";
@@ -13,7 +13,7 @@ interface FarmlandActionDialogProps {
   tileX: number;
   tileY: number;
   cropType: CropType;
-  cropProgress: number;
+  cropProgress: number; // Ez az érték nem frissül automatikusan
   onPlant: (farmId: string, x: number, y: number, cropType: CropType) => void;
   onHarvest: (farmId: string, x: number, y: number) => void;
   playerMoney: number;
@@ -26,13 +26,21 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   tileX,
   tileY,
   cropType,
-  cropProgress,
+  cropProgress: initialCropProgress, // Átnevezés, hogy jelezzük, ez a kezdeti érték
   onPlant,
   onHarvest,
   playerMoney,
 }) => {
-  const WHEAT_SEED_COST = 5; // Búza vetőmag ára
-  const WHEAT_GROW_TIME_MS = 60000; // 60 másodperc
+  // Belső állapot a cropProgress számára, hogy frissíthető legyen
+  const [cropProgress, setCropProgress] = useState(initialCropProgress);
+  
+  // Effekt a cropProgress frissítésére, ha a kezdeti érték megváltozik
+  useEffect(() => {
+    setCropProgress(initialCropProgress);
+  }, [initialCropProgress]);
+
+  const WHEAT_SEED_COST = 5;
+  const WHEAT_GROW_TIME_MS = 60000;
 
   const handlePlantWheat = () => {
     if (playerMoney < WHEAT_SEED_COST) {

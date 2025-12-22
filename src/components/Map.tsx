@@ -1,30 +1,29 @@
 "use client";
 
 import React from "react";
-import Building, { FarmlandTile } from "./Building"; // Importáljuk a FarmlandTile interfészt
+import Building, { FarmlandTile } from "./Building";
 import { BuildingOption } from "./BuildMenu";
-import { Sprout, Route } from "lucide-react"; // Importáljuk a Sprout és Route ikonokat
+import { Sprout, Route } from "lucide-react";
 
 export interface BuildingData {
   id: string;
-  name: string; // Új: épület neve
-  x: number; // rács x koordinátája
-  y: number; // rács y koordinátája
-  width: number; // rács egységekben
-  height: number; // rács egységekben
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; // Új típus: farmland, road és shop
-  rentalPrice?: number; // Hozzáadva: bérleti díj (házakhoz)
-  salary?: number; // Új: fizetés (irodákhoz)
-  capacity: number; // Max lakók/dolgozók száma
-  ownerId?: string; // Új: tulajdonos ID-ja
-  renterId?: string; // Új: bérlő ID-ja (házakhoz)
-  residentIds: string[]; // Új: lakók ID-i (házakhoz)
-  employeeIds: string[]; // Új: dolgozók ID-i (irodákhoz)
-  isUnderConstruction: boolean; // Új: jelzi, ha építés alatt áll
-  buildProgress?: number; // Új: építési folyamat (0-100)
-  rotation: number; // Új: forgatás szöge (0, 90, 180, 270)
-  farmlandTiles?: FarmlandTile[]; // Új: szántóföld csempék (csak farmokhoz)
-  // Új propok az út csempékhez
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop";
+  rentalPrice?: number;
+  salary?: number;
+  capacity: number;
+  ownerId?: string;
+  renterId?: string;
+  residentIds: string[];
+  employeeIds: string[];
+  isUnderConstruction: boolean;
+  buildProgress?: number;
+  rotation: number;
+  farmlandTiles?: FarmlandTile[];
   hasRoadNeighborTop?: boolean;
   hasRoadNeighborBottom?: boolean;
   hasRoadNeighborLeft?: boolean;
@@ -33,26 +32,26 @@ export interface BuildingData {
 
 interface MapProps {
   buildings: BuildingData[];
-  gridSize: number; // pl. 20 a 20x20-as rácshoz
-  cellSizePx: number; // pl. 40 pixel
+  gridSize: number;
+  cellSizePx: number;
   onBuildingClick: (buildingId: string) => void;
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
-  ghostBuildingCoords: { x: number; y: number } | null; // Rács koordináták
-  onGridMouseMove: (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => void; // ÚJ: rács koordináták visszaküldése
-  onMapClick: (x: number, y: number) => void; // Rács koordinátákat fogad
-  currentPlayerId: string; // Új prop
-  currentBuildingRotation: number; // Új prop a szellem épület forgatásához
-  isPlacingFarmland: boolean; // Új: szántóföld építési mód
-  selectedFarmId: string | null; // Új: a kiválasztott farm ID-ja
-  onFarmlandClick: (farmId: string, x: number, y: number) => void; // Új: szántóföld kattintás kezelő
-  ghostFarmlandTiles: { x: number; y: number }[]; // Új: szellem szántóföld csempék
-  isPlacingRoad: boolean; // Új: útépítés mód
-  ghostRoadTiles: { x: number; y: number }[]; // Új: szellem út csempék
-  isDemolishingRoad: boolean; // Új: út bontási mód
-  mapOffsetX: number; // Új: térkép eltolás X irányban
-  mapOffsetY: number; // Új: térkép eltolás Y irányban
-  isPlacementMode: boolean; // Új: jelzi, ha a játékos éppen építési módban van
+  ghostBuildingCoords: { x: number; y: number } | null;
+  onGridMouseMove: (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => void;
+  onMapClick: (x: number, y: number) => void;
+  currentPlayerId: string;
+  currentBuildingRotation: number;
+  isPlacingFarmland: boolean;
+  selectedFarmId: string | null;
+  onFarmlandClick: (farmId: string, x: number, y: number) => void;
+  ghostFarmlandTiles: { x: number; y: number }[];
+  isPlacingRoad: boolean;
+  ghostRoadTiles: { x: number; y: number }[];
+  isDemolishingRoad: boolean;
+  mapOffsetX: number;
+  mapOffsetY: number;
+  isPlacementMode: boolean;
 }
 
 const Map: React.FC<MapProps> = ({
@@ -63,7 +62,7 @@ const Map: React.FC<MapProps> = ({
   isPlacingBuilding,
   buildingToPlace,
   ghostBuildingCoords,
-  onGridMouseMove, // Hozzáadva
+  onGridMouseMove,
   onMapClick,
   currentPlayerId,
   currentBuildingRotation,
@@ -73,7 +72,7 @@ const Map: React.FC<MapProps> = ({
   ghostFarmlandTiles,
   isPlacingRoad,
   ghostRoadTiles,
-  isDemolishingRoad, // Hozzáadva
+  isDemolishingRoad,
   mapOffsetX,
   mapOffsetY,
   isPlacementMode,
@@ -86,11 +85,9 @@ const Map: React.FC<MapProps> = ({
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    // A rács koordináták kiszámítása, figyelembe véve az eltolást
     const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
     const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
 
-    // Visszaküldjük a pontos rács koordinátákat a Game.tsx-nek
     onGridMouseMove(gridX, gridY, event);
   };
 
@@ -99,18 +96,17 @@ const Map: React.FC<MapProps> = ({
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    // A kattintáskor a rács koordinátáit kell kiszámolni, figyelembe véve az eltolást
     const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
     const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
 
     if (isPlacingBuilding && ghostBuildingCoords) {
-      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
+      onMapClick(gridX, gridY);
     } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) {
-      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
+      onMapClick(gridX, gridY);
     } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) {
-      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
-    } else if (isDemolishingRoad) { // Új: bontási mód
-      onMapClick(gridX, gridY); // Átadjuk a rács koordinátákat
+      onMapClick(gridX, gridY);
+    } else if (isDemolishingRoad) {
+      onMapClick(gridX, gridY);
     }
   };
 
@@ -119,7 +115,6 @@ const Map: React.FC<MapProps> = ({
            currentGhostRoadTiles.some(t => t.x === x && t.y === y);
   };
 
-  // Összegyűjtjük az összes szántóföld csempét, hogy külön renderelhessük őket
   const allFarmlandTiles: (FarmlandTile & { farmId: string })[] = [];
   buildings.forEach(b => {
     if (b.type === 'farm' && b.farmlandTiles) {
@@ -134,9 +129,9 @@ const Map: React.FC<MapProps> = ({
       return "crosshair";
     }
     if (isDemolishingRoad) {
-      return "url('/public/demolish_cursor.png'), cell"; // Egyedi bontó kurzor, ha van
+      return "url('/public/demolish_cursor.png'), cell";
     }
-    return "default"; // Alap kurzor, nincs húzás
+    return "default";
   };
 
   return (
@@ -145,13 +140,12 @@ const Map: React.FC<MapProps> = ({
       style={{
         width: mapWidthPx,
         height: mapHeightPx,
-        transform: `translate(${mapOffsetX}px, ${mapOffsetY}px)`, // Térkép eltolása
-        cursor: getCursorStyle(), // Kurzor változtatása
+        transform: `translate(${mapOffsetX}px, ${mapOffsetY}px)`,
+        cursor: getCursorStyle(),
       }}
-      onMouseMove={handleMapMouseMoveInternal} // Belső kezelő használata
+      onMouseMove={handleMapMouseMoveInternal}
       onClick={handleMapClickInternal}
     >
-      {/* 1. Szántóföld csempék renderelése (alul) */}
       {allFarmlandTiles.map((tile, index) => (
         <Building
           key={`farmland-${tile.farmId}-${tile.x}-${tile.y}`}
@@ -163,7 +157,7 @@ const Map: React.FC<MapProps> = ({
           height={1}
           type="farmland"
           cellSizePx={cellSizePx}
-          onClick={() => onFarmlandClick(tile.farmId, tile.x, tile.y)} // Kattintáskezelő hozzáadva
+          onClick={() => onFarmlandClick(tile.farmId, tile.x, tile.y)}
           capacity={0}
           ownerId={tile.ownerId}
           residentIds={[]}
@@ -175,10 +169,11 @@ const Map: React.FC<MapProps> = ({
           rotation={0}
           isPlacementMode={isPlacementMode}
           isDemolishingRoad={isDemolishingRoad}
+          cropType={tile.cropType}
+          cropProgress={tile.cropProgress}
         />
       ))}
 
-      {/* 2. Épületek és utak renderelése (felette) */}
       {buildings.map((building) => {
         const commonProps = {
           ...building,
@@ -186,13 +181,13 @@ const Map: React.FC<MapProps> = ({
           onClick: onBuildingClick,
           currentPlayerId: currentPlayerId,
           isPlacementMode: isPlacementMode,
-          isDemolishingRoad: isDemolishingRoad, // Átadjuk a bontási módot
+          isDemolishingRoad: isDemolishingRoad,
         };
 
         if (building.type === "road") {
           return (
             <Building
-              key={building.id} // Helyes key prop
+              key={building.id}
               {...commonProps}
               hasRoadNeighborTop={isRoadAt(building.x, building.y - 1, buildings, ghostRoadTiles)}
               hasRoadNeighborBottom={isRoadAt(building.x, building.y + 1, buildings, ghostRoadTiles)}
@@ -201,15 +196,13 @@ const Map: React.FC<MapProps> = ({
             />
           );
         }
-        // Farm épület renderelése (farmlandTiles nélkül, mert azokat külön rendereljük)
         if (building.type === "farm") {
              return <Building key={building.id} {...commonProps} farmlandTiles={undefined} />;
         }
         
-        return <Building key={building.id} {...commonProps} />; // Helyes key prop
+        return <Building key={building.id} {...commonProps} />;
       })}
       
-      {/* 3. Szellem épületek renderelése (legfelül) */}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
           id="ghost-building"
@@ -233,10 +226,9 @@ const Map: React.FC<MapProps> = ({
           currentPlayerId={currentPlayerId}
           rotation={currentBuildingRotation}
           isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+          isDemolishingRoad={isDemolishingRoad}
         />
       )}
-      {/* Szellem szántóföld csempék */}
       {(isPlacingFarmland && selectedFarmId && ghostFarmlandTiles.length > 0) ? (
         ghostFarmlandTiles.map((tile, index) => (
           <Building
@@ -260,7 +252,9 @@ const Map: React.FC<MapProps> = ({
             currentPlayerId={currentPlayerId}
             rotation={0}
             isPlacementMode={isPlacementMode}
-            isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+            isDemolishingRoad={isDemolishingRoad}
+            cropType={CropType.None} // Átmeneti érték
+            cropProgress={0} // Átmeneti érték
           />
         ))
       ) : (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
@@ -285,10 +279,11 @@ const Map: React.FC<MapProps> = ({
           currentPlayerId={currentPlayerId}
           rotation={0}
           isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+          isDemolishingRoad={isDemolishingRoad}
+          cropType={CropType.None} // Átmeneti érték
+          cropProgress={0} // Átmeneti érték
         />
       ))}
-      {/* Szellem út csempék */}
       {isPlacingRoad && ghostRoadTiles.map((tile, index) => (
         <Building
           key={`ghost-road-${index}`}
@@ -315,7 +310,7 @@ const Map: React.FC<MapProps> = ({
           hasRoadNeighborLeft={isRoadAt(tile.x - 1, tile.y, buildings, ghostRoadTiles)}
           hasRoadNeighborRight={isRoadAt(tile.x + 1, tile.y, buildings, ghostRoadTiles)}
           isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+          isDemolishingRoad={isDemolishingRoad}
         />
       ))}
       {isPlacingRoad && !ghostRoadTiles.length && ghostBuildingCoords && (
@@ -344,7 +339,7 @@ const Map: React.FC<MapProps> = ({
           hasRoadNeighborLeft={isRoadAt(ghostBuildingCoords.x - 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
           hasRoadNeighborRight={isRoadAt(ghostBuildingCoords.x + 1, ghostBuildingCoords.y, buildings, ghostRoadTiles)}
           isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad} // Átadjuk a bontási módot
+          isDemolishingRoad={isDemolishingRoad}
         />
       )}
     </div>
