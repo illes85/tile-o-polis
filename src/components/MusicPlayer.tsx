@@ -140,63 +140,61 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
           {currentTrackName}
         </p>
         
-        {/* Shuffle és Repeat gombok külön sorban */}
-        <div className="flex items-center justify-between">
-          <div className="flex space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleShuffle}
-              className={cn(
-                "h-8 w-8",
-                isShuffling ? "text-primary" : "text-gray-500 hover:text-primary"
-              )}
-              title="Keverés"
-            >
-              <Shuffle className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleRepeat}
-              className={cn(
-                "h-8 w-8",
-                repeatMode !== 'none' ? "text-primary" : "text-gray-500 hover:text-primary"
-              )}
-              title={repeatMode === 'one' ? "Ismétlés: egy dal" : repeatMode === 'all' ? "Ismétlés: összes" : "Ismétlés kikapcsolva"}
-            >
-              <Repeat className="h-4 w-4" />
-              {repeatMode === 'one' && <span className="absolute text-[0.6rem] bottom-1 right-1">1</span>}
-            </Button>
-          </div>
-          
-          {/* Lejátszás gombok */}
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={playPreviousTrack}
-              className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
-            >
-              <SkipBack className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={togglePlayPause}
-              className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
-            >
-              {isPlaying ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={playNextTrack}
-              className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
-            >
-              <SkipForward className="h-4 w-4" />
-            </Button>
-          </div>
+        {/* Vezérlő gombok: Shuffle és Repeat külön sorban, balra igazítva */}
+        <div className="flex justify-start space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleShuffle}
+            className={cn(
+              "h-8 w-8",
+              isShuffling ? "text-primary" : "text-gray-500 hover:text-primary"
+            )}
+            title="Keverés"
+          >
+            <Shuffle className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleRepeat}
+            className={cn(
+              "h-8 w-8",
+              repeatMode !== 'none' ? "text-primary" : "text-gray-500 hover:text-primary"
+            )}
+            title={repeatMode === 'one' ? "Ismétlés: egy dal" : repeatMode === 'all' ? "Ismétlés: összes" : "Ismétlés kikapcsolva"}
+          >
+            <Repeat className="h-4 w-4" />
+            {repeatMode === 'one' && <span className="absolute text-[0.6rem] bottom-1 right-1">1</span>}
+          </Button>
+        </div>
+        
+        {/* Lejátszás gombok: középre igazítva */}
+        <div className="flex justify-center space-x-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={playPreviousTrack}
+            className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
+          >
+            <SkipBack className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={togglePlayPause}
+            className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
+          >
+            {isPlaying ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={playNextTrack}
+            className="bg-sidebar-primary text-sidebar-primary-foreground border-sidebar-border hover:bg-sidebar-primary/80"
+          >
+            <SkipForward className="h-4 w-4" />
+          </Button>
         </div>
         
         {/* Hangerő csúszka */}
