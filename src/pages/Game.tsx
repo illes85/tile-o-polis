@@ -129,6 +129,7 @@ const Game = () => {
   const [farmlandActionState, setFarmlandActionState] = useState<{ isOpen: boolean, farmId: string, tileX: number, tileY: number, cropType: CropType, cropProgress: number } | null>(null);
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
+  const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({}); // <-- Ez a sor került feljebb
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
   const mainContentRef = useRef<HTMLDivElement>(null);
