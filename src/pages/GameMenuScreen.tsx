@@ -4,13 +4,14 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { showSuccess, showError } from "@/utils/toast";
+import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { saveGame, loadGame } from "@/utils/saveLoad";
 
 const GameMenuScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [lastGameState, setLastGameState] = useState<any | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (location.state && location.state.players && location.state.buildings) {
@@ -30,23 +31,33 @@ const GameMenuScreen: React.FC = () => {
     }
   };
 
-  const handleSaveGame = () => {
+  const handleSaveGame = async () => {
     if (lastGameState) {
-      const success = saveGame(lastGameState);
-      if (success) showSuccess("Játék sikeresen mentve a böngészőbe!");
-      else showError("Hiba történt a mentéskor.");
+      setIsProcessing(true);
+      const toastId = showLoading("Mentés az adatbázisba...");
+      const success = await saveGame(lastGameState);
+      dismissToast(toastId);
+      setIsProcessing(false);
+      
+      if (success) showSuccess("Játék sikeresen mentve a felhőbe!");
+      else showError("Hiba történt a mentéskor. Kérlek ellenőrizd a Supabase kapcsolatot.");
     } else {
       showError("Nincs mit elmenteni. Előbb kezdj el játszani!");
     }
   };
 
-  const handleLoadGame = () => {
-    const savedData = loadGame();
+  const handleLoadGame = async () => {
+    setIsProcessing(true);
+    const toastId = showLoading("Betöltés a felhőből...");
+    const savedData = await loadGame();
+    dismissToast(toastId);
+    setIsProcessing(false);
+
     if (savedData) {
       showSuccess("Mentett játék betöltve!");
       navigate("/game", { state: savedData });
     } else {
-      showError("Nem található mentett játék.");
+      showError("Nem található mentett játék az adatbázisban.");
     }
   };
 
@@ -58,13 +69,12 @@ const GameMenuScreen: React.FC = () => {
         </CardHeader>
         <CardContent className="flex flex-col space-y-4">
           {lastGameState && (
-            <Button onClick={handleResumeGame} className="w-full">Vissza a játékba</Button>
+            <Button onClick={handleResumeGame} disabled={isProcessing} className="w-full">Vissza a játékba</Button>
           )}
-          <Button onClick={handleNewGame} className="w-full">Új Játék</Button>
-          <Button onClick={handleSaveGame} className="w-full" variant="secondary">Játék Mentése</Button>
-          <Button onClick={handleLoadGame} className="w-full" variant="secondary">Játék Betöltése</Button>
-          <Button onClick={() => showError("Beállítások hamarosan...")} className="w-full" variant="secondary">Beállítások</Button>
-          <Button onClick={() => navigate('/select-player')} className="w-full" variant="destructive">Kilépés</Button>
+          <Button onClick={handleNewGame} disabled={isProcessing} className="w-full">Új Játék</Button>
+          <Button onClick={handleSaveGame} disabled={isProcessing} className="w-full" variant="secondary">Játék Mentése</Button>
+          <Button onClick={handleLoadGame} disabled={isProcessing} className="w-full" variant="secondary">Játék Betöltése</Button>
+          <Button onClick={() => navigate('/select-player')} disabled={isProcessing} className="w-full" variant="destructive">Kilépés</Button>
         </CardContent>
       </Card>
     </div>
