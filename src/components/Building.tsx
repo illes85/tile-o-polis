@@ -6,7 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; 
 import satorImage from "@/images/sator.png"; 
 import hazikoImage from "@/images/haziko.png"; 
-import farmImage from "@/images/farm.png"; // ÚJ IMPORT
+import farmImage from "@/images/farm.png"; 
+import valyoghazImage from "@/images/vályogház (át).png"; // ÚJ VÁLYOGHÁZ KÉP IMPORTÁLÁSA
 
 // Tileset elérési utak
 const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
@@ -24,7 +25,8 @@ export interface FarmlandTile {
   ownerId: string;
   isUnderConstruction?: boolean; 
   buildProgress?: number; 
-  constructionEta?: number; // ÚJ: Építkezés befejezési ideje (timestamp)
+  constructionEta?: number; // Építkezés befejezési ideje (timestamp)
+  originalDuration?: number; // Eredeti építési időtartam (ms)
   cropType: CropType; 
   cropProgress?: number; 
 }
@@ -49,7 +51,8 @@ interface BuildingProps {
   isGhost?: boolean;
   isUnderConstruction?: boolean;
   buildProgress?: number;
-  constructionEta?: number; // ÚJ: Építkezés befejezési ideje (timestamp)
+  constructionEta?: number; // Építkezés befejezési ideje (timestamp)
+  originalDuration?: number; // Eredeti építési időtartam (ms)
   currentPlayerId: string;
   rotation: number;
   hasRoadNeighborTop?: boolean;
@@ -79,8 +82,9 @@ const Building: React.FC<BuildingProps> = ({
   employeeIds,
   isGhost = false,
   isUnderConstruction = false,
-  buildProgress = 0, // Ezt már nem használjuk közvetlenül, de a prop-ban maradhat
-  constructionEta, // ÚJ
+  buildProgress = 0, 
+  constructionEta, 
+  originalDuration, // ÚJ PROP
   currentPlayerId,
   rotation,
   hasRoadNeighborTop = false,
@@ -93,38 +97,17 @@ const Building: React.FC<BuildingProps> = ({
   cropProgress = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [currentBuildProgress, setCurrentBuildProgress] = useState(buildProgress);
+  const [now, setNow] = useState(Date.now());
 
+  // Frissítjük az időt másodpercenként a progressz számításához
   useEffect(() => {
-    if (isUnderConstruction && constructionEta) {
+    if (isUnderConstruction) {
       const interval = setInterval(() => {
-        const now = Date.now();
-        const totalDuration = constructionEta - (now - (constructionEta - (buildProgress * (constructionEta / 100)))); // Ez a sor bonyolult, egyszerűsítsük
-        // A buildProgress-t már nem a Game.tsx állítja be, hanem itt számoljuk ki
-        // A constructionEta-ból és a kezdeti időből kellene számolni, de mivel a Game.tsx már nem adja át a duration-t,
-        // feltételezzük, hogy a buildProgress a 0-100 közötti értéket jelenti, és a constructionEta a befejezési idő.
-        // A Game.tsx-ben kellene a duration-t is elmenteni, vagy a BuildingOption-ből lekérni.
-        // Most csak a vizuális progresszt frissítem, feltételezve, hogy a Game.tsx gondoskodik a constructionEta frissítéséről.
-        const remainingTime = Math.max(0, constructionEta - now);
-        const totalBuildDuration = constructionEta - (Date.now() - (currentBuildProgress * (constructionEta - (Date.now() - (currentBuildProgress * (constructionEta / 100)))))); // Ez is bonyolult
-        // Egyszerűsítve: ha van constructionEta, akkor a progresszt a hátralévő idő alapján számoljuk
-        // Mivel a BuildingOption-ben van duration, azt használhatjuk a teljes időtartamra.
-        // De a Building komponens nem ismeri a BuildingOption-t.
-        // A legegyszerűbb, ha a Game.tsx adja át a duration-t is a BuildingData-ban.
-        // Mivel a BuildingData-ban nincs duration, most csak a buildProgress-t használom, amit a Game.tsx állít be.
-        // Ezért a buildProgress-t továbbra is a Game.tsx-nek kellene frissítenie.
-        // Visszaállítom az eredeti logikát, de a Game.tsx-ben kell majd az ETA alapú frissítést megcsinálni.
-        // A Game.tsx-ben a constructionEta-t fogjuk használni a befejezéshez, és a buildProgress-t a vizuális megjelenítéshez.
-        // Tehát a buildProgress-t továbbra is a Game.tsx-nek kell frissítenie.
-        // Ezért a Building komponensben nem kell külön időzítő a buildProgress-hez.
-        // Csak a constructionEta-t kell figyelni a Game.tsx-ben.
-        // A buildProgress-t a Game.tsx-ből kapjuk meg.
-        setCurrentBuildProgress(buildProgress); // A Game.tsx-ből kapott progresszt használjuk
+        setNow(Date.now());
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [isUnderConstruction, constructionEta, buildProgress]);
-
+  }, [isUnderConstruction]);
 
   const actualX = x * cellSizePx;
   const actualY = y * cellSizePx;
@@ -161,28 +144,19 @@ const Building: React.FC<BuildingProps> = ({
     }
   };
 
-  if (isUnderConstruction) {
+  if (isUnderConstruction && constructionEta && originalDuration) {
     visualClasses = "bg-gray-600 opacity-70 border border-gray-500";
-    // A buildProgress-t a Game.tsx-ből kapjuk meg, és az alapján jelenítjük meg
-    const progressValue = constructionEta ? Math.min(100, Math.max(0, (Date.now() - (constructionEta - (buildProgress * (constructionEta / 100)))) / (constructionEta - (Date.now() - (buildProgress * (constructionEta / 100)))) * 100)) : 0;
-    // Egyszerűsítve: ha van constructionEta, akkor a progresszt a hátralévő idő alapján számoljuk
-    // A Game.tsx-ben kellene a duration-t is elmenteni, vagy a BuildingOption-ből lekérni.
-    // Mivel a BuildingData-ban nincs duration, most csak a buildProgress-t használom, amit a Game.tsx állít be.
-    // Ezért a buildProgress-t továbbra is a Game.tsx-nek kellene frissítenie.
-    // A Game.tsx-ben a constructionEta-t fogjuk használni a befejezéshez, és a buildProgress-t a vizuális megjelenítéshez.
-    // Tehát a buildProgress-t továbbra is a Game.tsx-nek kell frissítenie.
-    // Ezért a Building komponensben nem kell külön időzítő a buildProgress-hez.
-    // Csak a constructionEta-t kell figyelni a Game.tsx-ben.
-    // A buildProgress-t a Game.tsx-ből kapjuk meg.
-    const remainingTimeSec = constructionEta ? Math.ceil(Math.max(0, (constructionEta - Date.now()) / 1000)) : 0;
-    const calculatedProgress = constructionEta ? Math.min(100, Math.max(0, 100 - (remainingTimeSec / ( (constructionEta - (Date.now() - (buildProgress * (constructionEta / 100)))) / 1000)) * 100)) : 0;
-    // Mivel a buildProgress-t a Game.tsx-ből kapjuk, azt használjuk.
+    
+    const timeElapsed = now - (constructionEta - originalDuration);
+    const progressValue = Math.min(100, Math.max(0, (timeElapsed / originalDuration) * 100));
+    const remainingTimeSec = Math.ceil(Math.max(0, (constructionEta - now) / 1000));
+
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full p-1"> 
         <Hammer className="h-6 w-6 text-white mb-1" />
         <span className="text-white text-xs">Épül...</span>
-        <Progress value={buildProgress} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
-        {constructionEta && <span className="text-white text-[0.6rem] mt-1">{remainingTimeSec} mp</span>}
+        <Progress value={progressValue} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
+        <span className="text-white text-[0.6rem] mt-1">{remainingTimeSec} mp</span>
       </div>
     );
   } else {
@@ -190,25 +164,41 @@ const Building: React.FC<BuildingProps> = ({
 
     switch (type) {
       case "house":
-        if (name === "Sátor" || name === "Házikó") {
-          if (isHovered) visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+        if (name === "Sátor") {
+          content = <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />;
+        } else if (name === "Házikó") {
+          content = <img src={hazikoImage} alt="Házikó" className="h-full w-full object-cover" />;
+        } else if (name === "Vályogház") {
+          content = <img src={valyoghazImage} alt="Vályogház" className="h-full w-full object-cover" />;
         } else {
           visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
           baseClasses += " p-1";
+          content = <span className="text-white text-xs">{name}</span>;
         }
-        content = (
-          <>
-            {name === "Sátor" && <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />}
-            {name === "Házikó" && <img src={hazikoImage} alt="Házikó" className="h-full w-full object-cover" />}
-            {name !== "Sátor" && name !== "Házikó" && <span className="text-white text-xs">{name}</span>}
-            {occupancy > 0 && (
+        
+        if (name !== "Sátor" && name !== "Házikó" && name !== "Vályogház") {
+            visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+            baseClasses += " p-1";
+        }
+
+        if (occupancy > 0) {
+          content = (
+            <>
+              {content}
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => <User key={index} className="h-3 w-3 text-blue-200" />)}
               </div>
-            )}
-            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
-          </>
-        );
+            </>
+          );
+        }
+        if (isOwnedByPlayer) {
+            content = (
+                <>
+                    {content}
+                    <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+                </>
+            );
+        }
         break;
       case "office":
         visualClasses += " bg-blue-600 border border-gray-500 hover:bg-blue-700";

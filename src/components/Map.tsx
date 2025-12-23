@@ -22,7 +22,8 @@ export interface BuildingData {
   employeeIds: string[];
   isUnderConstruction: boolean;
   buildProgress?: number;
-  constructionEta?: number; // ÚJ: Építkezés befejezési ideje (timestamp)
+  constructionEta?: number; // Építkezés befejezési ideje (timestamp)
+  originalDuration?: number; // Eredeti építési időtartam (ms)
   rotation: number;
   farmlandTiles?: FarmlandTile[];
   hasRoadNeighborTop?: boolean;
@@ -44,8 +45,8 @@ interface MapProps {
   ghostBuildingCoords: { x: number; y: number } | null;
   onGridMouseMove: (gridX: number, gridY: number) => void; // Módosítva, hogy ne adja át az eseményt
   onMapClick: (x: number, y: number) => void; // Módosítva, hogy ne adja át az eseményt
-  onMapMouseDown: (x: number, y: number) => void; // Új prop - JAVÍTVA
-  onMapMouseUp: (x: number, y: number) => void; // Új prop - JAVÍTVA
+  onMapMouseDown: (x: number, y: number) => void; // Új prop
+  onMapMouseUp: (x: number, y: number) => void; // Új prop
   currentPlayerId: string;
   currentBuildingRotation: number;
   isPlacingFarmland: boolean;
@@ -182,6 +183,7 @@ const Map: React.FC<MapProps> = ({
           cropType={tile.cropType}
           cropProgress={tile.cropProgress}
           constructionEta={tile.constructionEta} // Átadjuk az új prop-ot
+          originalDuration={tile.originalDuration} // Átadjuk az új prop-ot
         />
       ))}
 

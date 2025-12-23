@@ -17,7 +17,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock, DollarSign, Popcorn } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock, DollarSign, Popcorn, Briefcase as BriefcaseIcon, Home as HomeIcon } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -25,6 +25,7 @@ import ShopMenu from "@/components/ShopMenu";
 import MarketplaceMenu from "@/components/MarketplaceMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
+import JobHousingFinder from "@/components/JobHousingFinder"; // ÚJ IMPORT
 
 const MAP_GRID_SIZE = 40;
 const CELL_SIZE_PX = 32; 
@@ -100,21 +101,21 @@ interface PopcornProcess {
 }
 
 const availableBuildingOptions: BuildingOption[] = [
-  { type: "house", category: "residential", name: "Sátor", cost: 200, duration: 4000, width: 2, height: 1, rentalPrice: 0, capacity: 1 },
-  { type: "house", category: "residential", name: "Házikó", cost: BUILD_HOUSE_COST, duration: BUILD_HOUSE_DURATION_MS, width: 2, height: 2, rentalPrice: 10, capacity: 2 },
-  { type: "house", category: "residential", name: "Normál Ház", cost: 750, duration: 15000, width: 3, height: 2, rentalPrice: 15, capacity: 3 },
-  { type: "house", category: "residential", name: "Kádárkocka", cost: 1200, duration: 20000, width: 3, height: 3, rentalPrice: 25, capacity: 4 },
-  { type: "house", category: "residential", name: "Családi Ház", cost: 1800, duration: 25000, width: 4, height: 2, rentalPrice: 35, capacity: 5 },
-  { type: "house", category: "residential", name: "Villa (kétszintes)", cost: 2500, duration: 30000, width: 3, height: 3, rentalPrice: 50, capacity: 6 },
-  { type: "house", category: "residential", name: "Nagy Villa", cost: 3500, duration: 40000, width: 4, height: 4, rentalPrice: 70, capacity: 8 },
-  { type: "office", category: "business", name: "Közszolgálati Iroda", cost: 1000, duration: 15000, width: 3, height: 8, salary: OFFICE_SALARY_PER_INTERVAL, capacity: 4 },
-  { type: "forestry", category: "business", name: "Erdészház", cost: 850, woodCost: 5, duration: 12000, width: 4, height: 4, salary: 8, capacity: 1 },
-  { type: "farm", category: "business", name: "Farm", cost: 1000, brickCost: 5, woodCost: 3, duration: 10000, width: 4, height: 4, salary: 5, capacity: 2 },
-  { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 30000, width: 4, height: 3, salary: 20, capacity: 5 },
-  { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 20000, width: 3, height: 3, salary: 10, capacity: 3 },
-  { type: "mill", category: "business", name: "Malom", cost: 2000, woodCost: 10, brickCost: 15, stoneCost: 5, duration: 25000, width: 4, height: 4, salary: 15, capacity: 3 },
-  { type: "office", category: "business", name: "Piac", cost: 3000, woodCost: 15, brickCost: 15, duration: 35000, width: 5, height: 5, salary: 25, capacity: 5 },
-  { type: "popcorn_stand", category: "business", name: "Popcorn Árus", cost: 500, woodCost: 2, duration: 8000, width: 2, height: 2, salary: 5, capacity: 1 }, // ÚJ ÉPÜLET
+  { type: "house", category: "residential", name: "Sátor", cost: 200, duration: 5000, width: 2, height: 1, rentalPrice: 0, capacity: 1 },
+  { type: "house", category: "residential", name: "Házikó", cost: BUILD_HOUSE_COST, duration: 10000, width: 2, height: 2, rentalPrice: 10, capacity: 2 },
+  { type: "house", category: "residential", name: "Vályogház", cost: 750, duration: 15000, width: 3, height: 2, rentalPrice: 15, capacity: 3 }, // Név frissítve
+  { type: "house", category: "residential", name: "Kádárkocka", cost: 1200, duration: 25000, width: 3, height: 3, rentalPrice: 25, capacity: 4 },
+  { type: "house", category: "residential", name: "Családi Ház", cost: 1800, duration: 35000, width: 4, height: 2, rentalPrice: 35, capacity: 5 },
+  { type: "house", category: "residential", name: "Villa (kétszintes)", cost: 2500, duration: 45000, width: 3, height: 3, rentalPrice: 50, capacity: 6 },
+  { type: "house", category: "residential", name: "Nagy Villa", cost: 3500, duration: 60000, width: 4, height: 4, rentalPrice: 70, capacity: 8 },
+  { type: "office", category: "business", name: "Közszolgálati Iroda", cost: 1000, duration: 20000, width: 3, height: 8, salary: OFFICE_SALARY_PER_INTERVAL, capacity: 4 },
+  { type: "forestry", category: "business", name: "Erdészház", cost: 850, woodCost: 5, duration: 15000, width: 4, height: 4, salary: 8, capacity: 1 },
+  { type: "farm", category: "business", name: "Farm", cost: 1000, brickCost: 5, woodCost: 3, duration: 15000, width: 4, height: 4, salary: 5, capacity: 2 },
+  { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 40000, width: 4, height: 3, salary: 20, capacity: 5 },
+  { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 30000, width: 3, height: 3, salary: 10, capacity: 3 },
+  { type: "mill", category: "business", name: "Malom", cost: 2000, woodCost: 10, brickCost: 15, stoneCost: 5, duration: 35000, width: 4, height: 4, salary: 15, capacity: 3 },
+  { type: "office", category: "business", name: "Piac", cost: 3000, woodCost: 15, brickCost: 15, duration: 50000, width: 5, height: 5, salary: 25, capacity: 5 },
+  { type: "popcorn_stand", category: "business", name: "Popcorn Árus", cost: 500, woodCost: 2, duration: 10000, width: 2, height: 2, salary: 5, capacity: 1 }, 
 ];
 
 const Game = () => {
@@ -131,9 +132,10 @@ const Game = () => {
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
   const [buildings, setBuildings] = useState<BuildingData[]>(initialBuildingsState || []);
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingData | null>(null);
-  const [isBuildingInProgress, setIsBuildingInProgress] = useState(false); // Ezt az állapotot már nem használjuk közvetlenül az építési folyamat jelzésére
+  const [isBuildingInProgress, setIsBuildingInProgress] = useState(false); 
   const [isBuildMenuOpen, setIsBuildMenuOpen] = useState(false);
   const [isMoneyHistoryOpen, setIsMoneyHistoryOpen] = useState(false);
+  const [isJobHousingFinderOpen, setIsJobHousingFinderOpen] = useState(false); // ÚJ ÁLLAPOT
   const [msUntilNextTick, setMsUntilNextTick] = useState(RENT_INTERVAL_MS);
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
@@ -370,7 +372,7 @@ const Game = () => {
     return () => clearInterval(growthTimer);
   }, []);
 
-  // ÚJ: Építkezés befejezésének figyelése ETA alapján
+  // Építkezés befejezésének figyelése ETA alapján
   useEffect(() => {
     const constructionChecker = setInterval(() => {
       const now = Date.now();
@@ -380,10 +382,11 @@ const Game = () => {
         const newBuildings = prevBuildings.map(b => {
           // Épületek ellenőrzése
           if (b.isUnderConstruction && b.constructionEta && now >= b.constructionEta) {
-            if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx(); // Leállítjuk az építési hangot
+            if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx(); 
             showSuccess(`${b.name} kész!`);
             updatedBuildingsState = true;
-            return { ...b, isUnderConstruction: false, constructionEta: undefined, buildProgress: 100 };
+            // Fontos: beállítjuk a progresszt 100-ra, és eltávolítjuk az ETA-t
+            return { ...b, isUnderConstruction: false, constructionEta: undefined, originalDuration: undefined, buildProgress: 100 };
           }
 
           // Szántóföld csempék ellenőrzése
@@ -392,23 +395,43 @@ const Game = () => {
               if (ft.isUnderConstruction && ft.constructionEta && now >= ft.constructionEta) {
                 showSuccess(`Szántóföld kész: (${ft.x}, ${ft.y})!`);
                 updatedBuildingsState = true;
-                return { ...ft, isUnderConstruction: false, constructionEta: undefined, buildProgress: 100 };
+                // Fontos: beállítjuk a progresszt 100-ra, és eltávolítjuk az ETA-t
+                return { ...ft, isUnderConstruction: false, constructionEta: undefined, originalDuration: undefined, buildProgress: 100 };
               }
               return ft;
             });
-            if (updatedBuildingsState) { // Ha bármelyik csempe elkészült, frissítjük a farmot
+            if (updatedBuildingsState) { 
               return { ...b, farmlandTiles: newFarmlandTiles };
             }
           }
+          
+          // Progressz frissítése (csak vizuális célból, ha még épül)
+          if (b.isUnderConstruction && b.constructionEta && b.originalDuration) {
+            const elapsed = now - (b.constructionEta - b.originalDuration);
+            const progress = Math.min(100, (elapsed / b.originalDuration) * 100);
+            return { ...b, buildProgress: progress };
+          }
+          
+          if (b.type === 'farm' && b.farmlandTiles) {
+            const updatedTiles = b.farmlandTiles.map(ft => {
+              if (ft.isUnderConstruction && ft.constructionEta && ft.originalDuration) {
+                const elapsed = now - (ft.constructionEta - ft.originalDuration);
+                const progress = Math.min(100, (elapsed / ft.originalDuration) * 100);
+                return { ...ft, buildProgress: progress };
+              }
+              return ft;
+            });
+            return { ...b, farmlandTiles: updatedTiles };
+          }
+
           return b;
         });
-        // Ha történt változás, akkor frissítjük az állapotot
-        return updatedBuildingsState ? newBuildings : prevBuildings;
+        return newBuildings;
       });
-    }, 1000); // Másodpercenként ellenőrizzük
+    }, 1000); 
 
     return () => clearInterval(constructionChecker);
-  }, [buildings]); // Függőségek: buildings, hogy frissüljön, ha új épület kerül a listába
+  }, [buildings, sfxPlayerRef]); 
 
 
   const tickProgress = 100 - ((msUntilNextTick / RENT_INTERVAL_MS) * 100); 
@@ -496,6 +519,7 @@ const Game = () => {
 
     setIsPlacingBuilding(continuous);
     const newId = `${buildingToPlace.name}-${Date.now()}`;
+    const duration = buildingToPlace.duration;
 
     setPlayers(prev => prev.map(p => 
       p.id === currentPlayerId ? {
@@ -527,8 +551,9 @@ const Game = () => {
       residentIds: [],
       employeeIds: [],
       isUnderConstruction: true,
-      buildProgress: 0, // Kezdeti progressz 0
-      constructionEta: Date.now() + buildingToPlace.duration, // Befejezési idő
+      buildProgress: 0, 
+      constructionEta: Date.now() + duration, // Befejezési idő
+      originalDuration: duration, // Eredeti időtartam
       rotation: currentBuildingRotation,
       farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
       level: 1,
@@ -612,6 +637,7 @@ const Game = () => {
         
         addTransaction(currentPlayerId, "expense", `Szántóföld vásárlás (${placeableTiles.length} csempe)`, totalCost);
 
+        const duration = FARMLAND_BUILD_DURATION_MS;
 
         setBuildings(prev => prev.map(b => {
           if (b.id === selectedFarmId) {
@@ -622,8 +648,9 @@ const Game = () => {
               cropType: CropType.None,
               cropProgress: 0,
               isUnderConstruction: true,
-              buildProgress: 0, // Kezdeti progressz 0
-              constructionEta: Date.now() + FARMLAND_BUILD_DURATION_MS, // Befejezési idő
+              buildProgress: 0, 
+              constructionEta: Date.now() + duration, // Befejezési idő
+              originalDuration: duration, // Eredeti időtartam
             }));
             return {
               ...b,
@@ -767,6 +794,80 @@ const Game = () => {
     setSelectedBuilding(null);
   };
 
+  const handleApplyForJob = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || !building.salary) return;
+
+    if (currentPlayer.workplace !== "Munkanélküli") {
+        showError("Előbb fel kell mondanod a jelenlegi munkahelyeden!");
+        return;
+    }
+    
+    if (building.employeeIds.length >= building.capacity) {
+        showError("Ez a munkahely már betelt!");
+        return;
+    }
+
+    setBuildings(prev => prev.map(b => 
+      b.id === buildingId ? { 
+        ...b, 
+        employeeIds: [...b.employeeIds, currentPlayerId]
+      } : b
+    ));
+
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? { 
+        ...p, 
+        workplace: building.name,
+        workplaceSalary: building.salary!
+      } : p
+    ));
+
+    showSuccess(`Sikeresen elhelyezkedtél a(z) ${building.name} munkahelyen!`);
+    setIsJobHousingFinderOpen(false);
+  };
+
+  const handleRentHouse = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || !building.rentalPrice) return;
+
+    if (buildings.some(b => b.residentIds.includes(currentPlayer.id))) {
+        showError("Már bérelsz egy ingatlant! Előbb ki kell költöznöd.");
+        return;
+    }
+    
+    if (building.residentIds.length >= building.capacity) {
+        showError("Ez a lakás már betelt!");
+        return;
+    }
+
+    if (currentPlayer.money < building.rentalPrice) {
+        showError("Nincs elég pénzed az első bérleti díj kifizetéséhez!");
+        return;
+    }
+
+    // Első bérleti díj levonása
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? {
+        ...p,
+        money: p.money - building.rentalPrice!
+      } : p
+    ));
+    addTransaction(currentPlayerId, "expense", `Első bérleti díj: ${building.name}`, building.rentalPrice);
+
+    // Lakás bérlése
+    setBuildings(prev => prev.map(b => 
+      b.id === buildingId ? { 
+        ...b, 
+        residentIds: [...b.residentIds, currentPlayerId],
+        renterId: currentPlayerId
+      } : b
+    ));
+
+    showSuccess(`Sikeresen beköltöztél a(z) ${building.name} ingatlanba!`);
+    setIsJobHousingFinderOpen(false);
+  };
+
   const handleResignFromJob = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
     if (!building || !building.employeeIds.includes(currentPlayerId)) return;
@@ -781,13 +882,33 @@ const Game = () => {
     setPlayers(prev => prev.map(p => 
       p.id === currentPlayerId ? { 
         ...p, 
-        workplace: "Munkanélküli" 
+        workplace: "Munkanélküli",
+        workplaceSalary: 0
       } : p
     ));
 
     showSuccess(`Felmondtál a(z) ${building.name} munkahelyen.`);
     setSelectedBuilding(null);
   };
+
+  const handleEvictTenant = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || building.ownerId !== currentPlayerId || !building.renterId) return;
+
+    const tenantId = building.renterId;
+    
+    setBuildings(prev => prev.map(b => 
+      b.id === buildingId ? { 
+        ...b, 
+        residentIds: b.residentIds.filter(id => id !== tenantId),
+        renterId: undefined
+      } : b
+    ));
+
+    showSuccess(`A bérlő (ID: ${tenantId}) kiköltözött a(z) ${building.name} ingatlanból.`);
+    setSelectedBuilding(null);
+  };
+
 
   const handleRestock = useCallback((shopId: string, type: ProductType, quantity: number) => {
     setShopInventories(prev => {
@@ -1315,9 +1436,14 @@ const Game = () => {
       
       <div className="mt-4 space-y-2">
         {!isPlacementMode ? (
-          <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">
-            Építés
-          </Button>
+          <>
+            <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">
+              Építés
+            </Button>
+            <Button onClick={() => setIsJobHousingFinderOpen(true)} className="w-full bg-indigo-600 font-bold flex items-center justify-center">
+              <BriefcaseIcon className="h-4 w-4 mr-2" /> Állás/Lakás Kereső
+            </Button>
+          </>
         ) : (
           <div className="space-y-2">
             <Button 
@@ -1685,16 +1811,7 @@ const Game = () => {
                 </div>
                 <DialogFooter>
                   {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && selectedBuilding.residentIds.length < selectedBuilding.capacity && (
-                    <Button onClick={() => {
-                      setBuildings(prev => prev.map(b => 
-                        b.id === selectedBuilding.id ? { 
-                          ...b, 
-                          residentIds: [...b.residentIds, currentPlayerId],
-                          renterId: currentPlayerId
-                        } : b
-                      ));
-                      setSelectedBuilding(null);
-                    }}>
+                    <Button onClick={() => handleRentHouse(selectedBuilding.id)}>
                       Beköltözés
                     </Button>
                   )}
@@ -1703,22 +1820,13 @@ const Game = () => {
                       Megtelt
                     </Button>
                   )}
+                  {selectedBuilding.type === "house" && selectedBuilding.residentIds.includes(currentPlayerId) && (
+                    <Button variant="destructive" onClick={() => handleEvictTenant(selectedBuilding.id)}>
+                      Kiköltözés
+                    </Button>
+                  )}
                   {selectedBuilding.salary && !selectedBuilding.employeeIds.includes(currentPlayerId) && currentPlayer.workplace === "Munkanélküli" && selectedBuilding.employeeIds.length < selectedBuilding.capacity && (
-                    <Button onClick={() => {
-                      setBuildings(prev => prev.map(b => 
-                        b.id === selectedBuilding.id ? { 
-                          ...b, 
-                          employeeIds: [...b.employeeIds, currentPlayerId]
-                        } : b
-                      ));
-                      setPlayers(prev => prev.map(p => 
-                        p.id === currentPlayerId ? { 
-                          ...p, 
-                          workplace: selectedBuilding.name 
-                        } : p
-                      ));
-                      setSelectedBuilding(null);
-                    }}>
+                    <Button onClick={() => handleApplyForJob(selectedBuilding.id)}>
                       Munkába állás
                     </Button>
                   )}
@@ -1837,6 +1945,15 @@ const Game = () => {
             onClose={() => setIsMoneyHistoryOpen(false)}
             transactions={transactions}
             currentPlayerId={currentPlayerId}
+          />
+
+          <JobHousingFinder
+            isOpen={isJobHousingFinderOpen}
+            onClose={() => setIsJobHousingFinderOpen(false)}
+            buildings={buildings}
+            currentPlayer={currentPlayer}
+            onApplyForJob={handleApplyForJob}
+            onRentHouse={handleRentHouse}
           />
         </div>
       } 
