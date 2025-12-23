@@ -205,7 +205,6 @@ const Game = () => {
     return inFarmProximity || nextToOtherTile;
   };
 
-  // HIÁNYZÓ FÜGGVÉNY PÓTLÁSA
   const handleBuildingClick = (buildingId: string) => {
     if (isPlacementMode) return;
     const building = buildings.find(b => b.id === buildingId);
@@ -237,7 +236,7 @@ const Game = () => {
         buildProgress: 0, 
         rotation: currentBuildingRotation, 
         farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
-        level: 1 // Alap szint beállítása minden új épülethez
+        level: 1 
       };
 
       setBuildings(prev => [...prev, newBuilding]);
@@ -274,7 +273,6 @@ const Game = () => {
     const opt = availableBuildingOptions.find(o => o.name === buildingName);
     if (!opt) return;
 
-    // Költségek ellenőrzése
     if (currentPlayer.money < opt.cost) { showError("Nincs elég pénzed!"); return; }
     if (opt.woodCost && (currentPlayer.inventory.wood || 0) < opt.woodCost) { showError("Nincs elég fád!"); return; }
     if (opt.brickCost && (currentPlayer.inventory.brick || 0) < opt.brickCost) { showError("Nincs elég téglád!"); return; }
@@ -378,7 +376,7 @@ const Game = () => {
               currentPlayerMoney={currentPlayer.money} 
               shopItems={shopInventories[selectedShopBuilding.id] || []} 
               shopLevel={selectedShopBuilding.level || 1}
-              onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] })) 
+              onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] }))} 
               onOrderStock={(t, q) => { 
                 const it = shopInventories[selectedShopBuilding.id]?.find(i => i.type === t); 
                 if (it && currentPlayer.money >= it.wholesalePrice * q) { 
