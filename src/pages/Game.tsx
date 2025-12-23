@@ -217,7 +217,7 @@ const Game = () => {
       if (isCellOccupied(gridX, gridY, buildings)) { showError("Hely foglalt!"); return; }
       setIsPlacingBuilding(false);
       const newId = `${buildingToPlace.name}-${Date.now()}`;
-      setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p));
+      setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost, inventory: { ...p.inventory, wood: p.inventory.wood - (buildingToPlace.woodCost || 0), brick: p.inventory.brick - (buildingToPlace.brickCost || 0) } } : p));
       
       const newBuilding: BuildingData = { 
         id: newId, 
@@ -268,6 +268,20 @@ const Game = () => {
         showSuccess("Szántóföld bővítve!");
       }, 3000);
     }
+  };
+
+  const handleBuildBuilding = (buildingName: string) => {
+    const opt = availableBuildingOptions.find(o => o.name === buildingName);
+    if (!opt) return;
+
+    // Költségek ellenőrzése
+    if (currentPlayer.money < opt.cost) { showError("Nincs elég pénzed!"); return; }
+    if (opt.woodCost && (currentPlayer.inventory.wood || 0) < opt.woodCost) { showError("Nincs elég fád!"); return; }
+    if (opt.brickCost && (currentPlayer.inventory.brick || 0) < opt.brickCost) { showError("Nincs elég téglád!"); return; }
+
+    setIsBuildMenuOpen(false);
+    setBuildingToPlace(opt);
+    setIsPlacingBuilding(true);
   };
 
   const handleBuyProduct = (shopId: string, type: ProductType, qty: number) => {
@@ -364,7 +378,7 @@ const Game = () => {
               currentPlayerMoney={currentPlayer.money} 
               shopItems={shopInventories[selectedShopBuilding.id] || []} 
               shopLevel={selectedShopBuilding.level || 1}
-              onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] }))} 
+              onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] })) 
               onOrderStock={(t, q) => { 
                 const it = shopInventories[selectedShopBuilding.id]?.find(i => i.type === t); 
                 if (it && currentPlayer.money >= it.wholesalePrice * q) { 
