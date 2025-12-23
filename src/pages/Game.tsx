@@ -159,6 +159,11 @@ const Game = () => {
   const [millProcesses, setMillProcesses] = useState<MillProcess[]>([]);
   const [popcornProcesses, setPopcornProcesses] = useState<PopcornProcess[]>([]); // ÚJ: Popcorn folyamatok
 
+  // Új állapotok a húzás funkcióhoz
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartCoords, setDragStartCoords] = useState<{ x: number; y: number } | null>(null);
+  const [draggedTiles, setDraggedTiles] = useState<{ x: number; y: number }[]>([]); // HIÁNYZÓ ÁLLAPOT
+
   // --- Event Listeners a Shift gombhoz ---
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -169,9 +174,9 @@ const Game = () => {
         setIsPlacingRoad(false);
         setGhostBuildingCoords(null);
         // Reset drag states if needed
-        // setIsDragging(false);
-        // setDraggedTiles([]);
-        // setGhostRoadTiles([]);
+        setIsDragging(false);
+        setDraggedTiles([]);
+        setGhostRoadTiles([]);
       }
     };
     const handleKeyUp = (event: KeyboardEvent) => {
@@ -1006,6 +1011,52 @@ const Game = () => {
     showSuccess(`${quantity} adag búza feldolgozása elindult (${totalDuration / 1000} mp).`);
   };
 
+  const handleStartPopcornProcess = (standId: string, quantity: number) => {
+    const stand = buildings.find(b => b.id === standId);
+    if (!stand || !stand.ownerId || stand.employeeIds.length === 0) {
+      showError("A Popcorn Árus zárva van, vagy nincs alkalmazott!");
+      return;
+    }
+
+    const requiredCorn = quantity * POPCORN_CORN_CONSUMPTION;
+    const producedPopcorn = quantity * POPCORN_PRODUCTION;
+    const totalDuration = quantity * POPCORN_PROCESSING_TIME_MS;
+
+    const currentCorn = stand.popcornStandInventory?.corn || 0;
+
+    if (currentCorn < requiredCorn) {
+      showError(`Nincs elég kukorica a készletben! Szükséges: ${requiredCorn} db.`);
+      return;
+    }
+
+    // 1. Kukorica levonása a készletből
+    setBuildings(prev => prev.map(b => {
+      if (b.id === standId && b.type === 'popcorn_stand') {
+        return {
+          ...b,
+          popcornStandInventory: {
+            corn: currentCorn - requiredCorn,
+            popcorn: b.popcornStandInventory?.popcorn || 0,
+          }
+        };
+      }
+      return b;
+    }));
+
+    // 2. Feldolgozási folyamat elindítása
+    const newProcess: PopcornProcess = {
+      id: `popcorn-proc-${Date.now()}-${Math.random()}`,
+      standId: standId,
+      startTime: Date.now(),
+      duration: totalDuration,
+      cornConsumed: requiredCorn,
+      popcornProduced: producedPopcorn,
+    };
+
+    setPopcornProcesses(prev => [...prev, newProcess]);
+    showSuccess(`${quantity} adag popcorn készítése elindult (${totalDuration / 1000} mp).`);
+  };
+
   // --- Marketplace logikák ---
 
   const handleAddOffer = (offer: Omit<MarketOffer, 'id' | 'sellerName'>) => {
@@ -1152,6 +1203,15 @@ const Game = () => {
     setCurrentPlayerId(players[prevIndex].id);
   };
 
+  const handleStartRoadPlacement = (officeId: string) => {
+    const office = buildings.find(b => b.id === officeId);
+    if (!office || office.name !== 'Polgármesteri Hivatal' || office.ownerId !== currentPlayerId) return;
+
+    setSelectedBuilding(null);
+    setIsPlacingRoad(true);
+    showSuccess("Útépítési mód aktiválva. Húzd az egeret az út lerakásához. (Shift: folyamatos)");
+  };
+
   const handlePlantCrop = (farmId: string, x: number, y: number, type: CropType) => {
     const farm = buildings.find(b => b.id === farmId);
     if (!farm || farm.employeeIds.length === 0) {
@@ -1160,14 +1220,11 @@ const Game = () => {
     }
     
     let seedType: ProductType;
-    let harvestYield: number;
     
     if (type === CropType.Wheat) {
       seedType = ProductType.WheatSeed;
-      harvestYield = WHEAT_HARVEST_YIELD;
     } else if (type === CropType.Corn) {
       seedType = ProductType.Corn; // Kukorica magként is használható
-      harvestYield = 10; // Feltételezett kukorica hozam
     } else {
       return;
     }
@@ -1244,96 +1301,94 @@ const Game = () => {
     showSuccess(`Betakarítva ${yieldAmount} ${getProductByType(harvestedProduct)?.name || harvestedProduct}!`);
   };
 
-  const sidebarContent = (
-    <>
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Tile-o-polis</h2>
-        <PlayerSettings 
-          playerName={currentPlayer.name} 
-          onPlayerNameChange={(n) => setPlayers(prev => prev.map(p => 
-            p.id === currentPlayerId ? { ...p, name: n } : p
-          ))} 
-        />
-      </div>
-      
-      <div className="mb-4 space-y-2">
-        <Label className="text-xs text-sidebar-foreground">Játékos váltása (Teszt mód):</Label>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={handlePrevPlayer} className="h-8 w-8 shrink-0">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
-            <SelectTrigger className="flex-1 bg-sidebar-accent border-sidebar-border h-8">
-              <SelectValue placeholder="Válassz játékost" />
-            </SelectTrigger>
-            <SelectContent>
-              {players.map(p => (
-                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="icon" onClick={handleNextPlayer} className="h-8 w-8 shrink-0">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      <PlayerInfo 
-        playerName={currentPlayer.name} 
-        money={currentPlayer.money} 
-        inventory={currentPlayer.inventory as any} 
-        workplace={currentPlayer.workplace} 
-        workplaceSalary={currentPlayer.workplaceSalary} 
-        ownedBusinesses={buildings.filter(b => b.ownerId === currentPlayerId && b.type !== "house")} 
-        playerSettingsButton={null} 
-        nextTickProgress={tickProgress} 
-        timeRemaining={secondsRemaining} 
-      />
-      
-      <div className="mt-4 space-y-2">
-        {!isPlacementMode ? (
-          <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">
-            Építés
-          </Button>
-        ) : (
-          <div className="space-y-2">
-            <Button 
-              onClick={() => {
-                setIsPlacingBuilding(false);
-                setIsPlacingFarmland(false);
-                setIsPlacingRoad(false);
-                setGhostBuildingCoords(null);
-                setIsDragging(false);
-                setDraggedTiles([]);
-                setGhostRoadTiles([]);
-              }} 
-              className="w-full bg-red-600 flex items-center justify-center"
-            >
-              <X className="mr-2 h-4 w-4" /> Mégsem
-            </Button>
-            <p className="text-xs text-center text-muted-foreground">
-              {isPlacingBuilding && "Shift: Folyamatos építés"}
-              {isPlacingFarmland && "Shift: Folyamatos szántás"}
-              {isPlacingRoad && "Shift: Folyamatos útépítés"}
-            </p>
-          </div>
-        )}
-        <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 font-bold">
-          Pénzmozgások
-        </Button>
-        <Button onClick={() => navigate('/')} className="w-full bg-gray-600">
-          Főmenü
-        </Button>
-      </div>
-      
-      <MusicPlayer tracks={musicTracks} />
-      <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
-    </>
-  );
-
   return (
     <MainLayout 
-      sidebarContent={sidebarContent} 
+      sidebarContent={
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Tile-o-polis</h2>
+            <PlayerSettings 
+              playerName={currentPlayer.name} 
+              onPlayerNameChange={(n) => setPlayers(prev => prev.map(p => 
+                p.id === currentPlayerId ? { ...p, name: n } : p
+              ))} 
+            />
+          </div>
+          
+          <div className="mb-4 space-y-2">
+            <Label className="text-xs text-sidebar-foreground">Játékos váltása (Teszt mód):</Label>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" onClick={handlePrevPlayer} className="h-8 w-8 shrink-0">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+                <SelectTrigger className="flex-1 bg-sidebar-accent border-sidebar-border h-8">
+                  <SelectValue placeholder="Válassz játékost" />
+                </SelectTrigger>
+                <SelectContent>
+                  {players.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="icon" onClick={handleNextPlayer} className="h-8 w-8 shrink-0">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <PlayerInfo 
+            playerName={currentPlayer.name} 
+            money={currentPlayer.money} 
+            inventory={currentPlayer.inventory as any} 
+            workplace={currentPlayer.workplace} 
+            workplaceSalary={currentPlayer.workplaceSalary} 
+            ownedBusinesses={buildings.filter(b => b.ownerId === currentPlayerId && b.type !== "house")} 
+            playerSettingsButton={null} 
+            nextTickProgress={tickProgress} 
+            timeRemaining={secondsRemaining} 
+          />
+          
+          <div className="mt-4 space-y-2">
+            {!isPlacementMode ? (
+              <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">
+                Építés
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Button 
+                  onClick={() => {
+                    setIsPlacingBuilding(false);
+                    setIsPlacingFarmland(false);
+                    setIsPlacingRoad(false);
+                    setGhostBuildingCoords(null);
+                    setIsDragging(false);
+                    setDraggedTiles([]);
+                    setGhostRoadTiles([]);
+                  }} 
+                  className="w-full bg-red-600 flex items-center justify-center"
+                >
+                  <X className="mr-2 h-4 w-4" /> Mégsem
+                </Button>
+                <p className="text-xs text-center text-muted-foreground">
+                  {isPlacingBuilding && "Shift: Folyamatos építés"}
+                  {isPlacingFarmland && "Shift: Folyamatos szántás"}
+                  {isPlacingRoad && "Shift: Folyamatos útépítés"}
+                </p>
+              </div>
+            )}
+            <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 font-bold">
+              Pénzmozgások
+            </Button>
+            <Button onClick={() => navigate('/')} className="w-full bg-gray-600">
+              Főmenü
+            </Button>
+          </div>
+          
+          <MusicPlayer tracks={musicTracks} />
+          <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
+        </>
+      } 
       mainContent={
         <div ref={mainContentRef} className="flex flex-col h-full items-center justify-center relative overflow-hidden">
           <Map 
@@ -1458,7 +1513,7 @@ const Game = () => {
                         <p className="text-xs">
                           Búza feldolgozás: {MILL_WHEAT_CONSUMPTION_PER_PROCESS} búza → {MILL_FLOUR_PRODUCTION_PER_PROCESS} liszt<br />
                           Kukorica feldolgozás: {MILL_CORN_CONSUMPTION_PER_PROCESS} kukorica → {MILL_CORNFLOUR_PRODUCTION_PER_PROCESS} kukoricaliszt<br />
-                          Időtartam: {MILL_PROCESSING_TIME_MS / 1000} másodperc<br />
+                          Időtartam: {MILL_PROCESSING_TIME / 1000} másodperc<br />
                           Szükséges: alkalmazott
                         </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
