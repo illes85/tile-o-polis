@@ -122,8 +122,8 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId, transactions: initialTransactions } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string, transactions?: Transaction[] };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0, clothes: 0, [ProductType.Corn]: 0, [ProductType.CornFlour]: 0, [ProductType.Popcorn]: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20, clothes: 5, [ProductType.Corn]: 50, [ProductType.CornFlour]: 10, [ProductType.Popcorn]: 5 }, workplace: "Tesztelő", workplaceSalary: 0 },
+    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0, clothes: 0, [ProductType.Corn]: 0, [ProductType.CornFlour]: 0, [ProductType.Popcorn]: 0, [ProductType.CornSeed]: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20, clothes: 5, [ProductType.Corn]: 50, [ProductType.CornFlour]: 10, [ProductType.Popcorn]: 5, [ProductType.CornSeed]: 50 }, workplace: "Tesztelő", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
@@ -1205,6 +1205,15 @@ const Game = () => {
     setCurrentPlayerId(players[prevIndex].id);
   };
 
+  const handleStartRoadPlacement = (officeId: string) => {
+    const office = buildings.find(b => b.id === officeId);
+    if (!office || office.name !== 'Polgármesteri Hivatal' || office.ownerId !== currentPlayerId) return;
+
+    setSelectedBuilding(null);
+    setIsPlacingRoad(true);
+    showSuccess("Útépítési mód aktiválva. Húzd az egeret az út lerakásához. (Shift: folyamatos)");
+  };
+
   const handlePlantCrop = (farmId: string, x: number, y: number, type: CropType) => {
     const farm = buildings.find(b => b.id === farmId);
     if (!farm || farm.employeeIds.length === 0) {
@@ -1217,7 +1226,7 @@ const Game = () => {
     if (type === CropType.Wheat) {
       seedType = ProductType.WheatSeed;
     } else if (type === CropType.Corn) {
-      seedType = ProductType.Corn; // Kukorica magként is használható
+      seedType = ProductType.CornSeed; // JAVÍTVA: Kukorica vetőmag
     } else {
       return;
     }
@@ -1747,11 +1756,6 @@ const Game = () => {
                       setSelectedBuilding(null);
                     }}>
                       Munkába állás
-                    </Button>
-                  )}
-                  {selectedBuilding.salary && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId) && (
-                    <Button disabled>
-                      Megtelt
                     </Button>
                   )}
                   {selectedBuilding.salary && selectedBuilding.employeeIds.includes(currentPlayerId) && (
