@@ -98,6 +98,8 @@ const Game = () => {
     { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100 }, workplace: "Tesztelő", workplaceSalary: 0 },
+    { id: "player-rich-1", name: "Gazdag Gazda", money: 50000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-2", name: "Városatyja", money: 250000, inventory: { wood: 100, brick: 100, stone: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
   const currentPlayer = players.find(p => p.id === currentPlayerId)!;
@@ -370,6 +372,19 @@ const Game = () => {
     return () => clearInterval(timer);
   }, [shopInventories, handleRestock]);
 
+  // Játékos váltás előre/hátra
+  const handleNextPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const nextIndex = (currentIndex + 1) % players.length;
+    setCurrentPlayerId(players[nextIndex].id);
+  };
+
+  const handlePrevPlayer = () => {
+    const currentIndex = players.findIndex(p => p.id === currentPlayerId);
+    const prevIndex = (currentIndex - 1 + players.length) % players.length;
+    setCurrentPlayerId(players[prevIndex].id);
+  };
+
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -378,12 +393,20 @@ const Game = () => {
       </div>
       <div className="mb-4 space-y-2">
         <Label className="text-xs text-sidebar-foreground">Játékos váltása (Teszt mód):</Label>
-        <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
-          <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border">
-            <SelectValue placeholder="Válassz játékost" />
-          </SelectTrigger>
-          <SelectContent>{players.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={handlePrevPlayer} className="h-8 w-8 shrink-0">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+            <SelectTrigger className="flex-1 bg-sidebar-accent border-sidebar-border h-8">
+              <SelectValue placeholder="Válassz játékost" />
+            </SelectTrigger>
+            <SelectContent>{players.map(p => (<SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>))}</SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={handleNextPlayer} className="h-8 w-8 shrink-0">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <PlayerInfo playerName={currentPlayer.name} money={currentPlayer.money} inventory={currentPlayer.inventory as any} workplace={currentPlayer.workplace} workplaceSalary={currentPlayer.workplaceSalary} ownedBusinesses={buildings.filter(b => b.ownerId === currentPlayerId && b.type !== "house")} playerSettingsButton={null} nextTickProgress={tickProgress} timeRemaining={secondsRemaining} />
       <div className="mt-4 space-y-2">
