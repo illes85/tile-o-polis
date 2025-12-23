@@ -28,10 +28,12 @@ interface ShopMenuProps {
   currentPlayerId: string;
   currentPlayerMoney: number;
   shopItems: ShopItem[];
+  shopLevel: number;
   onAddItem: (item: Omit<ShopItem, 'stock' | 'orderedStock' | 'isDelivering'>) => void;
   onOrderStock: (type: ProductType, quantity: number) => void;
   onUpdatePrice: (type: ProductType, newPrice: number) => void;
   onBuyProduct: (productType: ProductType, quantity: number) => void;
+  onUpgrade: () => void;
 }
 
 const ShopMenu: React.FC<ShopMenuProps> = ({
@@ -41,10 +43,12 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
   currentPlayerId,
   currentPlayerMoney,
   shopItems,
+  shopLevel,
   onAddItem,
   onOrderStock,
   onUpdatePrice,
   onBuyProduct,
+  onUpgrade,
 }) => {
   const isOwner = currentPlayerId === shopOwnerId;
   const [activeTab, setActiveTab] = useState<"customer" | "owner">(isOwner ? "owner" : "customer");
@@ -59,7 +63,6 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
       return;
     }
     onBuyProduct(item.type, 1);
-    showSuccess(`Vettél: 1 db ${item.name}`);
   };
 
   return (
@@ -67,7 +70,7 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
       <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" /> Bolt
+            <Package className="h-5 w-5" /> Bolt (Szint: {shopLevel})
           </DialogTitle>
           <DialogDescription>
             {isOwner ? "Vezesd a boltodat vagy vásárolj belőle." : "Válogass a bolt kínálatából."}
@@ -96,9 +99,11 @@ const ShopMenu: React.FC<ShopMenuProps> = ({
         {activeTab === "owner" && isOwner ? (
           <ShopInventory 
             shopItems={shopItems}
+            shopLevel={shopLevel}
             onAddItem={onAddItem}
             onOrderStock={onOrderStock}
             onUpdatePrice={onUpdatePrice}
+            onUpgrade={onUpgrade}
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductType, allProducts, getProductByType } from "@/utils/products";
 import { showSuccess, showError } from "@/utils/toast";
-import { Coins, Package, Truck, Clock } from "lucide-react";
+import { Coins, Package, Truck, Clock, ArrowUpCircle } from "lucide-react";
 
 interface ShopItem {
   type: ProductType;
@@ -24,43 +24,59 @@ interface ShopItem {
 
 interface ShopInventoryProps {
   shopItems: ShopItem[];
+  shopLevel: number;
   onAddItem: (item: Omit<ShopItem, 'stock' | 'orderedStock' | 'isDelivering'>) => void;
   onOrderStock: (type: ProductType, quantity: number) => void;
   onUpdatePrice: (type: ProductType, newPrice: number) => void;
+  onUpgrade: () => void;
 }
 
 const ShopInventory: React.FC<ShopInventoryProps> = ({
   shopItems,
+  shopLevel,
   onAddItem,
   onOrderStock,
   onUpdatePrice,
+  onUpgrade,
 }) => {
   const [selectedProductType, setSelectedProductType] = useState<ProductType | "">("");
   const [initialSellPrice, setInitialSellPrice] = useState<number>(0);
-  
-  const [selectedItemForOrder, setSelectedItemForOrder] = useState<ProductType | "">("");
-  const [orderQuantity, setOrderQuantity] = useState<number>(1);
-  
-  const [selectedItemForPrice, setSelectedItemForPrice] = useState<ProductType | "">("");
-  const [newPrice, setNewPrice] = useState<number>(0);
-
   const [now, setNow] = useState(Date.now());
+  const [orderQuantity, setOrderQuantity] = useState<number>(1);
+  const [newPrices, setNewPrices] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const getSlotLimit = (level: number) => {
+    if (level === 1) return 2;
+    if (level === 2) return 4;
+    return 7;
+  };
+
+  const getUpgradeCost = (level: number) => {
+    if (level === 1) return 1500;
+    if (level === 2) return 4000;
+    return 0;
+  };
+
+  const slotLimit = getSlotLimit(shopLevel);
+  const upgradeCost = getUpgradeCost(shopLevel);
+
   const handleAddNewItem = () => {
-    if (!selectedProductType) {
-      showError("Válassz egy terméktípust!");
+    if (shopItems.length >= slotLimit) {
+      showError(`A bolt megtelt! Fejleszd a boltot több helyért (Max: ${slotLimit}).`);
       return;
     }
-    const product = getProductByType(selectedProductType);
+    if (!selectedProductType) return;
+    
+    const product = getProductByType(selectedProductType as ProductType);
     if (!product) return;
 
     onAddItem({
-      type: selectedProductType,
+      type: product.type,
       name: product.name,
       wholesalePrice: product.wholesalePrice,
       deliveryTimeMs: product.deliveryTimeMs,
@@ -72,9 +88,27 @@ const ShopInventory: React.FC<ShopInventoryProps> = ({
 
   return (
     <div className="space-y-6">
+      <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-md flex justify-between items-center">
+            <span>Boltszint: {shopLevel}</span>
+            <span className="text-sm font-normal">Termékhelyek: {shopItems.length} / {slotLimit}</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {upgradeCost > 0 ? (
+            <Button onClick={onUpgrade} variant="outline" className="w-full border-blue-400 text-blue-600 hover:bg-blue-100">
+              <ArrowUpCircle className="h-4 w-4 mr-2" /> Fejlesztés {shopLevel+1}. szintre ({upgradeCost} <Coins className="h-3 w-3 inline ml-1" />)
+            </Button>
+          ) : (
+            <p className="text-sm text-center text-muted-foreground italic text-blue-600">Maximális boltszint elérve!</p>
+          )}
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold">Új terméktípus felvétele a boltba</CardTitle>
+          <CardTitle className="text-lg font-semibold">Új termék felvétele</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -94,12 +128,12 @@ const ShopInventory: React.FC<ShopInventoryProps> = ({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Kezdeti eladási ár</Label>
+              <Label>Eladási ár</Label>
               <Input type="number" value={initialSellPrice} onChange={e => setInitialSellPrice(Number(e.target.value))} />
             </div>
           </div>
-          <Button onClick={handleAddNewItem} className="w-full" disabled={!selectedProductType}>
-            Hozzáadás a katalógushoz
+          <Button onClick={handleAddNewItem} className="w-full" disabled={!selectedProductType || shopItems.length >= slotLimit}>
+            Hozzáadás ({shopItems.length}/{slotLimit})
           </Button>
         </CardContent>
       </Card>
@@ -120,21 +154,16 @@ const ShopInventory: React.FC<ShopInventoryProps> = ({
                 <div className="flex justify-between items-center bg-muted p-2 rounded">
                   <div className="flex items-center">
                     <Truck className="h-4 w-4 mr-2" />
-                    <span>Nagyker ár: <strong>{item.wholesalePrice}</strong></span>
+                    <span>Nagyker: <strong>{item.wholesalePrice}</strong></span>
                   </div>
                   {item.isDelivering ? (
                     <div className="flex items-center text-blue-600 animate-pulse">
                       <Clock className="h-4 w-4 mr-1" />
-                      <span>Érkezik: {timeLeft}mp ({item.orderedStock} db)</span>
+                      <span>{timeLeft}mp ({item.orderedStock} db)</span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <Input 
-                        type="number" 
-                        className="w-16 h-8" 
-                        defaultValue={1}
-                        onChange={(e) => setOrderQuantity(Number(e.target.value))} 
-                      />
+                      <Input type="number" className="w-16 h-8" defaultValue={1} onChange={(e) => setOrderQuantity(Number(e.target.value))} />
                       <Button size="sm" onClick={() => onOrderStock(item.type, orderQuantity)}>Rendelés</Button>
                     </div>
                   )}
@@ -142,19 +171,18 @@ const ShopInventory: React.FC<ShopInventoryProps> = ({
 
                 <div className="flex items-center gap-4">
                   <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Eladási ár beállítása</Label>
+                    <Label className="text-xs">Eladási ár</Label>
                     <div className="flex gap-2">
                       <Input 
                         type="number" 
                         className="h-8" 
                         placeholder={item.sellPrice.toString()}
-                        onChange={(e) => setNewPrice(Number(e.target.value))}
+                        onChange={(e) => setNewPrices({...newPrices, [item.type]: Number(e.target.value)})}
                       />
-                      <Button size="sm" variant="outline" onClick={() => onUpdatePrice(item.type, newPrice)}>OK</Button>
+                      <Button size="sm" variant="outline" onClick={() => onUpdatePrice(item.type, newPrices[item.type] || item.sellPrice)}>OK</Button>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs text-muted-foreground block">Aktuális ár:</span>
                     <span className="font-bold flex items-center justify-end">
                       <Coins className="h-3 w-3 mr-1 text-green-500" /> {item.sellPrice}
                     </span>

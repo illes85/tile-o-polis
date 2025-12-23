@@ -166,6 +166,26 @@ const Game = () => {
     return () => clearInterval(timer);
   }, [processEconomyTick]);
 
+  // Növekedési időzítő
+  useEffect(() => {
+    const growthTimer = setInterval(() => {
+      setBuildings(prevBuildings => prevBuildings.map(b => {
+        if (b.type === 'farm' && b.farmlandTiles) {
+          const updatedTiles = b.farmlandTiles.map(ft => {
+            if (ft.cropType === CropType.Wheat && (ft.cropProgress || 0) < 100) {
+              const progressIncrease = (1000 / WHEAT_GROW_TIME_MS) * 100;
+              return { ...ft, cropProgress: Math.min(100, (ft.cropProgress || 0) + progressIncrease) };
+            }
+            return ft;
+          });
+          return { ...b, farmlandTiles: updatedTiles };
+        }
+        return b;
+      }));
+    }, 1000);
+    return () => clearInterval(growthTimer);
+  }, []);
+
   const tickProgress = ((RENT_INTERVAL_MS - msUntilNextTick) / RENT_INTERVAL_MS) * 100;
   const secondsRemaining = Math.ceil(msUntilNextTick / 1000);
 
@@ -177,18 +197,19 @@ const Game = () => {
     }) || currentBuildings.some(b => b.farmlandTiles?.some(ft => ft.x === x && ft.y === y));
   };
 
-  // Új szomszédság-ellenőrzés szántóföldhöz
   const isFarmlandPlaceable = (gridX: number, gridY: number, farmId: string) => {
     const farm = buildings.find(b => b.id === farmId);
     if (!farm) return false;
-    
-    // Alap farm épület szomszédsága
     const inFarmProximity = (gridX >= farm.x - 1 && gridX <= farm.x + farm.width) && (gridY >= farm.y - 1 && gridY <= farm.y + farm.height);
-    
-    // Meglévő szántóföld szomszédsága
     const nextToOtherTile = farm.farmlandTiles?.some(t => Math.abs(t.x - gridX) + Math.abs(t.y - gridY) === 1);
-    
     return inFarmProximity || nextToOtherTile;
+  };
+
+  // HIÁNYZÓ FÜGGVÉNY PÓTLÁSA
+  const handleBuildingClick = (buildingId: string) => {
+    if (isPlacementMode) return;
+    const building = buildings.find(b => b.id === buildingId);
+    setSelectedBuilding(building || null);
   };
 
   const handleMapClick = (gridX: number, gridY: number) => {
@@ -197,7 +218,29 @@ const Game = () => {
       setIsPlacingBuilding(false);
       const newId = `${buildingToPlace.name}-${Date.now()}`;
       setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - buildingToPlace.cost } : p));
-      setBuildings(prev => [...prev, { id: newId, name: buildingToPlace.name, x: gridX, y: gridY, width: buildingToPlace.width, height: buildingToPlace.height, type: buildingToPlace.type, rentalPrice: buildingToPlace.rentalPrice, salary: buildingToPlace.salary, capacity: buildingToPlace.capacity, ownerId: currentPlayerId, residentIds: [], employeeIds: [], isUnderConstruction: true, buildProgress: 0, rotation: currentBuildingRotation, farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined }]);
+      
+      const newBuilding: BuildingData = { 
+        id: newId, 
+        name: buildingToPlace.name, 
+        x: gridX, 
+        y: gridY, 
+        width: buildingToPlace.width, 
+        height: buildingToPlace.height, 
+        type: buildingToPlace.type, 
+        rentalPrice: buildingToPlace.rentalPrice, 
+        salary: buildingToPlace.salary, 
+        capacity: buildingToPlace.capacity, 
+        ownerId: currentPlayerId, 
+        residentIds: [], 
+        employeeIds: [], 
+        isUnderConstruction: true, 
+        buildProgress: 0, 
+        rotation: currentBuildingRotation, 
+        farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
+        level: 1 // Alap szint beállítása minden új épülethez
+      };
+
+      setBuildings(prev => [...prev, newBuilding]);
       
       let prog = 0;
       const inv = setInterval(() => {
@@ -236,13 +279,30 @@ const Game = () => {
     
     setPlayers(prev => prev.map(p => {
       if (p.id === currentPlayerId) {
-        const cost = (p.id === shop.ownerId) ? 0 : item.sellPrice * qty; // Tulajdonosnak ingyen (már kifizette a nagyker árat)
+        const cost = (p.id === shop.ownerId) ? 0 : item.sellPrice * qty;
         return { ...p, money: p.money - cost, inventory: { ...p.inventory, [type]: (p.inventory[type] || 0) + qty } };
       }
       return p;
     }));
     
     setShopInventories(prev => ({ ...prev, [shopId]: prev[shopId].map(i => i.type === type ? { ...i, stock: i.stock - qty } : i) }));
+  };
+
+  const handleUpgradeShop = (shopId: string) => {
+    const shop = buildings.find(b => b.id === shopId);
+    if (!shop) return;
+    const currentLevel = shop.level || 1;
+    const upgradeCost = currentLevel === 1 ? 1500 : 4000;
+    
+    if (currentPlayer.money < upgradeCost) {
+      showError("Nincs elég pénzed a fejlesztésre!");
+      return;
+    }
+
+    setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - upgradeCost } : p));
+    setBuildings(prev => prev.map(b => b.id === shopId ? { ...b, level: currentLevel + 1 } : b));
+    addTransaction(currentPlayerId, "expense", `Bolt fejlesztés: ${shop.name} (Lvl ${currentLevel+1})`, upgradeCost);
+    showSuccess(`Bolt sikeresen fejlesztve a ${currentLevel + 1}. szintre!`);
   };
 
   const sidebarContent = (
@@ -278,9 +338,13 @@ const Game = () => {
               <DialogContent>
                 <DialogHeader><DialogTitle>{selectedBuilding.name}</DialogTitle></DialogHeader>
                 <div className="py-4 space-y-4">
-                  {selectedBuilding.ownerId === currentPlayerId && <div className="bg-muted p-2 text-sm rounded"><strong>Dolgozók/Lakók:</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }</div>}
+                  {selectedBuilding.ownerId === currentPlayerId && (
+                    <div className="bg-muted p-2 text-sm rounded">
+                      <strong>{selectedBuilding.type === "house" ? "Lakók:" : "Dolgozók:"}</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }
+                    </div>
+                  )}
                   {selectedBuilding.type === "shop" && <Button onClick={() => { setSelectedShopBuilding(selectedBuilding); setIsShopMenuOpen(true); setSelectedBuilding(null); }} className="w-full bg-purple-600">Bolt megnyitása</Button>}
-                  {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && <Button onClick={() => { if (selectedBuilding.employeeIds.length === 0) { showError("Nincs alkalmazott a farmon!"); return; } setSelectedFarmId(selectedBuilding.id); setIsPlacingFarmland(true); setSelectedBuilding(null); }} className="w-full bg-green-600 font-bold">Szántóföld hozzáadása</Button>}
+                  {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && <Button onClick={() => { if (selectedBuilding.employeeIds.length === 0) { showError("Nincs alkalmazott a farmon!"); return; } setSelectedFarmId(selectedBuilding.id); setIsPlacingFarmland(true); setSelectedBuilding(null); }} className="w-full bg-green-600 font-bold">Szántóföld bővítése</Button>}
                 </div>
                 <DialogFooter>
                   {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && <Button onClick={() => { setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, residentIds: [...b.residentIds, currentPlayerId], renterId: currentPlayerId } : b)); setSelectedBuilding(null); }}>Beköltözés</Button>}
@@ -291,7 +355,28 @@ const Game = () => {
             </Dialog>
           )}
 
-          {selectedShopBuilding && <ShopMenu isOpen={isShopMenuOpen} onClose={() => setIsShopMenuOpen(false)} shopOwnerId={selectedShopBuilding.ownerId || ""} currentPlayerId={currentPlayerId} currentPlayerMoney={currentPlayer.money} shopItems={shopInventories[selectedShopBuilding.id] || []} onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] }))} onOrderStock={(t, q) => { const it = shopInventories[selectedShopBuilding.id]?.find(i => i.type === t); if (it && currentPlayer.money >= it.wholesalePrice * q) { setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - (it.wholesalePrice * q) } : p)); setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: prev[selectedShopBuilding.id].map(i => i.type === t ? { ...i, orderedStock: i.orderedStock + q, isDelivering: true, deliveryEta: Date.now() + i.deliveryTimeMs } : i) })); } }} onUpdatePrice={(t, p) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: prev[selectedShopBuilding.id].map(i => i.type === t ? { ...i, sellPrice: p } : i) }))} onBuyProduct={(t, q) => handleBuyProduct(selectedShopBuilding.id, t, q)} />}
+          {selectedShopBuilding && (
+            <ShopMenu 
+              isOpen={isShopMenuOpen} 
+              onClose={() => setIsShopMenuOpen(false)} 
+              shopOwnerId={selectedShopBuilding.ownerId || ""} 
+              currentPlayerId={currentPlayerId} 
+              currentPlayerMoney={currentPlayer.money} 
+              shopItems={shopInventories[selectedShopBuilding.id] || []} 
+              shopLevel={selectedShopBuilding.level || 1}
+              onAddItem={(it) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: [...(prev[selectedShopBuilding.id] || []), { ...it, stock: 0, orderedStock: 0, isDelivering: false }] }))} 
+              onOrderStock={(t, q) => { 
+                const it = shopInventories[selectedShopBuilding.id]?.find(i => i.type === t); 
+                if (it && currentPlayer.money >= it.wholesalePrice * q) { 
+                  setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - (it.wholesalePrice * q) } : p)); 
+                  setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: prev[selectedShopBuilding.id].map(i => i.type === t ? { ...i, orderedStock: i.orderedStock + q, isDelivering: true, deliveryEta: Date.now() + i.deliveryTimeMs } : i) })); 
+                } 
+              }} 
+              onUpdatePrice={(t, p) => setShopInventories(prev => ({ ...prev, [selectedShopBuilding.id]: prev[selectedShopBuilding.id].map(i => i.type === t ? { ...i, sellPrice: p } : i) }))} 
+              onBuyProduct={(t, q) => handleBuyProduct(selectedShopBuilding.id, t, q)}
+              onUpgrade={() => handleUpgradeShop(selectedShopBuilding.id)}
+            />
+          )}
 
           {farmlandActionState && (
             <FarmlandActionDialog {...farmlandActionState} onClose={() => setFarmlandActionState(null)} playerMoney={currentPlayer.money} onPlant={(fid, x, y, type) => {
