@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card"; // HIÁNYZÓ IMPORT HOZZÁADVA
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Briefcase, Home, Coins, Users, Factory, Leaf, ShoppingBag, Popcorn, Warehouse, CheckCircle, XCircle } from "lucide-react";
 import { BuildingData } from "@/components/Map";
