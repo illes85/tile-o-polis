@@ -22,6 +22,7 @@ import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
 import ShopMenu from "@/components/ShopMenu";
+import MarketplaceMenu from "@/components/MarketplaceMenu"; // ÚJ IMPORT
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
@@ -75,6 +76,16 @@ interface ShopItem {
   deliveryEta?: number;
 }
 
+export interface MarketOffer {
+  id: string;
+  sellerId: string;
+  sellerName: string;
+  sellingType: ProductType | 'money';
+  sellingQuantity: number;
+  buyingType: ProductType | 'money';
+  buyingQuantity: number;
+}
+
 const availableBuildingOptions: BuildingOption[] = [
   { type: "house", category: "residential", name: "Sátor", cost: 200, duration: 4000, width: 2, height: 1, rentalPrice: 0, capacity: 1 },
   { type: "house", category: "residential", name: "Házikó", cost: BUILD_HOUSE_COST, duration: BUILD_HOUSE_DURATION_MS, width: 2, height: 2, rentalPrice: 10, capacity: 2 },
@@ -89,6 +100,7 @@ const availableBuildingOptions: BuildingOption[] = [
   { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 30000, width: 4, height: 3, salary: 20, capacity: 5 },
   { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 20000, width: 3, height: 3, salary: 10, capacity: 3 },
   { type: "mill", category: "business", name: "Malom", cost: 2000, woodCost: 10, brickCost: 15, stoneCost: 5, duration: 25000, width: 4, height: 4, salary: 15, capacity: 3 },
+  { type: "office", category: "business", name: "Piac", cost: 3000, woodCost: 15, brickCost: 15, duration: 35000, width: 5, height: 5, salary: 25, capacity: 5 }, // ÚJ PIAC ÉPÜLET
 ];
 
 const Game = () => {
@@ -131,6 +143,8 @@ const Game = () => {
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
   const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false); // ÚJ ÁLLAPOT
+  const [marketOffers, setMarketOffers] = useState<MarketOffer[]>([]); // ÚJ ÁLLAPOT
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -311,6 +325,10 @@ const Game = () => {
     if (isPlacementMode) return;
     const building = buildings.find(b => b.id === buildingId);
     setSelectedBuilding(building || null);
+    
+    if (building?.type === 'office' && building.name === 'Piac') {
+      setIsMarketplaceOpen(true);
+    }
   };
 
   // Segédfüggvény a húzott csempék kiszámításához
@@ -768,6 +786,125 @@ const Game = () => {
     showSuccess(`${quantity} búza eladva a malomnak ${totalRevenue} pénzért!`);
   };
 
+  // --- Marketplace logikák ---
+
+  const handleAddOffer = (offer: Omit<MarketOffer, 'id' | 'sellerName'>) => {
+    const newOffer: MarketOffer = {
+      ...offer,
+      id: `offer-${Date.now()}-${Math.random()}`,
+      sellerName: currentPlayer.name,
+      sellerId: currentPlayerId,
+    };
+    
+    // Ellenőrizzük, hogy a játékosnak van-e elég eladni kívánt terméke
+    if (offer.sellingType !== 'money' && (currentPlayer.inventory[offer.sellingType] || 0) < offer.sellingQuantity) {
+      showError(`Nincs elég ${getProductByType(offer.sellingType)?.name || offer.sellingType} a készletben!`);
+      return false;
+    }
+    
+    // Levonjuk a terméket a játékos készletéből
+    setPlayers(prev => prev.map(p => {
+      if (p.id === currentPlayerId) {
+        return {
+          ...p,
+          inventory: {
+            ...p.inventory,
+            [offer.sellingType]: (p.inventory[offer.sellingType] || 0) - offer.sellingQuantity
+          }
+        };
+      }
+      return p;
+    }));
+
+    setMarketOffers(prev => [...prev, newOffer]);
+    showSuccess("Ajánlat sikeresen kiírva a piacra!");
+    return true;
+  };
+
+  const handleAcceptOffer = (offerId: string) => {
+    const offer = marketOffers.find(o => o.id === offerId);
+    if (!offer) return;
+
+    const buyer = currentPlayer;
+    const seller = players.find(p => p.id === offer.sellerId);
+
+    if (!seller) {
+      showError("Az eladó már nem elérhető.");
+      setMarketOffers(prev => prev.filter(o => o.id !== offerId));
+      return;
+    }
+
+    // 1. Ellenőrizzük, hogy a vevőnek van-e elég fizetőeszköze (buyingType)
+    if (offer.buyingType === 'money') {
+      if (buyer.money < offer.buyingQuantity) {
+        showError("Nincs elég pénzed a cseréhez!");
+        return;
+      }
+    } else {
+      if ((buyer.inventory[offer.buyingType] || 0) < offer.buyingQuantity) {
+        showError(`Nincs elég ${getProductByType(offer.buyingType as ProductType)?.name || offer.buyingType} a cseréhez!`);
+        return;
+      }
+    }
+
+    // 2. Végrehajtjuk a cserét
+    setPlayers(prevPlayers => prevPlayers.map(p => {
+      if (p.id === buyer.id) {
+        // Vevő: elveszíti a fizetőeszközt, megkapja az eladott terméket
+        const newInventory = { ...p.inventory };
+        if (offer.buyingType === 'money') {
+          p.money -= offer.buyingQuantity;
+          addTransaction(p.id, "expense", `Vásárlás a piactéren: ${offer.sellingQuantity} ${offer.sellingType}`, offer.buyingQuantity);
+        } else {
+          newInventory[offer.buyingType as ProductType] = (newInventory[offer.buyingType as ProductType] || 0) - offer.buyingQuantity;
+        }
+        newInventory[offer.sellingType as ProductType] = (newInventory[offer.sellingType as ProductType] || 0) + offer.sellingQuantity;
+        return { ...p, inventory: newInventory };
+      }
+      
+      if (p.id === seller.id) {
+        // Eladó: megkapja a fizetőeszközt, visszakapja a pénzt/terméket
+        const newInventory = { ...p.inventory };
+        if (offer.buyingType === 'money') {
+          p.money += offer.buyingQuantity;
+          addTransaction(p.id, "income", `Eladás a piactéren: ${offer.sellingQuantity} ${offer.sellingType}`, offer.buyingQuantity);
+        } else {
+          newInventory[offer.buyingType as ProductType] = (newInventory[offer.buyingType as ProductType] || 0) + offer.buyingQuantity;
+        }
+        return { ...p, inventory: newInventory };
+      }
+      return p;
+    }));
+
+    // 3. Eltávolítjuk az ajánlatot
+    setMarketOffers(prev => prev.filter(o => o.id !== offerId));
+    showSuccess(`Sikeres csere! Megkaptad: ${offer.sellingQuantity} ${getProductByType(offer.sellingType as ProductType)?.name || offer.sellingType}.`);
+  };
+
+  const handleCancelOffer = (offerId: string) => {
+    const offer = marketOffers.find(o => o.id === offerId);
+    if (!offer || offer.sellerId !== currentPlayerId) return;
+
+    // Visszaadjuk a terméket a játékosnak
+    setPlayers(prev => prev.map(p => {
+      if (p.id === currentPlayerId) {
+        return {
+          ...p,
+          inventory: {
+            ...p.inventory,
+            [offer.sellingType]: (p.inventory[offer.sellingType] || 0) + offer.sellingQuantity
+          }
+        };
+      }
+      return p;
+    }));
+
+    setMarketOffers(prev => prev.filter(o => o.id !== offerId));
+    showSuccess("Ajánlat visszavonva, termék visszakerült a készletbe.");
+  };
+
+  // --- Vége a Marketplace logikáknak ---
+
   useEffect(() => {
     const timer = setInterval(() => {
       Object.entries(shopInventories).forEach(([shopId, items]) => {
@@ -887,7 +1024,7 @@ const Game = () => {
             buildingToPlace={buildingToPlace} 
             ghostBuildingCoords={ghostBuildingCoords} 
             onGridMouseMove={handleMapMouseMove} 
-            onMapClick={() => {}} // Az onMapClick most már nem kezeli a lerakást, hanem a mouseUp
+            onMapClick={handleMapMouseUp} // A MapClick most már a MouseUp-ot hívja, ha nem húzunk
             onMapMouseDown={handleMapMouseDown} // Új eseménykezelő
             onMapMouseUp={handleMapMouseUp} // Új eseménykezelő
             currentPlayerId={currentPlayerId} 
@@ -1025,6 +1162,17 @@ const Game = () => {
                         <p className="text-xs mt-1">Készleten: {currentPlayer.inventory.wheat || 0} db</p>
                       </div>
                     </div>
+                  )}
+                  {selectedBuilding.type === 'office' && selectedBuilding.name === 'Piac' && (
+                    <Button 
+                      onClick={() => {
+                        setIsMarketplaceOpen(true);
+                        setSelectedBuilding(null);
+                      }} 
+                      className="w-full bg-indigo-600"
+                    >
+                      Piac megnyitása
+                    </Button>
                   )}
                 </div>
                 <DialogFooter>
@@ -1198,6 +1346,19 @@ const Game = () => {
                 
                 showSuccess("Betakarítva 10 búza!");
               }}
+            />
+          )}
+
+          {isMarketplaceOpen && (
+            <MarketplaceMenu
+              isOpen={isMarketplaceOpen}
+              onClose={() => setIsMarketplaceOpen(false)}
+              currentPlayer={currentPlayer}
+              allPlayers={players}
+              marketOffers={marketOffers}
+              onAddOffer={handleAddOffer}
+              onAcceptOffer={handleAcceptOffer}
+              onCancelOffer={handleCancelOffer}
             />
           )}
           
