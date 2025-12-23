@@ -83,7 +83,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
                     disabled={isEmployed && !isCurrentWorkplace}
                     variant={isCurrentWorkplace ? "secondary" : "default"}
                 >
-                    {isCurrentWorkplace ? <CheckCircle className="h-4 w-4 mr-1" /> "Itt dolgozol" : "Jelentkezés"}
+                    {isCurrentWorkplace ? <><CheckCircle className="h-4 w-4 mr-1" /> Itt dolgozol</> : "Jelentkezés"}
                 </Button>
             </Card>
         );
@@ -114,7 +114,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
                     disabled={!canRent || !isAffordable}
                     variant={isCurrentResidence ? "secondary" : "default"}
                 >
-                    {isCurrentResidence ? <CheckCircle className="h-4 w-4 mr-1" /> "Itt laksz" : "Bérlés"}
+                    {isCurrentResidence ? <><CheckCircle className="h-4 w-4 mr-1" /> Itt laksz</> : "Bérlés"}
                 </Button>
             </Card>
         );

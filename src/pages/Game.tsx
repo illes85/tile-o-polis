@@ -315,6 +315,13 @@ const Game = () => {
     return () => clearInterval(processTimer);
   }, [millProcesses, popcornProcesses, buildings]); 
 
+  // Ref a processEconomyTick függvényhez, hogy az interval ne induljon újra minden renderkor
+  const processEconomyTickRef = useRef(processEconomyTick);
+  
+  useEffect(() => {
+    processEconomyTickRef.current = processEconomyTick;
+  }, [processEconomyTick]);
+
   // Gazdasági ciklus időzítő (Stabilizált setInterval)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -322,7 +329,7 @@ const Game = () => {
         const newPrev = prev - 1000;
         
         if (newPrev <= 0) {
-          processEconomyTick();
+          processEconomyTickRef.current(); // A ref-en keresztül hívjuk a friss függvényt
           return RENT_INTERVAL_MS;
         }
         return newPrev;
@@ -330,7 +337,18 @@ const Game = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [processEconomyTick]);
+  }, []); // Üres dependency array = stabil interval!
+
+  // Kijelölt épület adatainak frissítése, ha a buildings state változik (pl. beköltözéskor)
+  useEffect(() => {
+    if (selectedBuilding) {
+      const updatedBuilding = buildings.find(b => b.id === selectedBuilding.id);
+      // Ha megtaláltuk és változott a referencia, frissítjük a kijelölést
+      if (updatedBuilding && updatedBuilding !== selectedBuilding) {
+        setSelectedBuilding(updatedBuilding);
+      }
+    }
+  }, [buildings, selectedBuilding]);
 
 
   // Növekedési időzítő
@@ -376,62 +394,107 @@ const Game = () => {
   useEffect(() => {
     const constructionChecker = setInterval(() => {
       const now = Date.now();
-      let updatedBuildingsState = false;
-
+      
       setBuildings(prevBuildings => {
+        let hasChanges = false;
+        let isAnyBuildingUnderConstruction = false; // Figyeljük, hogy van-e folyamatban építkezés
+
         const newBuildings = prevBuildings.map(b => {
+          let updatedBuilding = { ...b };
+          
           // Épületek ellenőrzése
-          if (b.isUnderConstruction && b.constructionEta && now >= b.constructionEta) {
-            if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx(); 
-            showSuccess(`${b.name} kész!`);
-            updatedBuildingsState = true;
-            // Fontos: beállítjuk a progresszt 100-ra, és eltávolítjuk az ETA-t
-            return { ...b, isUnderConstruction: false, constructionEta: undefined, originalDuration: undefined, buildProgress: 100 };
+          if (b.isUnderConstruction && b.constructionEta) {
+            if (now >= b.constructionEta) {
+              // Épület kész
+              showSuccess(`${b.name} kész!`);
+              hasChanges = true;
+              updatedBuilding = { 
+                ...updatedBuilding, 
+                isUnderConstruction: false, 
+                constructionEta: undefined, 
+                originalDuration: undefined, 
+                buildProgress: 100 
+              };
+            } else {
+               // Még épül
+               isAnyBuildingUnderConstruction = true;
+               
+               if (b.originalDuration) {
+                 // Progressz frissítése
+                 const elapsed = now - (b.constructionEta - b.originalDuration);
+                 const progress = Math.min(100, (elapsed / b.originalDuration) * 100);
+                 if (Math.abs((b.buildProgress || 0) - progress) > 0.5) {
+                   hasChanges = true;
+                   updatedBuilding = { ...updatedBuilding, buildProgress: progress };
+                 }
+               }
+            }
           }
 
           // Szántóföld csempék ellenőrzése
-          if (b.type === 'farm' && b.farmlandTiles) {
-            const newFarmlandTiles = b.farmlandTiles.map(ft => {
-              if (ft.isUnderConstruction && ft.constructionEta && now >= ft.constructionEta) {
-                showSuccess(`Szántóföld kész: (${ft.x}, ${ft.y})!`);
-                updatedBuildingsState = true;
-                // Fontos: beállítjuk a progresszt 100-ra, és eltávolítjuk az ETA-t
-                return { ...ft, isUnderConstruction: false, constructionEta: undefined, originalDuration: undefined, buildProgress: 100 };
+          if (updatedBuilding.type === 'farm' && updatedBuilding.farmlandTiles) {
+            let tilesChanged = false;
+            const newFarmlandTiles = updatedBuilding.farmlandTiles.map(ft => {
+              if (ft.isUnderConstruction && ft.constructionEta) {
+                if (now >= ft.constructionEta) {
+                   showSuccess(`Szántóföld kész: (${ft.x}, ${ft.y})!`);
+                   tilesChanged = true;
+                   return { ...ft, isUnderConstruction: false, constructionEta: undefined, originalDuration: undefined, buildProgress: 100 };
+                } else {
+                   // Még épül
+                   isAnyBuildingUnderConstruction = true;
+
+                   if (ft.originalDuration) {
+                      const elapsed = now - (ft.constructionEta - ft.originalDuration);
+                      const progress = Math.min(100, (elapsed / ft.originalDuration) * 100);
+                      if (Math.abs((ft.buildProgress || 0) - progress) > 0.5) {
+                        tilesChanged = true;
+                        return { ...ft, buildProgress: progress };
+                      }
+                   }
+                }
               }
               return ft;
             });
-            if (updatedBuildingsState) { 
-              return { ...b, farmlandTiles: newFarmlandTiles };
+
+            if (tilesChanged) {
+              hasChanges = true;
+              updatedBuilding = { ...updatedBuilding, farmlandTiles: newFarmlandTiles };
             }
           }
-          
-          // Progressz frissítése (csak vizuális célból, ha még épül)
-          if (b.isUnderConstruction && b.constructionEta && b.originalDuration) {
-            const elapsed = now - (b.constructionEta - b.originalDuration);
-            const progress = Math.min(100, (elapsed / b.originalDuration) * 100);
-            return { ...b, buildProgress: progress };
-          }
-          
-          if (b.type === 'farm' && b.farmlandTiles) {
-            const updatedTiles = b.farmlandTiles.map(ft => {
-              if (ft.isUnderConstruction && ft.constructionEta && ft.originalDuration) {
-                const elapsed = now - (ft.constructionEta - ft.originalDuration);
-                const progress = Math.min(100, (elapsed / ft.originalDuration) * 100);
-                return { ...ft, buildProgress: progress };
-              }
-              return ft;
-            });
-            return { ...b, farmlandTiles: updatedTiles };
-          }
 
-          return b;
+          return updatedBuilding;
         });
-        return newBuildings;
+
+        // Ha nincs folyamatban lévő építkezés, állítsuk le a hangokat (biztonsági ellenőrzés)
+        // Ezt a setBuildings callback-en belül nehézkes hívni mellékhatásként, de működhet
+        // Jobb lenne useEffect-ben figyelni az isAnyBuildingUnderConstruction állapotot, 
+        // de itt a 'newBuildings' alapján dönthetünk azonnal.
+        // Mivel a stopAllSfx nem state update, meghívhatjuk.
+        if (!isAnyBuildingUnderConstruction && sfxPlayerRef.current) {
+             // Csak akkor állítjuk le, ha az előző állapotban még volt építkezés? 
+             // Nem, a biztonság kedvéért, ha kész lett valami, és nincs más, álljon le.
+             // De ez másodpercenként 10x fut. Nem baj, a stopAllSfx idempotens (vagy gyors).
+             // De ha folyamatosan hívogatjuk, az zavaró lehet más hangoknál.
+             // Ezért csak akkor hívjuk, ha volt változás (valami befejeződött).
+             // DE: a felhasználó panasza szerint "nem hallgatott el".
+             // Így most expliciten leállítjuk, ha valami befejeződött ÉS nincs más folyamatban.
+             const wasAnyConstruction = prevBuildings.some(b => 
+                (b.isUnderConstruction && b.constructionEta) || 
+                (b.type === 'farm' && b.farmlandTiles?.some(ft => ft.isUnderConstruction && ft.constructionEta))
+             );
+             
+             if (wasAnyConstruction) {
+                 sfxPlayerRef.current.stopAllSfx();
+             }
+        }
+
+        return hasChanges ? newBuildings : prevBuildings;
       });
-    }, 1000); 
+    }, 100); 
 
     return () => clearInterval(constructionChecker);
-  }, [buildings, sfxPlayerRef]); 
+  }, [sfxPlayerRef]); 
 
 
   const tickProgress = 100 - ((msUntilNextTick / RENT_INTERVAL_MS) * 100); 
@@ -492,9 +555,55 @@ const Game = () => {
   const handlePlaceBuilding = (gridX: number, gridY: number, continuous: boolean) => {
     if (!buildingToPlace) return;
 
-    if (isCellOccupied(gridX, gridY, buildings)) {
-      showError("Hely foglalt!");
+    // Calculate effective size based on rotation
+    const effectiveWidth = (currentBuildingRotation === 90 || currentBuildingRotation === 270) ? buildingToPlace.height : buildingToPlace.width;
+    const effectiveHeight = (currentBuildingRotation === 90 || currentBuildingRotation === 270) ? buildingToPlace.width : buildingToPlace.height;
+
+    // Check map boundaries
+    if (gridX + effectiveWidth > MAP_GRID_SIZE || gridY + effectiveHeight > MAP_GRID_SIZE) {
+      showError("Az épület kilógna a pályáról!");
       return;
+    }
+
+    // Check road adjacency if Town Hall exists
+    const townHallExists = buildings.some(b => b.name === 'Polgármesteri Hivatal');
+    const isExempt = buildingToPlace.name === 'Sátor' || buildingToPlace.name === 'Erdészház';
+    
+    if (townHallExists && !isExempt) {
+      let isAdjacentToRoad = false;
+      const roadTiles = new Set(buildings.filter(b => b.type === 'road').map(b => `${b.x},${b.y}`));
+      
+      for (let x = 0; x < effectiveWidth; x++) {
+        for (let y = 0; y < effectiveHeight; y++) {
+          const checkX = gridX + x;
+          const checkY = gridY + y;
+          
+          // Check 4 neighbors
+          if (roadTiles.has(`${checkX+1},${checkY}`) || 
+              roadTiles.has(`${checkX-1},${checkY}`) || 
+              roadTiles.has(`${checkX},${checkY+1}`) || 
+              roadTiles.has(`${checkX},${checkY-1}`)) {
+            isAdjacentToRoad = true;
+            break;
+          }
+        }
+        if (isAdjacentToRoad) break;
+      }
+      
+      if (!isAdjacentToRoad) {
+        showError("Az épületet csak út mellé lehet építeni (Polgármesteri rendelet)!");
+        return;
+      }
+    }
+
+    // Check collision for every cell of the new building
+    for (let x = 0; x < effectiveWidth; x++) {
+      for (let y = 0; y < effectiveHeight; y++) {
+        if (isCellOccupied(gridX + x, gridY + y, buildings)) {
+          showError("Hely foglalt!");
+          return;
+        }
+      }
     }
 
     if (currentPlayer.money < buildingToPlace.cost) {
@@ -1010,38 +1119,23 @@ const Game = () => {
     showSuccess(`Bolt sikeresen fejlesztve a ${currentLevel + 1}. szintre!`);
   };
 
-  const handleSellWheatToMill = (millId: string, quantity: number) => {
+  const handleAddWheatToMill = (millId: string, quantity: number) => {
     const mill = buildings.find(b => b.id === millId);
     if (!mill || !mill.ownerId) return;
 
     if ((currentPlayer.inventory.wheat || 0) < quantity) {
-      showError("Nincs elég búzád az eladáshoz!");
+      showError("Nincs elég búzád a művelethez!");
       return;
-    }
-
-    const totalRevenue = quantity * MILL_WHEAT_BUY_PRICE;
-    const millOwner = players.find(p => p.id === mill.ownerId);
-
-    if (mill.ownerId !== currentPlayerId && millOwner && millOwner.money < totalRevenue) {
-        showError(`A malom tulajdonosának (${millOwner.name}) nincs elég pénze a búza megvásárlásához! Szükséges: ${totalRevenue} pénz.`);
-        return;
     }
 
     setPlayers(prev => prev.map(p => {
       if (p.id === currentPlayerId) {
         return {
           ...p,
-          money: p.money + totalRevenue,
           inventory: {
             ...p.inventory,
             wheat: (p.inventory.wheat || 0) - quantity
           }
-        };
-      }
-      if (p.id === mill.ownerId && mill.ownerId !== currentPlayerId) {
-        return {
-          ...p,
-          money: p.money - totalRevenue
         };
       }
       return p;
@@ -1060,12 +1154,7 @@ const Game = () => {
         return b;
     }));
     
-    addTransaction(currentPlayerId, "income", `Búza eladás a malomnak (${quantity} db)`, totalRevenue);
-    if (mill.ownerId !== currentPlayerId) {
-        addTransaction(mill.ownerId, "expense", `Búza vásárlás (${quantity} db)`, totalRevenue);
-    }
-
-    showSuccess(`${quantity} búza eladva a malomnak ${totalRevenue} pénzért!`);
+    showSuccess(`${quantity} búza hozzáadva a malom készletéhez!`);
   };
 
   const handleStartMillProcess = (millId: string, quantity: number) => {
@@ -1432,6 +1521,7 @@ const Game = () => {
         playerSettingsButton={null} 
         nextTickProgress={tickProgress} 
         timeRemaining={secondsRemaining} 
+        isMayor={buildings.find(b => b.name === 'Polgármesteri Hivatal')?.ownerId === currentPlayerId}
       />
       
       <div className="mt-4 space-y-2">
@@ -1521,6 +1611,7 @@ const Game = () => {
             mapOffsetX={mapOffsetX} 
             mapOffsetY={mapOffsetY} 
             isPlacementMode={isPlacementMode} 
+            isDragging={isDragging}
           />
           
           {selectedBuilding && (
@@ -1677,13 +1768,13 @@ const Game = () => {
                         </div>
                       )}
 
-                      {/* Búza eladás a malomnak (mindenki számára) */}
+                      {/* Búza hozzáadása a malomhoz (mindenki számára) */}
                       <div className="p-3 border rounded-md bg-green-50/50 dark:bg-green-900/20">
                         <h4 className="font-semibold mb-2 flex items-center">
-                          <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza eladása a malomnak
+                          <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza hozzáadása
                         </h4>
                         <p className="text-xs text-muted-foreground mb-2">
-                          A malom megvásárolja a búzát tőled. Ár: {MILL_WHEAT_BUY_PRICE} pénz/db.
+                          Búza hozzáadása a malom készletéhez a termeléshez.
                         </p>
                         <div className="flex items-center gap-2">
                           <Input 
@@ -1691,19 +1782,19 @@ const Game = () => {
                             defaultValue={1} 
                             min={1} 
                             max={currentPlayer.inventory.wheat || 0}
-                            id="wheat-sell-qty-public"
+                            id="wheat-add-qty-public"
                             className="w-20 h-8"
                           />
                           <Button 
                             size="sm" 
                             onClick={() => {
-                              const qty = Number((document.getElementById('wheat-sell-qty-public') as HTMLInputElement)?.value || 1);
-                              handleSellWheatToMill(selectedBuilding.id, qty);
+                              const qty = Number((document.getElementById('wheat-add-qty-public') as HTMLInputElement)?.value || 1);
+                              handleAddWheatToMill(selectedBuilding.id, qty);
                               setSelectedBuilding(null);
                             }}
                             disabled={(currentPlayer.inventory.wheat || 0) === 0}
                           >
-                            Eladás
+                            Hozzáadás
                           </Button>
                         </div>
                         <p className="text-xs mt-1">Készleten: {currentPlayer.inventory.wheat || 0} db</p>
@@ -1932,7 +2023,7 @@ const Game = () => {
             isOpen={isBuildMenuOpen}
             onClose={() => setIsBuildMenuOpen(false)}
             onSelectBuilding={handleBuildBuilding}
-            availableBuildings={availableBuildingOptions}
+            availableBuildings={availableBuildingOptions.filter(b => b.name !== 'Polgármesteri Hivatal' || !buildings.some(existing => existing.name === 'Polgármesteri Hivatal'))}
             playerMoney={currentPlayer.money}
             playerWood={currentPlayer.inventory.wood}
             playerBrick={currentPlayer.inventory.brick}

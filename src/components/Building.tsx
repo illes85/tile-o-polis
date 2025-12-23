@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import satorImage from "@/images/sator.png"; 
 import hazikoImage from "@/images/haziko.png"; 
 import farmImage from "@/images/farm.png"; 
-import valyoghazImage from "@/images/vályogház (át).png"; // ÚJ VÁLYOGHÁZ KÉP IMPORTÁLÁSA
+import valyoghazImage from "@/images/vályogház 2.png"; // ÚJ VÁLYOGHÁZ KÉP IMPORTÁLÁSA
 
 // Tileset elérési utak
 const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";

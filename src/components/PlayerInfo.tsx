@@ -31,6 +31,7 @@ interface PlayerInfoProps {
   playerSettingsButton: React.ReactNode;
   nextTickProgress: number;
   timeRemaining: number;
+  isMayor?: boolean;
 }
 
 const PlayerInfo: React.FC<PlayerInfoProps> = ({ 
@@ -42,7 +43,8 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
   ownedBusinesses, 
   playerSettingsButton, 
   nextTickProgress, 
-  timeRemaining 
+  timeRemaining,
+  isMayor
 }) => {
   return (
     <Card className="w-full bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border shadow-none">
@@ -54,6 +56,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
         <div className="flex items-center mb-2">
           <User className="mr-2 h-4 w-4 text-gray-500" />
           <span>Név: {playerName}</span>
+          {isMayor && <span className="ml-2 bg-yellow-500 text-black text-[0.6rem] px-1.5 py-0.5 rounded-full font-bold">Polgármester</span>}
         </div>
         <div className="flex items-center mb-2">
           <Coins className="mr-2 h-4 w-4 text-green-500" />
