@@ -154,35 +154,37 @@ const Game = () => {
   };
 
   const processEconomyTick = useCallback(() => {
-    setPlayers(prevPlayers => {
-      const playerBalanceChanges: Record<string, number> = {};
-      prevPlayers.forEach(p => playerBalanceChanges[p.id] = 0);
+    const newTransactions: Transaction[] = [];
+    const playerBalanceChanges: Record<string, number> = {};
+    players.forEach(p => playerBalanceChanges[p.id] = 0);
 
-      buildings.forEach(building => {
-        if (building.type === "house" && building.renterId && building.ownerId && building.rentalPrice) {
-          const tenant = prevPlayers.find(p => p.id === building.renterId);
-          if (tenant && tenant.money >= building.rentalPrice) {
-            playerBalanceChanges[building.renterId] -= building.rentalPrice;
-            playerBalanceChanges[building.ownerId] += building.rentalPrice;
-            addTransaction(building.renterId, "expense", `Bérleti díj: ${building.name}`, building.rentalPrice);
-            addTransaction(building.ownerId, "income", `Lakbér: ${building.name}`, building.rentalPrice);
-          }
+    buildings.forEach(building => {
+      if (building.type === "house" && building.renterId && building.ownerId && building.rentalPrice) {
+        const tenant = players.find(p => p.id === building.renterId);
+        if (tenant && tenant.money >= building.rentalPrice) {
+          playerBalanceChanges[building.renterId] -= building.rentalPrice;
+          playerBalanceChanges[building.ownerId] += building.rentalPrice;
+          newTransactions.push({ id: `tx-${Date.now()}-${Math.random()}-rent-exp`, playerId: building.renterId, type: "expense", description: `Bérleti díj: ${building.name}`, amount: building.rentalPrice, timestamp: Date.now() });
+          newTransactions.push({ id: `tx-${Date.now()}-${Math.random()}-rent-inc`, playerId: building.ownerId, type: "income", description: `Lakbér: ${building.name}`, amount: building.rentalPrice, timestamp: Date.now() });
         }
+      }
 
-        if (building.salary && building.employeeIds.length > 0) {
-          building.employeeIds.forEach(empId => {
-            playerBalanceChanges[empId] += building.salary!;
-            addTransaction(empId, "income", `Fizetés: ${building.name}`, building.salary!);
-          });
-        }
-      });
-
-      return prevPlayers.map(p => ({
-        ...p,
-        money: Math.max(0, p.money + (playerBalanceChanges[p.id] || 0))
-      }));
+      if (building.salary && building.employeeIds.length > 0) {
+        building.employeeIds.forEach(empId => {
+          playerBalanceChanges[empId] += building.salary!;
+          newTransactions.push({ id: `tx-${Date.now()}-${Math.random()}-salary`, playerId: empId, type: "income", description: `Fizetés: ${building.name}`, amount: building.salary!, timestamp: Date.now() });
+        });
+      }
     });
-  }, [buildings]);
+
+    setPlayers(prevPlayers => prevPlayers.map(p => ({
+      ...p,
+      money: Math.max(0, p.money + (playerBalanceChanges[p.id] || 0))
+    })));
+    
+    setTransactions(prev => [...prev, ...newTransactions]);
+    
+  }, [buildings, players]);
 
   // Malom feldolgozási logika
   useEffect(() => {
@@ -190,26 +192,26 @@ const Game = () => {
       setBuildings(prevBuildings => 
         prevBuildings.map(building => {
           if (building.type === "mill" && building.employeeIds.length > 0) {
-            // Ellenőrizzük, hogy van-e elég búza a tulajdonosnak
-            const owner = players.find(p => p.id === building.ownerId);
-            if (owner && (owner.inventory.wheat || 0) >= MILL_WHEAT_CONSUMPTION_PER_PROCESS) {
-              // Frissítjük a tulajdonos búza készletét
-              setPlayers(prevPlayers => 
-                prevPlayers.map(p => 
-                  p.id === building.ownerId ? {
-                    ...p,
-                    inventory: {
-                      ...p.inventory,
-                      wheat: (p.inventory.wheat || 0) - MILL_WHEAT_CONSUMPTION_PER_PROCESS,
-                      flour: (p.inventory.flour || 0) + MILL_FLOUR_PRODUCTION_PER_PROCESS
-                    }
-                  } : p
-                )
-              );
+            // Ellenőrizzük, hogy van-e elég búza a malom készletében
+            const currentWheat = building.millInventory?.wheat || 0;
+            if (currentWheat >= MILL_WHEAT_CONSUMPTION_PER_PROCESS) {
               
-              // Tranzakció rögzítése
-              addTransaction(building.ownerId!, "expense", `Malom: búza feldolgozása`, 0);
-              showSuccess(`${building.name}: Búza feldolgozva, liszt előállítva!`);
+              // Frissítjük a malom készletét
+              const newMillInventory = {
+                wheat: currentWheat - MILL_WHEAT_CONSUMPTION_PER_PROCESS,
+                flour: (building.millInventory?.flour || 0) + MILL_FLOUR_PRODUCTION_PER_PROCESS
+              };
+
+              // Tranzakció rögzítése (csak a tulajdonosnak, ha van)
+              if (building.ownerId) {
+                addTransaction(building.ownerId, "expense", `Malom: búza feldolgozása`, 0);
+                showSuccess(`${building.name}: Búza feldolgozva, liszt előállítva!`);
+              }
+              
+              return {
+                ...building,
+                millInventory: newMillInventory
+              };
             }
           }
           return building;
@@ -490,7 +492,8 @@ const Game = () => {
         buildProgress: 0,
         rotation: currentBuildingRotation,
         farmlandTiles: buildingToPlace.type === "farm" ? [] : undefined,
-        level: 1
+        level: 1,
+        millInventory: buildingToPlace.type === "mill" ? { wheat: 0, flour: 0 } : undefined,
       };
 
       setBuildings(prev => [...prev, newBuilding]);
@@ -546,6 +549,60 @@ const Game = () => {
     setIsBuildMenuOpen(false);
     setBuildingToPlace(opt);
     setIsPlacingBuilding(true);
+  };
+
+  const handleDemolishBuilding = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || building.ownerId !== currentPlayerId) return;
+
+    const buildingOption = availableBuildingOptions.find(o => o.type === building.type && o.name === building.name);
+    if (!buildingOption) return;
+
+    const refundMoney = Math.floor(buildingOption.cost * DEMOLISH_REFUND_PERCENTAGE);
+    const refundWood = Math.floor((buildingOption.woodCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+    const refundBrick = Math.floor((buildingOption.brickCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+    const refundStone = Math.floor((buildingOption.stoneCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? {
+        ...p,
+        money: p.money + refundMoney,
+        inventory: {
+          ...p.inventory,
+          wood: (p.inventory.wood || 0) + refundWood,
+          brick: (p.inventory.brick || 0) + refundBrick,
+          stone: (p.inventory.stone || 0) + refundStone,
+        }
+      } : p
+    ));
+
+    addTransaction(currentPlayerId, "income", `Épületbontás visszatérítés: ${building.name}`, refundMoney);
+    showSuccess(`${building.name} lebontva. Visszatérítés: ${refundMoney} pénz, ${refundWood} fa, ${refundBrick} tégla, ${refundStone} kő.`);
+
+    setBuildings(prev => prev.filter(b => b.id !== buildingId));
+    setSelectedBuilding(null);
+  };
+
+  const handleResignFromJob = (buildingId: string) => {
+    const building = buildings.find(b => b.id === buildingId);
+    if (!building || !building.employeeIds.includes(currentPlayerId)) return;
+
+    setBuildings(prev => prev.map(b => 
+      b.id === buildingId ? { 
+        ...b, 
+        employeeIds: b.employeeIds.filter(id => id !== currentPlayerId)
+      } : b
+    ));
+
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? { 
+        ...p, 
+        workplace: "Munkanélküli" 
+      } : p
+    ));
+
+    showSuccess(`Felmondtál a(z) ${building.name} munkahelyen.`);
+    setSelectedBuilding(null);
   };
 
   const handleRestock = useCallback((shopId: string, type: ProductType, quantity: number) => {
@@ -658,10 +715,16 @@ const Game = () => {
     }
 
     const totalRevenue = quantity * MILL_WHEAT_BUY_PRICE;
+    const millOwner = players.find(p => p.id === mill.ownerId);
+
+    if (mill.ownerId !== currentPlayerId && millOwner && millOwner.money < totalRevenue) {
+        showError(`A malom tulajdonosának (${millOwner.name}) nincs elég pénze a búza megvásárlásához! Szükséges: ${totalRevenue} pénz.`);
+        return;
+    }
 
     // 1. Pénz levonása a malom tulajdonosától (ha nem a játékos a tulajdonos)
     // 2. Pénz jóváírása a játékosnak
-    // 3. Búza levonása a játékostól
+    // 3. Búza levonása a játékostól és hozzáadása a malom készletéhez
     
     setPlayers(prev => prev.map(p => {
       if (p.id === currentPlayerId) {
@@ -682,6 +745,19 @@ const Game = () => {
         };
       }
       return p;
+    }));
+
+    setBuildings(prev => prev.map(b => {
+        if (b.id === millId && b.type === 'mill') {
+            return {
+                ...b,
+                millInventory: {
+                    wheat: (b.millInventory?.wheat || 0) + quantity,
+                    flour: b.millInventory?.flour || 0,
+                }
+            };
+        }
+        return b;
     }));
     
     addTransaction(currentPlayerId, "income", `Búza eladás a malomnak (${quantity} db)`, totalRevenue);
@@ -908,10 +984,10 @@ const Game = () => {
                           Időtartam: {MILL_PROCESSING_TIME_MS / 1000} másodperc<br />
                           Szükséges: alkalmazott
                         </p>
-                        <p className="text-xs mt-2">
-                          Tulajdonos búza készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.wheat || 0}** db<br />
-                          Tulajdonos liszt készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.flour || 0}** db
-                        </p>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <p>Malom búza készlet: **{selectedBuilding.millInventory?.wheat || 0}** db</p>
+                            <p>Malom liszt készlet: **{selectedBuilding.millInventory?.flour || 0}** db</p>
+                        </div>
                         {selectedBuilding.employeeIds.length === 0 && (
                           <p className="text-red-500 text-xs mt-2">Nincs alkalmazott a malomban, a feldolgozás szünetel!</p>
                         )}
@@ -923,7 +999,7 @@ const Game = () => {
                           <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza eladása a malomnak
                         </h4>
                         <p className="text-xs text-muted-foreground mb-2">
-                          A malom megvásárolja a búzát tőled, ha van pénze. Ár: {MILL_WHEAT_BUY_PRICE} pénz/db.
+                          A malom megvásárolja a búzát tőled. Ár: {MILL_WHEAT_BUY_PRICE} pénz/db.
                         </p>
                         <div className="flex items-center gap-2">
                           <Input 
@@ -983,6 +1059,16 @@ const Game = () => {
                       setSelectedBuilding(null);
                     }}>
                       Munkába állás
+                    </Button>
+                  )}
+                  {selectedBuilding.salary && selectedBuilding.employeeIds.includes(currentPlayerId) && (
+                    <Button variant="destructive" onClick={() => handleResignFromJob(selectedBuilding.id)}>
+                      Felmondás
+                    </Button>
+                  )}
+                  {selectedBuilding.ownerId === currentPlayerId && (
+                    <Button variant="destructive" onClick={() => handleDemolishBuilding(selectedBuilding.id)}>
+                      <Trash2 className="h-4 w-4 mr-2" /> Lebontás
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => setSelectedBuilding(null)}>

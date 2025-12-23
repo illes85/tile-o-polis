@@ -29,6 +29,7 @@ export interface BuildingData {
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
   level?: number; // Hozzáadva a szinthez
+  millInventory?: { wheat: number; flour: number }; // ÚJ: Malom készlete
 }
 
 interface MapProps {

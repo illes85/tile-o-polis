@@ -82,10 +82,6 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
             </p>
           )}
           <p className="text-sm text-muted-foreground flex items-center">
-            <Hammer className="h-4 w-4 mr-1 text-gray-500" />
-            {building.duration / 1000} másodperc
-          </p>
-          <p className="text-sm text-muted-foreground flex items-center">
             Méret: {building.width}x{building.height}
           </p>
           {building.type === "house" && building.rentalPrice !== undefined && (
@@ -95,10 +91,16 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
             </p>
           )}
           {(building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop" || building.type === "mill") && building.salary !== undefined && (
-            <p className="text-sm text-muted-foreground flex items-center">
-              <Briefcase className="h-4 w-4 mr-1 text-gray-500" />
-              Max dolgozók: {building.capacity}
-            </p>
+            <>
+              <p className="text-sm text-muted-foreground flex items-center">
+                <Briefcase className="h-4 w-4 mr-1 text-gray-500" />
+                Max dolgozók: {building.capacity}
+              </p>
+              <p className="text-sm text-muted-foreground flex items-center font-semibold text-blue-600">
+                <Coins className="h-4 w-4 mr-1 text-blue-600" />
+                Fizetés: {building.salary} pénz/ciklus
+              </p>
+            </>
           )}
         </div>
         <Button onClick={() => onSelectBuilding(building.name)} disabled={isDisabled}>
