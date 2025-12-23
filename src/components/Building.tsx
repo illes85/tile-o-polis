@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat, Warehouse } from "lucide-react"; 
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat, Warehouse, Popcorn } from "lucide-react"; 
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; 
 import satorImage from "@/images/sator.png"; 
@@ -13,6 +13,7 @@ const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_fa
 export enum CropType {
   None = "none",
   Wheat = "wheat",
+  Corn = "corn", // ÚJ: Kukorica
 }
 
 export interface FarmlandTile {
@@ -32,7 +33,7 @@ interface BuildingProps {
   y: number; 
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill"; 
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand"; 
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -194,8 +195,11 @@ const Building: React.FC<BuildingProps> = ({
         visualClasses += " bg-yellow-800/40 border border-yellow-900/50 hover:bg-yellow-800/60";
         
         let cropVisual = null;
-        if (cropType === CropType.Wheat) {
-          // Búza növekedési fázisok (4 szakasz a kompakt tilesetben)
+        let cropRow = 0; // Búza
+        if (cropType === CropType.Corn) cropRow = 1; // Kukorica (feltételezve, hogy a második sorban van a tilesetben)
+
+        if (cropType !== CropType.None) {
+          // Növekedési fázisok (4 szakasz a kompakt tilesetben)
           let stageX = 0;
           if (cropProgress >= 25 && cropProgress < 50) stageX = 1;
           else if (cropProgress >= 50 && cropProgress < 85) stageX = 2;
@@ -207,8 +211,8 @@ const Building: React.FC<BuildingProps> = ({
                 width: '100%',
                 height: '100%',
                 backgroundImage: `url(${CROP_TILESET})`,
-                backgroundPosition: `-${stageX * 48}px -0px`, // Első sor a búza
-                backgroundSize: '192px 48px', // 4 fázis x 48px
+                backgroundPosition: `-${stageX * 48}px -${cropRow * 48}px`, 
+                backgroundSize: '192px 96px', // 4 fázis x 2 sor (búza, kukorica)
                 imageRendering: 'pixelated'
               }}
             />
@@ -248,6 +252,17 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             <Warehouse className="h-4 w-4 mb-1" />
+            <span className="text-white text-[0.65rem] text-center">{name}</span>
+            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
+          </>
+        );
+        break;
+      case "popcorn_stand":
+        visualClasses += " bg-red-500 border border-red-600 hover:bg-red-600";
+        baseClasses += " p-1";
+        content = (
+          <>
+            <Popcorn className="h-4 w-4 mb-1" />
             <span className="text-white text-[0.65rem] text-center">{name}</span>
             {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
           </>

@@ -7,7 +7,7 @@ import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon, Gem } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
-  type: "house" | "office" | "forestry" | "farm" | "shop" | "mill";
+  type: "house" | "office" | "forestry" | "farm" | "shop" | "mill" | "popcorn_stand"; // ÚJ TÍPUS
   category: "residential" | "business";
   name: string;
   cost: number;
@@ -90,7 +90,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
               Max lakók: {building.capacity}
             </p>
           )}
-          {(building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop" || building.type === "mill") && building.salary !== undefined && (
+          {(building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop" || building.type === "mill" || building.type === "popcorn_stand") && building.salary !== undefined && (
             <>
               <p className="text-sm text-muted-foreground flex items-center">
                 <Briefcase className="h-4 w-4 mr-1 text-gray-500" />

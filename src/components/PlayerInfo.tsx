@@ -20,7 +20,10 @@ interface PlayerInfoProps {
     tractor: number;
     wheat: number;
     [ProductType.WheatSeed]: number;
-    flour: number; // Hozzáadva a liszt
+    flour: number;
+    corn: number; // ÚJ
+    corn_flour: number; // ÚJ
+    popcorn: number; // ÚJ
   };
   workplace: string;
   workplaceSalary: number;
@@ -84,6 +87,22 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
               Búza: {inventory.wheat}
             </li>
             <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-yellow-500 flex items-center justify-center">🌽</span>
+              Kukorica: {inventory.corn || 0}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-yellow-400 flex items-center justify-center">🍚</span>
+              Liszt: {inventory.flour || 0}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-yellow-600 flex items-center justify-center">🥣</span>
+              Kukoricaliszt: {inventory.corn_flour || 0}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-red-500 flex items-center justify-center">🍿</span>
+              Popcorn: {inventory.popcorn || 0}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
               <Droplet className="mr-1.5 h-3 w-3 text-blue-500" />
               Víz: {inventory.water}
             </li>
@@ -106,10 +125,6 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-green-600 flex items-center justify-center">🌱</span>
               Vetőmag: {inventory[ProductType.WheatSeed] || 0}
-            </li>
-            <li className="flex items-center text-[0.75rem]">
-              <span className="mr-1.5 h-3 w-3 text-yellow-400 flex items-center justify-center">🍚</span>
-              Liszt: {inventory.flour || 0}
             </li>
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-pink-400 flex items-center justify-center">👚</span>

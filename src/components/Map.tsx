@@ -12,7 +12,7 @@ export interface BuildingData {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill";
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand";
   rentalPrice?: number;
   salary?: number;
   capacity: number;
@@ -29,7 +29,8 @@ export interface BuildingData {
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
   level?: number; // Hozzáadva a szinthez
-  millInventory?: { wheat: number; flour: number }; // ÚJ: Malom készlete
+  millInventory?: { wheat: number; flour: number }; // Malom készlete
+  popcornStandInventory?: { corn: number; popcorn: number }; // ÚJ: Popcorn Árus készlete
 }
 
 interface MapProps {

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CropType } from "./Building";
-import { Wheat, Coins, Sprout } from "lucide-react";
+import { Wheat, Coins, Sprout, Popcorn } from "lucide-react";
 import { ProductType } from "@/utils/products";
 
 interface FarmlandActionDialogProps {
@@ -40,15 +40,17 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   }, [initialCropProgress]);
 
   const WHEAT_SEED_COST = 5;
-  const WHEAT_GROW_TIME_MS = 60000;
+  const CORN_SEED_COST = 7; // ÚJ: Kukorica vetőmag költsége (feltételezve)
 
-  const handlePlantWheat = () => {
-    const seedCount = playerInventory[ProductType.WheatSeed] || 0;
+  const handlePlant = (type: CropType) => {
+    const seedType = type === CropType.Wheat ? ProductType.WheatSeed : ProductType.Corn;
+    const seedCount = playerInventory[seedType] || 0;
+    
     if (seedCount < 1) {
-      alert(`Nincs búzavetőmagod! Szükséges: 1 db. Vásárolj a boltban.`);
+      alert(`Nincs ${seedType === ProductType.WheatSeed ? 'búzavetőmagod' : 'kukoricád'}! Szükséges: 1 db. Vásárolj a boltban.`);
       return;
     }
-    onPlant(farmId, tileX, tileY, CropType.Wheat);
+    onPlant(farmId, tileX, tileY, type);
     onClose();
   };
 
@@ -57,9 +59,9 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
     onClose();
   };
 
-  const isReadyToHarvest = cropType === CropType.Wheat && cropProgress >= 100;
-  const seedCount = playerInventory[ProductType.WheatSeed] || 0;
-  const hasSeed = seedCount > 0;
+  const isReadyToHarvest = cropType !== CropType.None && cropProgress >= 100;
+  const wheatSeedCount = playerInventory[ProductType.WheatSeed] || 0;
+  const cornSeedCount = playerInventory[ProductType.Corn] || 0; // Kukorica magként is használható
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,27 +69,46 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Szántóföld csempe ({tileX}, {tileY})</DialogTitle>
           <DialogDescription>
-            {cropType === CropType.None ? "Ez a csempe üres. Vess el valamit!" : `Vetemény: ${cropType === CropType.Wheat ? "Búza" : "Ismeretlen"}`}
+            {cropType === CropType.None ? "Ez a csempe üres. Vess el valamit!" : `Vetemény: ${cropType === CropType.Wheat ? "Búza" : cropType === CropType.Corn ? "Kukorica" : "Ismeretlen"}`}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           {cropType === CropType.None && (
             <div className="flex flex-col space-y-2">
               <h4 className="font-semibold">Vetés:</h4>
+              
+              {/* Búza vetése */}
               <div className="flex items-center justify-between text-sm mb-1">
                 <span>Búzavetőmag készlet:</span>
-                <span className="font-semibold">{seedCount} db</span>
+                <span className="font-semibold">{wheatSeedCount} db</span>
               </div>
               <Button 
-                onClick={handlePlantWheat} 
-                disabled={!hasSeed}
+                onClick={() => handlePlant(CropType.Wheat)} 
+                disabled={wheatSeedCount < 1}
                 className="bg-amber-600 hover:bg-amber-700"
               >
                 <Wheat className="h-4 w-4 mr-2" />
-                Búza vetése (1 <span className="inline-flex items-center"><Coins className="h-3 w-3 ml-0.5 mr-0.5" /></span> mag)
+                Búza vetése (1 mag)
               </Button>
-              {!hasSeed && (
-                <p className="text-xs text-red-500">Nincs búzavetőmagod! Szükséges: 1 db.</p>
+              {wheatSeedCount < 1 && (
+                <p className="text-xs text-red-500">Nincs búzavetőmagod!</p>
+              )}
+
+              {/* Kukorica vetése */}
+              <div className="flex items-center justify-between text-sm mt-4 mb-1">
+                <span>Kukorica készlet (magként):</span>
+                <span className="font-semibold">{cornSeedCount} db</span>
+              </div>
+              <Button 
+                onClick={() => handlePlant(CropType.Corn)} 
+                disabled={cornSeedCount < 1}
+                className="bg-yellow-500 hover:bg-yellow-600"
+              >
+                <Popcorn className="h-4 w-4 mr-2" />
+                Kukorica vetése (1 mag)
+              </Button>
+              {cornSeedCount < 1 && (
+                <p className="text-xs text-red-500">Nincs kukoricád!</p>
               )}
             </div>
           )}
