@@ -241,12 +241,19 @@ const Game = () => {
 
       setBuildings(prev => [...prev, newBuilding]);
       
+      // HANGEFFEKT HELYREÁLLÍTÁSA
+      if (sfxPlayerRef.current) {
+        const sound = buildingToPlace.category === "residential" ? "construction-01" : "construction-02";
+        sfxPlayerRef.current.playSfx(sound, true);
+      }
+
       let prog = 0;
       const inv = setInterval(() => {
         prog += 10;
         setBuildings(prev => prev.map(b => b.id === newId ? { ...b, buildProgress: prog } : b));
         if (prog >= 100) {
           clearInterval(inv);
+          if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx();
           setBuildings(prev => prev.map(b => b.id === newId ? { ...b, isUnderConstruction: false } : b));
           showSuccess(`${buildingToPlace.name} kész!`);
         }
@@ -258,14 +265,35 @@ const Game = () => {
       if (!isFarmlandPlaceable(gridX, gridY, selectedFarmId)) { showError("A szántóföldet a farm vagy más szántóföld mellé kell tenni!"); return; }
 
       setIsPlacingFarmland(false);
-      const toastId = showLoading("Szántóföld kialakítása...");
       
-      setTimeout(() => {
-        dismissToast(toastId);
-        setBuildings(prev => prev.map(b => b.id === selectedFarmId ? { ...b, farmlandTiles: [...(b.farmlandTiles || []), { x: gridX, y: gridY, ownerId: currentPlayerId, cropType: CropType.None, cropProgress: 0 }] } : b));
-        setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p));
-        showSuccess("Szántóföld bővítve!");
-      }, 3000);
+      // Szántóföld építési fázis bevezetése (progressbar)
+      const tileX = gridX;
+      const tileY = gridY;
+      setBuildings(prev => prev.map(b => b.id === selectedFarmId ? { 
+        ...b, 
+        farmlandTiles: [...(b.farmlandTiles || []), { x: tileX, y: tileY, ownerId: currentPlayerId, cropType: CropType.None, cropProgress: 0, isUnderConstruction: true, buildProgress: 0 }] 
+      } : b));
+      setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, money: p.money - FARMLAND_COST_PER_TILE } : p));
+      
+      if (sfxPlayerRef.current) sfxPlayerRef.current.playSfx("construction-02", true);
+
+      let prog = 0;
+      const inv = setInterval(() => {
+        prog += 20;
+        setBuildings(prev => prev.map(b => b.id === selectedFarmId ? {
+          ...b,
+          farmlandTiles: b.farmlandTiles?.map(t => t.x === tileX && t.y === tileY ? { ...t, buildProgress: prog } : t)
+        } : b));
+        if (prog >= 100) {
+          clearInterval(inv);
+          if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx();
+          setBuildings(prev => prev.map(b => b.id === selectedFarmId ? {
+            ...b,
+            farmlandTiles: b.farmlandTiles?.map(t => t.x === tileX && t.y === tileY ? { ...t, isUnderConstruction: false } : t)
+          } : b));
+          showSuccess("Szántóföld kész!");
+        }
+      }, 600); // 3 másodperc összesen
     }
   };
 
@@ -323,9 +351,38 @@ const Game = () => {
         <h2 className="text-2xl font-bold text-sidebar-primary-foreground">Tile-o-polis</h2>
         <PlayerSettings playerName={currentPlayer.name} onPlayerNameChange={(n) => setPlayers(prev => prev.map(p => p.id === currentPlayerId ? { ...p, name: n } : p))} />
       </div>
+
+      {/* Játékos váltás szekció (teszteléshez) */}
+      <div className="mb-4 space-y-2">
+        <Label className="text-xs text-sidebar-foreground">Játékos váltása (Teszt mód):</Label>
+        <Select onValueChange={setCurrentPlayerId} value={currentPlayerId}>
+          <SelectTrigger className="w-full bg-sidebar-accent border-sidebar-border">
+            <SelectValue placeholder="Válassz játékost" />
+          </SelectTrigger>
+          <SelectContent>
+            {players.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <PlayerInfo playerName={currentPlayer.name} money={currentPlayer.money} inventory={currentPlayer.inventory as any} workplace={currentPlayer.workplace} workplaceSalary={currentPlayer.workplaceSalary} ownedBusinesses={buildings.filter(b => b.ownerId === currentPlayerId && b.type !== "house")} playerSettingsButton={null} nextTickProgress={tickProgress} timeRemaining={secondsRemaining} />
       <div className="mt-4 space-y-2">
-        {!isPlacementMode ? <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">Építés</Button> : <Button onClick={() => { setIsPlacingBuilding(false); setIsPlacingFarmland(false); }} className="w-full bg-red-600"><X className="mr-2 h-4 w-4" /> Mégsem</Button>}
+        {!isPlacementMode ? (
+          <Button onClick={() => setIsBuildMenuOpen(true)} className="w-full bg-blue-600 font-bold">Építés</Button>
+        ) : (
+          <Button 
+            onClick={() => { 
+              setIsPlacingBuilding(false); 
+              setIsPlacingFarmland(false); 
+              setGhostBuildingCoords(null);
+            }} 
+            className="w-full bg-red-600 flex items-center justify-center"
+          >
+            <X className="mr-2 h-4 w-4" /> Mégsem
+          </Button>
+        )}
         <Button onClick={() => setIsMoneyHistoryOpen(true)} className="w-full bg-yellow-600 font-bold">Pénzmozgások</Button>
         <Button onClick={() => navigate('/')} className="w-full bg-gray-600">Főmenü</Button>
       </div>
@@ -342,7 +399,7 @@ const Game = () => {
           <Map buildings={buildings} gridSize={MAP_GRID_SIZE} cellSizePx={CELL_SIZE_PX} onBuildingClick={handleBuildingClick} isPlacingBuilding={isPlacingBuilding} buildingToPlace={buildingToPlace} ghostBuildingCoords={ghostBuildingCoords} onGridMouseMove={(x,y) => setGhostBuildingCoords({x,y})} onMapClick={handleMapClick} currentPlayerId={currentPlayerId} currentBuildingRotation={currentBuildingRotation} isPlacingFarmland={isPlacingFarmland} selectedFarmId={selectedFarmId} onFarmlandClick={(fid, x, y) => {
             const b = buildings.find(b => b.id === fid);
             const tile = b?.farmlandTiles?.find(t => t.x === x && t.y === y);
-            if (tile && tile.ownerId === currentPlayerId) setFarmlandActionState({ isOpen: true, farmId: fid, tileX: x, tileY: y, cropType: tile.cropType, cropProgress: tile.cropProgress || 0 });
+            if (tile && tile.ownerId === currentPlayerId && !tile.isUnderConstruction) setFarmlandActionState({ isOpen: true, farmId: fid, tileX: x, tileY: y, cropType: tile.cropType, cropProgress: tile.cropProgress || 0 });
           }} ghostFarmlandTiles={[]} isPlacingRoad={false} ghostRoadTiles={[]} isDemolishingRoad={false} mapOffsetX={mapOffsetX} mapOffsetY={mapOffsetY} isPlacementMode={isPlacementMode} />
           
           {selectedBuilding && (
@@ -356,7 +413,14 @@ const Game = () => {
                     </div>
                   )}
                   {selectedBuilding.type === "shop" && <Button onClick={() => { setSelectedShopBuilding(selectedBuilding); setIsShopMenuOpen(true); setSelectedBuilding(null); }} className="w-full bg-purple-600">Bolt megnyitása</Button>}
-                  {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && <Button onClick={() => { if (selectedBuilding.employeeIds.length === 0) { showError("Nincs alkalmazott a farmon!"); return; } setSelectedFarmId(selectedBuilding.id); setIsPlacingFarmland(true); setSelectedBuilding(null); }} className="w-full bg-green-600 font-bold">Szántóföld bővítése</Button>}
+                  {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
+                    <Button 
+                      onClick={() => { if (selectedBuilding.employeeIds.length === 0) { showError("Nincs alkalmazott a farmon!"); return; } setSelectedFarmId(selectedBuilding.id); setIsPlacingFarmland(true); setSelectedBuilding(null); }} 
+                      className="w-full bg-green-600 font-bold"
+                    >
+                      {(selectedBuilding.farmlandTiles?.length || 0) > 0 ? "Szántóföld bővítése" : "Szántóföld létrehozása"}
+                    </Button>
+                  )}
                 </div>
                 <DialogFooter>
                   {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && <Button onClick={() => { setBuildings(prev => prev.map(b => b.id === selectedBuilding.id ? { ...b, residentIds: [...b.residentIds, currentPlayerId], renterId: currentPlayerId } : b)); setSelectedBuilding(null); }}>Beköltözés</Button>}
