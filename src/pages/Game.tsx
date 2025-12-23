@@ -17,7 +17,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock, DollarSign } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -1121,6 +1121,24 @@ const Game = () => {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
+                  {/* Bérleti díj / Fizetés megjelenítése */}
+                  {(selectedBuilding.rentalPrice !== undefined || selectedBuilding.salary !== undefined) && (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-700">
+                      {selectedBuilding.rentalPrice !== undefined && (
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="font-semibold flex items-center"><DollarSign className="h-4 w-4 mr-1 text-red-500" /> Bérleti díj (Lakóknak):</span>
+                          <span className="font-bold text-red-500">{selectedBuilding.rentalPrice} pénz/ciklus</span>
+                        </div>
+                      )}
+                      {selectedBuilding.salary !== undefined && (
+                        <div className="flex justify-between items-center text-sm mt-1">
+                          <span className="font-semibold flex items-center"><DollarSign className="h-4 w-4 mr-1 text-green-500" /> Fizetés (Alkalmazottaknak):</span>
+                          <span className="font-bold text-green-500">{selectedBuilding.salary} pénz/ciklus</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-md border">
                     <Users className="h-5 w-5 text-blue-500" />
                     <div className="flex-1">
