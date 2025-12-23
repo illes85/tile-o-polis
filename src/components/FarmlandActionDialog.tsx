@@ -58,7 +58,8 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   };
 
   const isReadyToHarvest = cropType === CropType.Wheat && cropProgress >= 100;
-  const hasSeed = (playerInventory[ProductType.WheatSeed] || 0) > 0;
+  const seedCount = playerInventory[ProductType.WheatSeed] || 0;
+  const hasSeed = seedCount > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -73,6 +74,10 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
           {cropType === CropType.None && (
             <div className="flex flex-col space-y-2">
               <h4 className="font-semibold">Vetés:</h4>
+              <div className="flex items-center justify-between text-sm mb-1">
+                <span>Búzavetőmag készlet:</span>
+                <span className="font-semibold">{seedCount} db</span>
+              </div>
               <Button 
                 onClick={handlePlantWheat} 
                 disabled={!hasSeed}

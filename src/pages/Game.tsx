@@ -100,6 +100,9 @@ const Game = () => {
     { id: "player-rich-3", name: "Tökmagolaj", money: 150000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-rich-4", name: "Búzabáró", money: 300000, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-rich-5", name: "Kalászkirály", money: 500000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
