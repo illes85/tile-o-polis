@@ -18,7 +18,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -372,7 +372,6 @@ const Game = () => {
     return () => clearInterval(timer);
   }, [shopInventories, handleRestock]);
 
-  // Játékos váltás előre/hátra
   const handleNextPlayer = () => {
     const currentIndex = players.findIndex(p => p.id === currentPlayerId);
     const nextIndex = (currentIndex + 1) % players.length;
@@ -438,9 +437,22 @@ const Game = () => {
                   <DialogDescription>Tulajdonos: {players.find(p => p.id === selectedBuilding.ownerId)?.name || "Nincs"}</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                  <div className="bg-muted p-2 text-sm rounded">
-                    <strong>{selectedBuilding.type === "house" ? "Lakók:" : "Dolgozók:"}</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-md border">
+                    <Users className="h-5 w-5 text-blue-500" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold">
+                        {selectedBuilding.type === "house" ? "Lakók:" : "Alkalmazottak:"}
+                      </p>
+                      <p className="text-lg font-bold">
+                        {(selectedBuilding.type === "house" ? selectedBuilding.residentIds.length : selectedBuilding.employeeIds.length)} / {selectedBuilding.capacity}
+                      </p>
+                    </div>
                   </div>
+                  
+                  <div className="bg-muted/50 p-2 text-sm rounded border border-dashed">
+                    <strong>Névsor:</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }
+                  </div>
+
                   {selectedBuilding.type === "shop" && <Button onClick={() => { setSelectedShopBuilding(selectedBuilding); setIsShopMenuOpen(true); setSelectedBuilding(null); }} className="w-full bg-purple-600">Bolt megnyitása</Button>}
                   {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
                     <Button 
