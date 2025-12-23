@@ -1,10 +1,10 @@
 "use client";
-
-import React, { useEffect, useState } from "react"; // useEffect és useState importálása
+import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CropType } from "./Building";
 import { Wheat, Coins, Sprout } from "lucide-react";
+import { ProductType } from "@/utils/products";
 
 interface FarmlandActionDialogProps {
   isOpen: boolean;
@@ -13,10 +13,11 @@ interface FarmlandActionDialogProps {
   tileX: number;
   tileY: number;
   cropType: CropType;
-  cropProgress: number; // Ez az érték nem frissül automatikusan
+  cropProgress: number;
   onPlant: (farmId: string, x: number, y: number, cropType: CropType) => void;
   onHarvest: (farmId: string, x: number, y: number) => void;
   playerMoney: number;
+  playerInventory: Record<string, number>;
 }
 
 const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
@@ -26,15 +27,14 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   tileX,
   tileY,
   cropType,
-  cropProgress: initialCropProgress, // Átnevezés, hogy jelezzük, ez a kezdeti érték
+  cropProgress: initialCropProgress,
   onPlant,
   onHarvest,
   playerMoney,
+  playerInventory,
 }) => {
-  // Belső állapot a cropProgress számára, hogy frissíthető legyen
   const [cropProgress, setCropProgress] = useState(initialCropProgress);
-  
-  // Effekt a cropProgress frissítésére, ha a kezdeti érték megváltozik
+
   useEffect(() => {
     setCropProgress(initialCropProgress);
   }, [initialCropProgress]);
@@ -43,8 +43,9 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   const WHEAT_GROW_TIME_MS = 60000;
 
   const handlePlantWheat = () => {
-    if (playerMoney < WHEAT_SEED_COST) {
-      alert(`Nincs elég pénzed búza vetőmagra! Szükséges: ${WHEAT_SEED_COST} pénz.`);
+    const seedCount = playerInventory[ProductType.WheatSeed] || 0;
+    if (seedCount < 1) {
+      alert(`Nincs búzavetőmagod! Szükséges: 1 db. Vásárolj a boltban.`);
       return;
     }
     onPlant(farmId, tileX, tileY, CropType.Wheat);
@@ -57,6 +58,7 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
   };
 
   const isReadyToHarvest = cropType === CropType.Wheat && cropProgress >= 100;
+  const hasSeed = (playerInventory[ProductType.WheatSeed] || 0) > 0;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -67,21 +69,23 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
             {cropType === CropType.None ? "Ez a csempe üres. Vess el valamit!" : `Vetemény: ${cropType === CropType.Wheat ? "Búza" : "Ismeretlen"}`}
           </DialogDescription>
         </DialogHeader>
-        
         <div className="grid gap-4 py-4">
           {cropType === CropType.None && (
             <div className="flex flex-col space-y-2">
               <h4 className="font-semibold">Vetés:</h4>
               <Button 
-                onClick={handlePlantWheat}
-                disabled={playerMoney < WHEAT_SEED_COST}
+                onClick={handlePlantWheat} 
+                disabled={!hasSeed}
                 className="bg-amber-600 hover:bg-amber-700"
               >
-                <Wheat className="h-4 w-4 mr-2" /> Búza vetése ({WHEAT_SEED_COST} <Coins className="inline-block h-3 w-3 ml-0.5 mr-0.5" />)
+                <Wheat className="h-4 w-4 mr-2" />
+                Búza vetése (1 <span className="inline-flex items-center"><Coins className="h-3 w-3 ml-0.5 mr-0.5" /></span> mag)
               </Button>
+              {!hasSeed && (
+                <p className="text-xs text-red-500">Nincs búzavetőmagod! Szükséges: 1 db.</p>
+              )}
             </div>
           )}
-
           {cropType !== CropType.None && (
             <div className="space-y-2">
               <h4 className="font-semibold">Növekedés:</h4>
@@ -93,14 +97,13 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-green-500 transition-all duration-500" 
-                    style={{ width: `${cropProgress}%` }}
+                    style={{ width: `${cropProgress}%` }} 
                   />
                 </div>
               </div>
             </div>
           )}
         </div>
-
         <DialogFooter>
           {isReadyToHarvest && (
             <Button onClick={handleHarvest} className="bg-green-600 hover:bg-green-700">
