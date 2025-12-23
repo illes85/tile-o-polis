@@ -6,6 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; 
 import satorImage from "@/images/sator.png"; 
 import hazikoImage from "@/images/haziko.png"; 
+import farmImage from "@/images/farm.png"; // ÚJ IMPORT
 
 // Tileset elérési utak
 const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
@@ -182,21 +183,10 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "farm":
-        // Piros pajta a 32x32-es tilesetből (feltételezve, hogy a 0,0 pozícióban van a 4x4-es épület)
+        // Farm képének használata
         visualClasses = "shadow-md cursor-pointer transition-colors"; 
         content = (
-          <div 
-            style={{
-              width: '100%',
-              height: '100%',
-              backgroundImage: `url(${BUILDING_TILESET_32})`,
-              backgroundPosition: `0px 0px`, // A piros pajta kezdő pozíciója (4x4 csempe)
-              backgroundSize: 'auto', 
-              imageRendering: 'pixelated'
-            }}
-          >
-            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
-          </div>
+          <img src={farmImage} alt="Farm" className="h-full w-full object-cover" />
         );
         break;
       case "farmland":

@@ -39,15 +39,12 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
     setCropProgress(initialCropProgress);
   }, [initialCropProgress]);
 
-  const WHEAT_SEED_COST = 5;
-  const CORN_SEED_COST = 7; // ÚJ: Kukorica vetőmag költsége (feltételezve)
-
   const handlePlant = (type: CropType) => {
-    const seedType = type === CropType.Wheat ? ProductType.WheatSeed : ProductType.Corn;
+    const seedType = type === CropType.Wheat ? ProductType.WheatSeed : ProductType.CornSeed;
     const seedCount = playerInventory[seedType] || 0;
     
     if (seedCount < 1) {
-      alert(`Nincs ${seedType === ProductType.WheatSeed ? 'búzavetőmagod' : 'kukoricád'}! Szükséges: 1 db. Vásárolj a boltban.`);
+      alert(`Nincs ${seedType === ProductType.WheatSeed ? 'búzavetőmagod' : 'kukorica vetőmagod'}! Szükséges: 1 db. Vásárolj a boltban.`);
       return;
     }
     onPlant(farmId, tileX, tileY, type);
@@ -61,7 +58,7 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
 
   const isReadyToHarvest = cropType !== CropType.None && cropProgress >= 100;
   const wheatSeedCount = playerInventory[ProductType.WheatSeed] || 0;
-  const cornSeedCount = playerInventory[ProductType.Corn] || 0; // Kukorica magként is használható
+  const cornSeedCount = playerInventory[ProductType.CornSeed] || 0; // Kukorica vetőmag
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -96,7 +93,7 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
 
               {/* Kukorica vetése */}
               <div className="flex items-center justify-between text-sm mt-4 mb-1">
-                <span>Kukorica készlet (magként):</span>
+                <span>Kukorica vetőmag készlet:</span>
                 <span className="font-semibold">{cornSeedCount} db</span>
               </div>
               <Button 
@@ -108,7 +105,7 @@ const FarmlandActionDialog: React.FC<FarmlandActionDialogProps> = ({
                 Kukorica vetése (1 mag)
               </Button>
               {cornSeedCount < 1 && (
-                <p className="text-xs text-red-500">Nincs kukoricád!</p>
+                <p className="text-xs text-red-500">Nincs kukorica vetőmagod!</p>
               )}
             </div>
           )}
