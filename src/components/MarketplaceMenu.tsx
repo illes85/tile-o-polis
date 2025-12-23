@@ -11,6 +11,7 @@ import { ProductType, allProducts, getProductByType } from "@/utils/products";
 import { MarketOffer } from "@/pages/Game";
 import MarketplaceOffer from "./MarketplaceOffer";
 import { showSuccess, showError } from "@/utils/toast";
+import { Card, CardTitle } from "@/components/ui/card"; // HIÁNYZÓ IMPORT HOZZÁADVA
 
 interface Player {
   id: string;
