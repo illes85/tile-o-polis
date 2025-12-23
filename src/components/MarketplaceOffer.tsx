@@ -31,8 +31,9 @@ const getResourceIcon = (type: ProductType | 'money') => {
     case ProductType.Wood: return <span className="mr-1">🌳</span>;
     case ProductType.Brick: return <span className="mr-1">🧱</span>;
     case ProductType.Stone: return <span className="mr-1">💎</span>;
-    case ProductType.Clothes: return <span className="mr-1">👚</span>; // JAVÍTVA
+    case ProductType.Clothes: return <span className="mr-1">👚</span>;
     case ProductType.Flour: return <span className="mr-1">🍚</span>;
+    case ProductType.Water: return <span className="mr-1">💧</span>; // ÚJ VÍZ IKON
     default: return <span className="mr-1">📦</span>;
   }
 };

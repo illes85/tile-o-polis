@@ -1311,7 +1311,7 @@ const Game = () => {
                   )}
                 </div>
                 <DialogFooter>
-                  {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                  {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && selectedBuilding.residentIds.length < selectedBuilding.capacity && (
                     <Button onClick={() => {
                       setBuildings(prev => prev.map(b => 
                         b.id === selectedBuilding.id ? { 
@@ -1325,7 +1325,12 @@ const Game = () => {
                       Beköltözés
                     </Button>
                   )}
-                  {selectedBuilding.salary && !selectedBuilding.employeeIds.includes(currentPlayerId) && currentPlayer.workplace === "Munkanélküli" && (
+                  {selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                    <Button disabled>
+                      Megtelt
+                    </Button>
+                  )}
+                  {selectedBuilding.salary && !selectedBuilding.employeeIds.includes(currentPlayerId) && currentPlayer.workplace === "Munkanélküli" && selectedBuilding.employeeIds.length < selectedBuilding.capacity && (
                     <Button onClick={() => {
                       setBuildings(prev => prev.map(b => 
                         b.id === selectedBuilding.id ? { 
@@ -1342,6 +1347,11 @@ const Game = () => {
                       setSelectedBuilding(null);
                     }}>
                       Munkába állás
+                    </Button>
+                  )}
+                  {selectedBuilding.salary && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId) && (
+                    <Button disabled>
+                      Megtelt
                     </Button>
                   )}
                   {selectedBuilding.salary && selectedBuilding.employeeIds.includes(currentPlayerId) && (
