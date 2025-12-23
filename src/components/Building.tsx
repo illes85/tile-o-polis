@@ -7,8 +7,9 @@ import { cn } from "@/lib/utils";
 import satorImage from "@/images/sator.png"; 
 import hazikoImage from "@/images/haziko.png"; 
 
-// Búza tileset elérési útja (feltételezve, hogy a projektben van)
+// Tileset elérési utak
 const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
+const BUILDING_TILESET_32 = "/src/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_buildings_32x32.png";
 
 export enum CropType {
   None = "none",
@@ -181,14 +182,21 @@ const Building: React.FC<BuildingProps> = ({
         );
         break;
       case "farm":
-        visualClasses += " bg-yellow-600 border border-gray-500 hover:bg-yellow-700";
-        baseClasses += " p-1";
+        // Piros pajta a 32x32-es tilesetből (feltételezve, hogy a 0,0 pozícióban van a 4x4-es épület)
+        visualClasses = "shadow-md cursor-pointer transition-colors"; 
         content = (
-          <>
-            <Sprout className="h-4 w-4 mb-1" />
-            <span>Farm</span>
+          <div 
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundImage: `url(${BUILDING_TILESET_32})`,
+              backgroundPosition: `0px 0px`, // A piros pajta kezdő pozíciója (4x4 csempe)
+              backgroundSize: 'auto', 
+              imageRendering: 'pixelated'
+            }}
+          >
             {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
-          </>
+          </div>
         );
         break;
       case "farmland":

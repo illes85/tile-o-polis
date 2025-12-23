@@ -124,11 +124,12 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
             </li>
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-green-600 flex items-center justify-center">🌱</span>
-              Vetőmag: {inventory[ProductType.WheatSeed] || 0}
+              Búza vetőmag: {inventory[ProductType.WheatSeed] || 0}
             </li>
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-pink-400 flex items-center justify-center">👚</span>
               Ruha: {inventory.clothes || 0}
+            
             </li>
           </ul>
         </div>
