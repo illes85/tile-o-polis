@@ -17,12 +17,12 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
 import ShopMenu from "@/components/ShopMenu";
-import MarketplaceMenu from "@/components/MarketplaceMenu"; // ÚJ IMPORT
+import MarketplaceMenu from "@/components/MarketplaceMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 
@@ -86,6 +86,15 @@ export interface MarketOffer {
   buyingQuantity: number;
 }
 
+interface MillProcess {
+  id: string;
+  millId: string;
+  startTime: number;
+  duration: number;
+  wheatConsumed: number;
+  flourProduced: number;
+}
+
 const availableBuildingOptions: BuildingOption[] = [
   { type: "house", category: "residential", name: "Sátor", cost: 200, duration: 4000, width: 2, height: 1, rentalPrice: 0, capacity: 1 },
   { type: "house", category: "residential", name: "Házikó", cost: BUILD_HOUSE_COST, duration: BUILD_HOUSE_DURATION_MS, width: 2, height: 2, rentalPrice: 10, capacity: 2 },
@@ -100,7 +109,7 @@ const availableBuildingOptions: BuildingOption[] = [
   { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 30000, width: 4, height: 3, salary: 20, capacity: 5 },
   { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 20000, width: 3, height: 3, salary: 10, capacity: 3 },
   { type: "mill", category: "business", name: "Malom", cost: 2000, woodCost: 10, brickCost: 15, stoneCost: 5, duration: 25000, width: 4, height: 4, salary: 15, capacity: 3 },
-  { type: "office", category: "business", name: "Piac", cost: 3000, woodCost: 15, brickCost: 15, duration: 35000, width: 5, height: 5, salary: 25, capacity: 5 }, // ÚJ PIAC ÉPÜLET
+  { type: "office", category: "business", name: "Piac", cost: 3000, woodCost: 15, brickCost: 15, duration: 35000, width: 5, height: 5, salary: 25, capacity: 5 },
 ];
 
 const Game = () => {
@@ -109,19 +118,19 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId, transactions: initialTransactions } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string, transactions?: Transaction[] };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-2", name: "Játékos 2", money: 1500, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20 }, workplace: "Tesztelő", workplaceSalary: 0 },
-    { id: "player-rich-1", name: "Gazdag Gazda", money: 8000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20, wheat: 20, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-2", name: "Városatyja", money: 12000, inventory: { wood: 100, brick: 100, stone: 100, [ProductType.WheatSeed]: 0, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-3", name: "Tökmagolaj", money: 7000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-4", name: "Búzabáró", money: 9500, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-5", name: "Kalászkirály", money: 11000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-6", name: "Gabonagazda", money: 15000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 18000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-8", name: "Aranykalász", money: 22000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-9", name: "Liszt Király", money: 28000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-10", name: "Gabona Mágus", money: 35000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 1500, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20, clothes: 5 }, workplace: "Tesztelő", workplaceSalary: 0 },
+    { id: "player-rich-1", name: "Gazdag Gazda", money: 8000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20, wheat: 20, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-2", name: "Városatyja", money: 12000, inventory: { wood: 100, brick: 100, stone: 100, [ProductType.WheatSeed]: 0, wheat: 0, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-3", name: "Tökmagolaj", money: 7000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, wheat: 0, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-4", name: "Búzabáró", money: 9500, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100, wheat: 0, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-5", name: "Kalászkirály", money: 11000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200, wheat: 0, flour: 0, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-6", name: "Gabonagazda", money: 15000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 18000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-8", name: "Aranykalász", money: 22000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-9", name: "Liszt Király", money: 28000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-10", name: "Gabona Mágus", money: 35000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500, clothes: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
@@ -143,13 +152,16 @@ const Game = () => {
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
   const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
-  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false); // ÚJ ÁLLAPOT
-  const [marketOffers, setMarketOffers] = useState<MarketOffer[]>([]); // ÚJ ÁLLAPOT
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(false);
+  const [marketOffers, setMarketOffers] = useState<MarketOffer[]>([]);
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const sfxPlayerRef = useRef<SfxPlayerRef>(null);
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland;
+
+  // Malom feldolgozási folyamatok állapota
+  const [millProcesses, setMillProcesses] = useState<MillProcess[]>([]);
 
   // Új állapotok a húzás funkcióhoz
   const [isDragging, setIsDragging] = useState(false);
@@ -200,43 +212,53 @@ const Game = () => {
     
   }, [buildings, players]);
 
-  // Malom feldolgozási logika
+  // Malom feldolgozási időzítő (Most már csak a progress bar frissítésére és a befejezésre szolgál)
   useEffect(() => {
-    const millProcessingTimer = setInterval(() => {
-      setBuildings(prevBuildings => 
-        prevBuildings.map(building => {
-          if (building.type === "mill" && building.employeeIds.length > 0) {
-            // Ellenőrizzük, hogy van-e elég búza a malom készletében
-            const currentWheat = building.millInventory?.wheat || 0;
-            if (currentWheat >= MILL_WHEAT_CONSUMPTION_PER_PROCESS) {
-              
-              // Frissítjük a malom készletét
-              const newMillInventory = {
-                wheat: currentWheat - MILL_WHEAT_CONSUMPTION_PER_PROCESS,
-                flour: (building.millInventory?.flour || 0) + MILL_FLOUR_PRODUCTION_PER_PROCESS
-              };
+    const processTimer = setInterval(() => {
+      const now = Date.now();
+      let completedProcesses: MillProcess[] = [];
+      let activeProcesses: MillProcess[] = [];
 
-              // Tranzakció rögzítése (csak a tulajdonosnak, ha van)
-              if (building.ownerId) {
-                addTransaction(building.ownerId, "expense", `Malom: búza feldolgozása`, 0);
-                showSuccess(`${building.name}: Búza feldolgozva, liszt előállítva!`);
+      millProcesses.forEach(process => {
+        if (process.startTime + process.duration <= now) {
+          completedProcesses.push(process);
+        } else {
+          activeProcesses.push(process);
+        }
+      });
+
+      if (completedProcesses.length > 0) {
+        setMillProcesses(activeProcesses);
+
+        setBuildings(prevBuildings => 
+          prevBuildings.map(b => {
+            if (b.type === 'mill' && b.ownerId) {
+              const completedForThisMill = completedProcesses.filter(p => p.millId === b.id);
+              if (completedForThisMill.length > 0) {
+                const totalFlour = completedForThisMill.reduce((sum, p) => sum + p.flourProduced, 0);
+                
+                showSuccess(`${b.name}: ${totalFlour} liszt előállítva!`);
+                
+                return {
+                  ...b,
+                  millInventory: {
+                    wheat: b.millInventory?.wheat || 0, // A búza már el lett vonva az indításkor
+                    flour: (b.millInventory?.flour || 0) + totalFlour
+                  }
+                };
               }
-              
-              return {
-                ...building,
-                millInventory: newMillInventory
-              };
             }
-          }
-          return building;
-        })
-      );
-    }, MILL_PROCESSING_TIME_MS);
+            return b;
+          })
+        );
+      }
+    }, 1000);
 
-    return () => clearInterval(millProcessingTimer);
-  }, [buildings, players]);
+    return () => clearInterval(processTimer);
+  }, [millProcesses]);
 
-  // Gazdasági ciklus időzítő javítása
+
+  // Gazdasági ciklus időzítő
   useEffect(() => {
     let lastTime = performance.now();
     let accumulatedTime = RENT_INTERVAL_MS - msUntilNextTick;
@@ -247,6 +269,7 @@ const Game = () => {
       accumulatedTime += deltaTime;
 
       // Frissítjük a hátralévő időt
+      // A progress bar-nak növekednie kell, ahogy az idő telik
       setMsUntilNextTick(RENT_INTERVAL_MS - (accumulatedTime % RENT_INTERVAL_MS));
 
       // Ha eltelt egy teljes ciklus
@@ -786,6 +809,52 @@ const Game = () => {
     showSuccess(`${quantity} búza eladva a malomnak ${totalRevenue} pénzért!`);
   };
 
+  const handleStartMillProcess = (millId: string, quantity: number) => {
+    const mill = buildings.find(b => b.id === millId);
+    if (!mill || !mill.ownerId || mill.employeeIds.length === 0) {
+      showError("A malom zárva van, vagy nincs alkalmazott!");
+      return;
+    }
+
+    const requiredWheat = quantity * MILL_WHEAT_CONSUMPTION_PER_PROCESS;
+    const producedFlour = quantity * MILL_FLOUR_PRODUCTION_PER_PROCESS;
+    const totalDuration = quantity * MILL_PROCESSING_TIME_MS;
+
+    const currentWheat = mill.millInventory?.wheat || 0;
+
+    if (currentWheat < requiredWheat) {
+      showError(`Nincs elég búza a malom készletében! Szükséges: ${requiredWheat} db.`);
+      return;
+    }
+
+    // 1. Búza levonása a malom készletéből
+    setBuildings(prev => prev.map(b => {
+      if (b.id === millId && b.type === 'mill') {
+        return {
+          ...b,
+          millInventory: {
+            wheat: currentWheat - requiredWheat,
+            flour: b.millInventory?.flour || 0,
+          }
+        };
+      }
+      return b;
+    }));
+
+    // 2. Feldolgozási folyamat elindítása
+    const newProcess: MillProcess = {
+      id: `mill-proc-${Date.now()}-${Math.random()}`,
+      millId: millId,
+      startTime: Date.now(),
+      duration: totalDuration,
+      wheatConsumed: requiredWheat,
+      flourProduced: producedFlour,
+    };
+
+    setMillProcesses(prev => [...prev, newProcess]);
+    showSuccess(`${quantity} adag búza feldolgozása elindult (${totalDuration / 1000} mp).`);
+  };
+
   // --- Marketplace logikák ---
 
   const handleAddOffer = (offer: Omit<MarketOffer, 'id' | 'sellerName'>) => {
@@ -1024,9 +1093,9 @@ const Game = () => {
             buildingToPlace={buildingToPlace} 
             ghostBuildingCoords={ghostBuildingCoords} 
             onGridMouseMove={handleMapMouseMove} 
-            onMapClick={handleMapMouseUp} // A MapClick most már a MouseUp-ot hívja, ha nem húzunk
-            onMapMouseDown={handleMapMouseDown} // Új eseménykezelő
-            onMapMouseUp={handleMapMouseUp} // Új eseménykezelő
+            onMapClick={handleMapMouseUp}
+            onMapMouseDown={handleMapMouseDown}
+            onMapMouseUp={handleMapMouseUp}
             currentPlayerId={currentPlayerId} 
             currentBuildingRotation={currentBuildingRotation} 
             isPlacingFarmland={isPlacingFarmland} 
@@ -1044,7 +1113,7 @@ const Game = () => {
                   cropProgress: tile.cropProgress || 0
                 });
             }} 
-            ghostFarmlandTiles={draggedTiles} // Átadjuk a húzott csempéket
+            ghostFarmlandTiles={draggedTiles}
             isPlacingRoad={false} 
             ghostRoadTiles={[]} 
             isDemolishingRoad={false} 
@@ -1131,6 +1200,65 @@ const Game = () => {
                       </div>
                       
                       {/* Búza eladás funkció */}
+                      {selectedBuilding.ownerId === currentPlayerId && (
+                        <div className="p-3 border rounded-md bg-yellow-50/50 dark:bg-yellow-900/20">
+                          <h4 className="font-semibold mb-2 flex items-center">
+                            <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza feldolgozás indítása
+                          </h4>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            A malom készletében lévő búzát alakíthatod lisztté. (1 adag = {MILL_WHEAT_CONSUMPTION_PER_PROCESS} búza)
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Input 
+                              type="number" 
+                              defaultValue={1} 
+                              min={1} 
+                              max={Math.floor((selectedBuilding.millInventory?.wheat || 0) / MILL_WHEAT_CONSUMPTION_PER_PROCESS)}
+                              id="mill-process-qty"
+                              className="w-20 h-8"
+                            />
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                const qty = Number((document.getElementById('mill-process-qty') as HTMLInputElement)?.value || 1);
+                                handleStartMillProcess(selectedBuilding.id, qty);
+                                setSelectedBuilding(null);
+                              }}
+                              disabled={selectedBuilding.employeeIds.length === 0 || (selectedBuilding.millInventory?.wheat || 0) < MILL_WHEAT_CONSUMPTION_PER_PROCESS}
+                            >
+                              Feldolgozás indítása
+                            </Button>
+                          </div>
+                          <p className="text-xs mt-1">Feldolgozható adag: {Math.floor((selectedBuilding.millInventory?.wheat || 0) / MILL_WHEAT_CONSUMPTION_PER_PROCESS)}</p>
+                        </div>
+                      )}
+
+                      {/* Aktív folyamatok */}
+                      {millProcesses.filter(p => p.millId === selectedBuilding.id).length > 0 && (
+                        <div className="space-y-2">
+                          <h4 className="font-semibold flex items-center">
+                            <Clock className="h-4 w-4 mr-2" /> Aktív folyamatok:
+                          </h4>
+                          {millProcesses.filter(p => p.millId === selectedBuilding.id).map(process => {
+                            const elapsed = Date.now() - process.startTime;
+                            const progress = Math.min(100, (elapsed / process.duration) * 100);
+                            const remainingTime = Math.ceil((process.duration - elapsed) / 1000);
+                            return (
+                              <div key={process.id} className="border p-2 rounded text-xs">
+                                <p className="font-medium">
+                                  {process.wheatConsumed} búza → {process.flourProduced} liszt
+                                </p>
+                                <Progress value={progress} className="h-2 mt-1" indicatorColor="bg-amber-500" />
+                                <p className="text-right text-muted-foreground mt-1">
+                                  {remainingTime > 0 ? `${remainingTime} mp hátra` : 'Befejezés...'}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Búza eladás a malomnak (mindenki számára) */}
                       <div className="p-3 border rounded-md bg-green-50/50 dark:bg-green-900/20">
                         <h4 className="font-semibold mb-2 flex items-center">
                           <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza eladása a malomnak
@@ -1144,13 +1272,13 @@ const Game = () => {
                             defaultValue={1} 
                             min={1} 
                             max={currentPlayer.inventory.wheat || 0}
-                            id="wheat-sell-qty"
+                            id="wheat-sell-qty-public"
                             className="w-20 h-8"
                           />
                           <Button 
                             size="sm" 
                             onClick={() => {
-                              const qty = Number((document.getElementById('wheat-sell-qty') as HTMLInputElement)?.value || 1);
+                              const qty = Number((document.getElementById('wheat-sell-qty-public') as HTMLInputElement)?.value || 1);
                               handleSellWheatToMill(selectedBuilding.id, qty);
                               setSelectedBuilding(null);
                             }}
