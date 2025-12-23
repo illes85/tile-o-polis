@@ -14,6 +14,7 @@ const GameMenuScreen: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
+    // Ha a játékból jövünk vissza, elmentjük az állapotot a memóriába
     if (location.state && location.state.players && location.state.buildings) {
       setLastGameState(location.state);
     }
@@ -35,7 +36,17 @@ const GameMenuScreen: React.FC = () => {
     if (lastGameState) {
       setIsProcessing(true);
       const toastId = showLoading("Mentés az adatbázisba...");
-      const success = await saveGame(lastGameState);
+      
+      // Csak a szükséges adatokat mentjük el
+      const stateToSave = {
+        players: lastGameState.players,
+        buildings: lastGameState.buildings,
+        currentPlayerId: lastGameState.currentPlayerId,
+        transactions: lastGameState.transactions,
+        // shopInventories és egyéb állapotok, ha szükségesek
+      };
+
+      const success = await saveGame(stateToSave);
       dismissToast(toastId);
       setIsProcessing(false);
       
@@ -55,6 +66,7 @@ const GameMenuScreen: React.FC = () => {
 
     if (savedData) {
       showSuccess("Mentett játék betöltve!");
+      // A betöltött adatokat átadjuk a Game komponensnek
       navigate("/game", { state: savedData });
     } else {
       showError("Nem található mentett játék az adatbázisban.");
@@ -72,7 +84,7 @@ const GameMenuScreen: React.FC = () => {
             <Button onClick={handleResumeGame} disabled={isProcessing} className="w-full">Vissza a játékba</Button>
           )}
           <Button onClick={handleNewGame} disabled={isProcessing} className="w-full">Új Játék</Button>
-          <Button onClick={handleSaveGame} disabled={isProcessing} className="w-full" variant="secondary">Játék Mentése</Button>
+          <Button onClick={handleSaveGame} disabled={isProcessing || !lastGameState} className="w-full" variant="secondary">Játék Mentése</Button>
           <Button onClick={handleLoadGame} disabled={isProcessing} className="w-full" variant="secondary">Játék Betöltése</Button>
           <Button onClick={() => navigate('/select-player')} disabled={isProcessing} className="w-full" variant="destructive">Kilépés</Button>
         </CardContent>

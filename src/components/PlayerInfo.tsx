@@ -20,6 +20,7 @@ interface PlayerInfoProps {
     tractor: number;
     wheat: number;
     [ProductType.WheatSeed]: number;
+    flour: number; // Hozzáadva a liszt
   };
   workplace: string;
   workplaceSalary: number;
@@ -79,7 +80,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
           <h3 className="font-medium mb-1">Készlet:</h3>
           <ul className="grid grid-cols-2 gap-x-2 gap-y-1 ml-1">
             <li className="flex items-center text-[0.75rem]">
-              <Wheat className="mr-1.5 h-3 w-3 text-amber-600" />
+              <span className="mr-1.5 h-3 w-3 text-amber-600 flex items-center justify-center">🌾</span>
               Búza: {inventory.wheat}
             </li>
             <li className="flex items-center text-[0.75rem]">
@@ -87,11 +88,11 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
               Víz: {inventory.water}
             </li>
             <li className="flex items-center text-[0.75rem]">
-              <Leaf className="mr-1.5 h-3 w-3 text-yellow-700" />
+              <span className="mr-1.5 h-3 w-3 text-yellow-700 flex items-center justify-center">🌳</span>
               Fa: {inventory.wood}
             </li>
             <li className="flex items-center text-[0.75rem]">
-              <BrickIcon className="mr-1.5 h-3 w-3 text-orange-500" />
+              <span className="mr-1.5 h-3 w-3 text-orange-500 flex items-center justify-center">🧱</span>
               Tégla: {inventory.brick}
             </li>
             <li className="flex items-center text-[0.75rem]">
@@ -103,8 +104,12 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
               Kapa: {inventory.hoe}
             </li>
             <li className="flex items-center text-[0.75rem]">
-              <Drill className="mr-1.5 h-3 w-3 text-amber-800" />
-              Búzavetőmag: {inventory[ProductType.WheatSeed] || 0}
+              <span className="mr-1.5 h-3 w-3 text-green-600 flex items-center justify-center">🌱</span>
+              Vetőmag: {inventory[ProductType.WheatSeed] || 0}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-yellow-400 flex items-center justify-center">🍚</span>
+              Liszt: {inventory.flour || 0}
             </li>
           </ul>
         </div>

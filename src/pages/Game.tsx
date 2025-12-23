@@ -52,6 +52,7 @@ const WHEAT_HARVEST_YIELD = 10;
 const MILL_WHEAT_CONSUMPTION_PER_PROCESS = 5;
 const MILL_FLOUR_PRODUCTION_PER_PROCESS = 3;
 const MILL_PROCESSING_TIME_MS = 10000;
+const MILL_WHEAT_BUY_PRICE = 5; // A malom ennyiért veszi meg a búzát a játékostól
 
 interface Player {
   id: string;
@@ -219,21 +220,33 @@ const Game = () => {
     return () => clearInterval(millProcessingTimer);
   }, [buildings, players]);
 
+  // Gazdasági ciklus időzítő javítása
   useEffect(() => {
-    const timer = setInterval(() => {
-      setMsUntilNextTick(prev => {
-        const newPrev = prev - 1000;
-        // console.log(`Tick: ${newPrev / 1000}s remaining`); // Debug log
-        if (newPrev <= 0) {
-          processEconomyTick();
-          return RENT_INTERVAL_MS;
-        }
-        return newPrev;
-      });
-    }, 1000);
+    let lastTime = performance.now();
+    let accumulatedTime = RENT_INTERVAL_MS - msUntilNextTick;
 
-    return () => clearInterval(timer);
+    const tick = (currentTime: number) => {
+      const deltaTime = currentTime - lastTime;
+      lastTime = currentTime;
+      accumulatedTime += deltaTime;
+
+      // Frissítjük a hátralévő időt
+      setMsUntilNextTick(RENT_INTERVAL_MS - (accumulatedTime % RENT_INTERVAL_MS));
+
+      // Ha eltelt egy teljes ciklus
+      if (accumulatedTime >= RENT_INTERVAL_MS) {
+        processEconomyTick();
+        accumulatedTime %= RENT_INTERVAL_MS;
+        setMsUntilNextTick(RENT_INTERVAL_MS); // Reseteljük a progress bar-t
+      }
+
+      requestAnimationFrame(tick);
+    };
+
+    const animationFrameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animationFrameId);
   }, [processEconomyTick]);
+
 
   // Növekedési időzítő
   useEffect(() => {
@@ -370,6 +383,9 @@ const Game = () => {
           money: p.money - totalCost
         } : p
       ));
+      
+      addTransaction(currentPlayerId, "expense", `Szántóföld vásárlás (${placeableTiles.length} csempe)`, totalCost);
+
 
       setBuildings(prev => prev.map(b => {
         if (b.id === selectedFarmId) {
@@ -438,6 +454,8 @@ const Game = () => {
       setIsPlacingBuilding(false);
       const newId = `${buildingToPlace.name}-${Date.now()}`;
 
+      const totalCost = buildingToPlace.cost + (buildingToPlace.woodCost || 0) * 0 + (buildingToPlace.brickCost || 0) * 0 + (buildingToPlace.stoneCost || 0) * 0;
+
       setPlayers(prev => prev.map(p => 
         p.id === currentPlayerId ? {
           ...p,
@@ -450,6 +468,9 @@ const Game = () => {
           }
         } : p
       ));
+      
+      addTransaction(currentPlayerId, "expense", `Építés: ${buildingToPlace.name}`, buildingToPlace.cost);
+
 
       const newBuilding: BuildingData = {
         id: newId,
@@ -563,9 +584,10 @@ const Game = () => {
       return;
     }
 
+    const cost = (currentPlayerId === shop.ownerId) ? 0 : item.sellPrice * qty;
+
     setPlayers(prev => prev.map(p => {
       if (p.id === currentPlayerId) {
-        const cost = (p.id === shop.ownerId) ? 0 : item.sellPrice * qty;
         return {
           ...p,
           money: Math.max(0, p.money - cost),
@@ -575,8 +597,21 @@ const Game = () => {
           }
         };
       }
+      // Pénz jóváírása a bolt tulajdonosának
+      if (p.id === shop.ownerId && currentPlayerId !== shop.ownerId) {
+        return {
+          ...p,
+          money: p.money + cost
+        };
+      }
       return p;
     }));
+    
+    if (currentPlayerId !== shop.ownerId) {
+        addTransaction(currentPlayerId, "expense", `Vásárlás: ${item.name} (${qty} db)`, cost);
+        addTransaction(shop.ownerId!, "income", `Eladás: ${item.name} (${qty} db)`, cost);
+    }
+
 
     setShopInventories(prev => ({
       ...prev,
@@ -611,6 +646,50 @@ const Game = () => {
 
     addTransaction(currentPlayerId, "expense", `Bolt fejlesztés: ${shop.name} (Lvl ${currentLevel+1})`, upgradeCost);
     showSuccess(`Bolt sikeresen fejlesztve a ${currentLevel + 1}. szintre!`);
+  };
+
+  const handleSellWheatToMill = (millId: string, quantity: number) => {
+    const mill = buildings.find(b => b.id === millId);
+    if (!mill || !mill.ownerId) return;
+
+    if ((currentPlayer.inventory.wheat || 0) < quantity) {
+      showError("Nincs elég búzád az eladáshoz!");
+      return;
+    }
+
+    const totalRevenue = quantity * MILL_WHEAT_BUY_PRICE;
+
+    // 1. Pénz levonása a malom tulajdonosától (ha nem a játékos a tulajdonos)
+    // 2. Pénz jóváírása a játékosnak
+    // 3. Búza levonása a játékostól
+    
+    setPlayers(prev => prev.map(p => {
+      if (p.id === currentPlayerId) {
+        return {
+          ...p,
+          money: p.money + totalRevenue,
+          inventory: {
+            ...p.inventory,
+            wheat: (p.inventory.wheat || 0) - quantity
+          }
+        };
+      }
+      // Ha a malom tulajdonosa nem a jelenlegi játékos, levonjuk tőle a költséget
+      if (p.id === mill.ownerId && mill.ownerId !== currentPlayerId) {
+        return {
+          ...p,
+          money: p.money - totalRevenue
+        };
+      }
+      return p;
+    }));
+    
+    addTransaction(currentPlayerId, "income", `Búza eladás a malomnak (${quantity} db)`, totalRevenue);
+    if (mill.ownerId !== currentPlayerId) {
+        addTransaction(mill.ownerId, "expense", `Búza vásárlás (${quantity} db)`, totalRevenue);
+    }
+
+    showSuccess(`${quantity} búza eladva a malomnak ${totalRevenue} pénzért!`);
   };
 
   useEffect(() => {
@@ -818,23 +897,57 @@ const Game = () => {
                     </Button>
                   )}
                   {selectedBuilding.type === "mill" && (
-                    <div className="bg-muted/50 p-2 text-sm rounded border border-dashed">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Factory className="h-4 w-4 text-amber-600" />
-                        <span className="font-semibold">Malom információk:</span>
+                    <div className="space-y-4">
+                      <div className="bg-muted/50 p-2 text-sm rounded border border-dashed">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Factory className="h-4 w-4 text-amber-600" />
+                          <span className="font-semibold">Malom információk:</span>
+                        </div>
+                        <p className="text-xs">
+                          Feldolgozás: {MILL_WHEAT_CONSUMPTION_PER_PROCESS} búza → {MILL_FLOUR_PRODUCTION_PER_PROCESS} liszt<br />
+                          Időtartam: {MILL_PROCESSING_TIME_MS / 1000} másodperc<br />
+                          Szükséges: alkalmazott
+                        </p>
+                        <p className="text-xs mt-2">
+                          Tulajdonos búza készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.wheat || 0}** db<br />
+                          Tulajdonos liszt készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.flour || 0}** db
+                        </p>
+                        {selectedBuilding.employeeIds.length === 0 && (
+                          <p className="text-red-500 text-xs mt-2">Nincs alkalmazott a malomban, a feldolgozás szünetel!</p>
+                        )}
                       </div>
-                      <p className="text-xs">
-                        Feldolgozás: {MILL_WHEAT_CONSUMPTION_PER_PROCESS} búza → {MILL_FLOUR_PRODUCTION_PER_PROCESS} liszt<br />
-                        Időtartam: {MILL_PROCESSING_TIME_MS / 1000} másodperc<br />
-                        Szükséges: alkalmazott
-                      </p>
-                      <p className="text-xs mt-2">
-                        Tulajdonos búza készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.wheat || 0}** db<br />
-                        Tulajdonos liszt készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.flour || 0}** db
-                      </p>
-                      {selectedBuilding.employeeIds.length === 0 && (
-                        <p className="text-red-500 text-xs mt-2">Nincs alkalmazott a malomban, a feldolgozás szünetel!</p>
-                      )}
+                      
+                      {/* Búza eladás funkció */}
+                      <div className="p-3 border rounded-md bg-green-50/50 dark:bg-green-900/20">
+                        <h4 className="font-semibold mb-2 flex items-center">
+                          <Wheat className="h-4 w-4 mr-2 text-amber-700" /> Búza eladása a malomnak
+                        </h4>
+                        <p className="text-xs text-muted-foreground mb-2">
+                          A malom megvásárolja a búzát tőled, ha van pénze. Ár: {MILL_WHEAT_BUY_PRICE} pénz/db.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Input 
+                            type="number" 
+                            defaultValue={1} 
+                            min={1} 
+                            max={currentPlayer.inventory.wheat || 0}
+                            id="wheat-sell-qty"
+                            className="w-20 h-8"
+                          />
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              const qty = Number((document.getElementById('wheat-sell-qty') as HTMLInputElement)?.value || 1);
+                              handleSellWheatToMill(selectedBuilding.id, qty);
+                              setSelectedBuilding(null);
+                            }}
+                            disabled={(currentPlayer.inventory.wheat || 0) === 0}
+                          >
+                            Eladás
+                          </Button>
+                        </div>
+                        <p className="text-xs mt-1">Készleten: {currentPlayer.inventory.wheat || 0} db</p>
+                      </div>
                     </div>
                   )}
                 </div>
