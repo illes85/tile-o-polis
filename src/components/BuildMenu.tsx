@@ -1,20 +1,19 @@
 "use client";
-
 import React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon, Gem } from "lucide-react"; // DollarSign helyett Coins, Gem ikon a kőhöz
+import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon, Gem } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
-  type: "house" | "office" | "forestry" | "farm" | "shop"; // Új: shop típus
+  type: "house" | "office" | "forestry" | "farm" | "shop" | "mill";
   category: "residential" | "business";
   name: string;
   cost: number;
   woodCost?: number;
   brickCost?: number;
-  stoneCost?: number; // Új: kő költség
+  stoneCost?: number;
   duration: number;
   width: number;
   height: number;
@@ -31,8 +30,8 @@ interface BuildMenuProps {
   playerMoney: number;
   playerWood: number;
   playerBrick: number;
-  playerStone: number; // Új: játékos kő mennyisége
-  isBuildingInProgress: boolean; // Ez most már csak azt jelzi, ha a játékos éppen helyez el valamit
+  playerStone: number;
+  isBuildingInProgress: boolean;
 }
 
 const BuildMenu: React.FC<BuildMenuProps> = ({
@@ -43,7 +42,7 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
   playerMoney,
   playerWood,
   playerBrick,
-  playerStone, // Hozzáadva
+  playerStone,
   isBuildingInProgress,
 }) => {
   const residentialBuildings = availableBuildings.filter(b => b.category === "residential");
@@ -53,52 +52,56 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
     const canAffordMoney = playerMoney >= building.cost;
     const canAffordWood = building.woodCost ? playerWood >= building.woodCost : true;
     const canAffordBrick = building.brickCost ? playerBrick >= building.brickCost : true;
-    const canAffordStone = building.stoneCost ? playerStone >= building.stoneCost : true; // Új: kő ellenőrzés
-    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || !canAffordStone || isBuildingInProgress; // Hozzáadva a kő és az isBuildingInProgress ellenőrzés
+    const canAffordStone = building.stoneCost ? playerStone >= building.stoneCost : true;
+    const isDisabled = !canAffordMoney || !canAffordWood || !canAffordBrick || !canAffordStone || isBuildingInProgress;
 
     return (
       <Card key={building.name} className="flex items-center justify-between p-4">
         <div>
           <CardTitle className="text-lg">{building.name}</CardTitle>
           <p className="text-sm text-muted-foreground flex items-center">
-            <Coins className="h-4 w-4 mr-1 text-green-500" /> {building.cost === 0 ? "Ingyenes" : `${building.cost} pénz`}
+            <Coins className="h-4 w-4 mr-1 text-green-500" />
+            {building.cost === 0 ? "Ingyenes" : `${building.cost} pénz`}
           </p>
           {building.woodCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <Leaf className="h-4 w-4 mr-1 text-yellow-700" /> {building.woodCost} fa
+              <Leaf className="h-4 w-4 mr-1 text-yellow-700" />
+              {building.woodCost} fa
             </p>
           )}
           {building.brickCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <BrickIcon className="h-4 w-4 mr-1 text-orange-500" /> {building.brickCost} tégla
+              <BrickIcon className="h-4 w-4 mr-1 text-orange-500" />
+              {building.brickCost} tégla
             </p>
           )}
-          {building.stoneCost !== undefined && ( // Új: kő költség megjelenítése
+          {building.stoneCost !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <Gem className="h-4 w-4 mr-1 text-gray-500" /> {building.stoneCost} kő
+              <Gem className="h-4 w-4 mr-1 text-gray-500" />
+              {building.stoneCost} kő
             </p>
           )}
           <p className="text-sm text-muted-foreground flex items-center">
-            <Hammer className="h-4 w-4 mr-1 text-gray-500" /> {building.duration / 1000} másodperc
+            <Hammer className="h-4 w-4 mr-1 text-gray-500" />
+            {building.duration / 1000} másodperc
           </p>
           <p className="text-sm text-muted-foreground flex items-center">
             Méret: {building.width}x{building.height}
           </p>
           {building.type === "house" && building.rentalPrice !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <Users className="h-4 w-4 mr-1 text-gray-500" /> Max lakók: {building.capacity}
+              <Users className="h-4 w-4 mr-1 text-gray-500" />
+              Max lakók: {building.capacity}
             </p>
           )}
-          {(building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop") && building.salary !== undefined && (
+          {(building.type === "office" || building.type === "forestry" || building.type === "farm" || building.type === "shop" || building.type === "mill") && building.salary !== undefined && (
             <p className="text-sm text-muted-foreground flex items-center">
-              <Briefcase className="h-4 w-4 mr-1 text-gray-500" /> Max dolgozók: {building.capacity}
+              <Briefcase className="h-4 w-4 mr-1 text-gray-500" />
+              Max dolgozók: {building.capacity}
             </p>
           )}
         </div>
-        <Button
-          onClick={() => onSelectBuilding(building.name)}
-          disabled={isDisabled}
-        >
+        <Button onClick={() => onSelectBuilding(building.name)} disabled={isDisabled}>
           Épít
         </Button>
       </Card>

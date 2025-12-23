@@ -17,7 +17,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -49,6 +49,9 @@ const FARMLAND_MAX_DISTANCE = 3;
 const DEMOLISH_REFUND_PERCENTAGE = 0.5;
 const WHEAT_GROW_TIME_MS = 60000;
 const WHEAT_HARVEST_YIELD = 10;
+const MILL_WHEAT_CONSUMPTION_PER_PROCESS = 5;
+const MILL_FLOUR_PRODUCTION_PER_PROCESS = 3;
+const MILL_PROCESSING_TIME_MS = 10000;
 
 interface Player {
   id: string;
@@ -84,6 +87,7 @@ const availableBuildingOptions: BuildingOption[] = [
   { type: "farm", category: "business", name: "Farm", cost: 1000, brickCost: 5, woodCost: 3, duration: 10000, width: 4, height: 4, salary: 5, capacity: 2 },
   { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 30000, width: 4, height: 3, salary: 20, capacity: 5 },
   { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 20000, width: 3, height: 3, salary: 10, capacity: 3 },
+  { type: "mill", category: "business", name: "Malom", cost: 2000, woodCost: 10, brickCost: 15, stoneCost: 5, duration: 25000, width: 4, height: 4, salary: 15, capacity: 3 },
 ];
 
 const Game = () => {
@@ -171,6 +175,42 @@ const Game = () => {
       }));
     });
   }, [buildings]);
+
+  // Malom feldolgozási logika
+  useEffect(() => {
+    const millProcessingTimer = setInterval(() => {
+      setBuildings(prevBuildings => 
+        prevBuildings.map(building => {
+          if (building.type === "mill" && building.employeeIds.length > 0) {
+            // Ellenőrizzük, hogy van-e elég búza a tulajdonosnak
+            const owner = players.find(p => p.id === building.ownerId);
+            if (owner && (owner.inventory.wheat || 0) >= MILL_WHEAT_CONSUMPTION_PER_PROCESS) {
+              // Frissítjük a tulajdonos búza készletét
+              setPlayers(prevPlayers => 
+                prevPlayers.map(p => 
+                  p.id === building.ownerId ? {
+                    ...p,
+                    inventory: {
+                      ...p.inventory,
+                      wheat: (p.inventory.wheat || 0) - MILL_WHEAT_CONSUMPTION_PER_PROCESS,
+                      flour: (p.inventory.flour || 0) + MILL_FLOUR_PRODUCTION_PER_PROCESS
+                    }
+                  } : p
+                )
+              );
+              
+              // Tranzakció rögzítése
+              addTransaction(building.ownerId!, "expense", `Malom: búza feldolgozása`, 0);
+              showSuccess(`${building.name}: Búza feldolgozva, liszt előállítva!`);
+            }
+          }
+          return building;
+        })
+      );
+    }, MILL_PROCESSING_TIME_MS);
+
+    return () => clearInterval(millProcessingTimer);
+  }, [buildings, players]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -271,7 +311,8 @@ const Game = () => {
           inventory: {
             ...p.inventory,
             wood: p.inventory.wood - (buildingToPlace.woodCost || 0),
-            brick: p.inventory.brick - (buildingToPlace.brickCost || 0)
+            brick: p.inventory.brick - (buildingToPlace.brickCost || 0),
+            stone: p.inventory.stone - (buildingToPlace.stoneCost || 0)
           }
         } : p
       ));
@@ -415,6 +456,11 @@ const Game = () => {
 
     if (opt.brickCost && (currentPlayer.inventory.brick || 0) < opt.brickCost) {
       showError("Nincs elég téglád!");
+      return;
+    }
+
+    if (opt.stoneCost && (currentPlayer.inventory.stone || 0) < opt.stoneCost) {
+      showError("Nincs elég köved!");
       return;
     }
 
@@ -708,6 +754,19 @@ const Game = () => {
                     >
                       {(selectedBuilding.farmlandTiles?.length || 0) > 0 ? "Szántóföld bővítése" : "Szántóföld létrehozása"}
                     </Button>
+                  )}
+                  {selectedBuilding.type === "mill" && (
+                    <div className="bg-muted/50 p-2 text-sm rounded border border-dashed">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Wheat className="h-4 w-4 text-amber-600" />
+                        <span className="font-semibold">Malom információk:</span>
+                      </div>
+                      <p className="text-xs">
+                        Feldolgozás: 5 búza → 3 liszt<br />
+                        Időtartam: 10 másodperc<br />
+                        Szükséges: alkalmazott
+                      </p>
+                    </div>
                   )}
                 </div>
                 <DialogFooter>
