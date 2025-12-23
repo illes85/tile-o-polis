@@ -107,6 +107,10 @@ const Game = () => {
     { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10 }, workplace: "Munkanélküli", workplaceSalary: 0 },
     { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-9", name: "Liszt Király", money: 2500000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-10", name: "Gabona Mágus", money: 5000000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-11", name: "Búzafaragó", money: 3500000, inventory: { wood: 1500, brick: 1500, stone: 1500, [ProductType.WheatSeed]: 1500, wheat: 750, hoe: 30, tractor: 8 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-12", name: "Kenyérlovag", money: 4200000, inventory: { wood: 1800, brick: 1800, stone: 1800, [ProductType.WheatSeed]: 1800, wheat: 900, hoe: 40, tractor: 12 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
