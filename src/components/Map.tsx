@@ -12,7 +12,7 @@ export interface BuildingData {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop";
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill";
   rentalPrice?: number;
   salary?: number;
   capacity: number;
@@ -28,6 +28,7 @@ export interface BuildingData {
   hasRoadNeighborBottom?: boolean;
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
+  level?: number; // Hozzáadva a szinthez
 }
 
 interface MapProps {
@@ -38,14 +39,16 @@ interface MapProps {
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null;
-  onGridMouseMove: (gridX: number, gridY: number, event: React.MouseEvent<HTMLDivElement>) => void;
-  onMapClick: (x: number, y: number) => void;
+  onGridMouseMove: (gridX: number, gridY: number) => void; // Módosítva, hogy ne adja át az eseményt
+  onMapClick: (x: number, y: number) => void; // Módosítva, hogy ne adja át az eseményt
+  onMapMouseDown: (x: number, y: number) => void; // Új prop
+  onMapMouseUp: (x: number, y: number) => void; // Új prop
   currentPlayerId: string;
   currentBuildingRotation: number;
   isPlacingFarmland: boolean;
   selectedFarmId: string | null;
   onFarmlandClick: (farmId: string, x: number, y: number) => void;
-  ghostFarmlandTiles: { x: number; y: number }[];
+  ghostFarmlandTiles: { x: number; y: number }[]; // Új prop a húzott szellem csempékhez
   isPlacingRoad: boolean;
   ghostRoadTiles: { x: number; y: number }[];
   isDemolishingRoad: boolean;
@@ -63,13 +66,15 @@ const Map: React.FC<MapProps> = ({
   buildingToPlace,
   ghostBuildingCoords,
   onGridMouseMove,
-  onMapClick,
+  onMapClick, // Ezt már nem használjuk közvetlenül a lerakáshoz
+  onMapMouseDown, // Új
+  onMapMouseUp, // Új
   currentPlayerId,
   currentBuildingRotation,
   isPlacingFarmland,
   selectedFarmId,
   onFarmlandClick,
-  ghostFarmlandTiles,
+  ghostFarmlandTiles, // Új
   isPlacingRoad,
   ghostRoadTiles,
   isDemolishingRoad,
@@ -80,34 +85,29 @@ const Map: React.FC<MapProps> = ({
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
 
-  const handleMapMouseMoveInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+  const getGridCoordsFromMouseEvent = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
     const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
     const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
-
-    onGridMouseMove(gridX, gridY, event);
+    return { gridX, gridY };
   };
 
-  const handleMapClickInternal = (event: React.MouseEvent<HTMLDivElement>) => {
-    const mapRect = event.currentTarget.getBoundingClientRect();
-    const mouseXRelativeToMap = event.clientX - mapRect.left;
-    const mouseYRelativeToMap = event.clientY - mapRect.top;
+  const handleMapMouseMoveInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+    const { gridX, gridY } = getGridCoordsFromMouseEvent(event);
+    onGridMouseMove(gridX, gridY);
+  };
 
-    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
-    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
+  const handleMapMouseDownInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+    const { gridX, gridY } = getGridCoordsFromMouseEvent(event);
+    onMapMouseDown(gridX, gridY);
+  };
 
-    if (isPlacingBuilding && ghostBuildingCoords) {
-      onMapClick(gridX, gridY);
-    } else if (isPlacingFarmland && selectedFarmId && ghostBuildingCoords && ghostFarmlandTiles.length === 0) {
-      onMapClick(gridX, gridY);
-    } else if (isPlacingRoad && ghostBuildingCoords && ghostRoadTiles.length === 0) {
-      onMapClick(gridX, gridY);
-    } else if (isDemolishingRoad) {
-      onMapClick(gridX, gridY);
-    }
+  const handleMapMouseUpInternal = (event: React.MouseEvent<HTMLDivElement>) => {
+    const { gridX, gridY } = getGridCoordsFromMouseEvent(event);
+    onMapMouseUp(gridX, gridY);
   };
 
   const isRoadAt = (x: number, y: number, currentBuildings: BuildingData[], currentGhostRoadTiles: { x: number; y: number }[]): boolean => {
@@ -144,7 +144,14 @@ const Map: React.FC<MapProps> = ({
         cursor: getCursorStyle(),
       }}
       onMouseMove={handleMapMouseMoveInternal}
-      onClick={handleMapClickInternal}
+      onMouseDown={handleMapMouseDownInternal} // Hozzáadva
+      onMouseUp={handleMapMouseUpInternal}     // Hozzáadva
+      onClick={(e) => { // Az onMapClick most már csak az egyedi épület lerakásához kell, ha nincs húzás
+        if (isPlacingBuilding && buildingToPlace && ghostBuildingCoords && !isDragging) {
+          const { gridX, gridY } = getGridCoordsFromMouseEvent(e);
+          onMapClick(gridX, gridY);
+        }
+      }}
     >
       {allFarmlandTiles.map((tile, index) => (
         <Building
@@ -226,31 +233,34 @@ const Map: React.FC<MapProps> = ({
         />
       )}
       {isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
-        <Building
-          id="ghost-farmland"
-          key="ghost-farmland"
-          name="Szántóföld"
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
-          width={1}
-          height={1}
-          type="farmland"
-          cellSizePx={cellSizePx}
-          onClick={() => {}}
-          capacity={0}
-          ownerId={currentPlayerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={true}
-          isUnderConstruction={false}
-          buildProgress={0}
-          currentPlayerId={currentPlayerId}
-          rotation={0}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad}
-          cropType={CropType.None}
-          cropProgress={0}
-        />
+        // Ha húzunk, akkor a draggedTiles alapján rajzoljuk a szellem csempéket
+        ghostFarmlandTiles.map((tile, index) => (
+          <Building
+            id={`ghost-farmland-${index}`}
+            key={`ghost-farmland-${index}`}
+            name="Szántóföld"
+            x={tile.x}
+            y={tile.y}
+            width={1}
+            height={1}
+            type="farmland"
+            cellSizePx={cellSizePx}
+            onClick={() => {}}
+            capacity={0}
+            ownerId={currentPlayerId}
+            residentIds={[]}
+            employeeIds={[]}
+            isGhost={true}
+            isUnderConstruction={false}
+            buildProgress={0}
+            currentPlayerId={currentPlayerId}
+            rotation={0}
+            isPlacementMode={isPlacementMode}
+            isDemolishingRoad={isDemolishingRoad}
+            cropType={CropType.None}
+            cropProgress={0}
+          />
+        ))
       )}
     </div>
   );

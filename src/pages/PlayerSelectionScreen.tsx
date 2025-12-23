@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
-import { Coins } from "lucide-react"; // Importáljuk a Coins ikont
-import { ProductType } from "@/utils/products"; // Importáljuk a ProductType-ot
+import { Coins } from "lucide-react";
+import { ProductType } from "@/utils/products";
 
 interface Player {
   id: string;
@@ -22,33 +22,33 @@ interface Player {
     clothes: number;
     wood: number;
     brick: number;
-    stone: number; // Új: kő nyersanyag
-    hoe: number; // Új: kapa
-    tractor: number; // Új: traktor
-    wheat: number; // Búza
-    [ProductType.WheatSeed]: number; // Búzavetőmag
-    flour: number; // Liszt
+    stone: number;
+    hoe: number;
+    tractor: number;
+    wheat: number;
+    [ProductType.WheatSeed]: number;
+    flour: number;
   };
   workplace: string;
 }
 
 const initialPlayers: Player[] = [
-  { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-3", name: "Játékos 3", money: 1200, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 10, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-4", name: "Játékos 4", money: 600, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-5", name: "Játékos 5", money: 900, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2, wheat: 50, [ProductType.WheatSeed]: 100, flour: 20 }, workplace: "Tesztelő" }, // Teszt játékos
-  { id: "player-rich-1", name: "Gazdag Gazda", money: 50000, inventory: { potato: 0, water: 0, clothes: 0, wood: 50, brick: 50, stone: 50, hoe: 0, tractor: 0, wheat: 20, [ProductType.WheatSeed]: 20, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-rich-2", name: "Városatyja", money: 250000, inventory: { potato: 0, water: 0, clothes: 0, wood: 100, brick: 100, stone: 100, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-rich-3", name: "Tökmagolaj", money: 150000, inventory: { potato: 0, water: 0, clothes: 0, wood: 75, brick: 75, stone: 75, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 50, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-rich-4", name: "Búzabáró", money: 300000, inventory: { potato: 0, water: 0, clothes: 0, wood: 150, brick: 150, stone: 150, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 100, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-rich-5", name: "Kalászkirály", money: 500000, inventory: { potato: 0, water: 0, clothes: 0, wood: 200, brick: 200, stone: 200, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 200, flour: 0 }, workplace: "Munkanélküli" },
-  { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli" },
-  { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli" },
-  { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli" },
-  { id: "player-rich-9", name: "Liszt Király", money: 2500000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli" },
-  { id: "player-rich-10", name: "Gabona Mágus", money: 5000000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli" },
+  { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-2", name: "Játékos 2", money: 1500, inventory: { potato: 1, water: 1, clothes: 0, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-3", name: "Játékos 3", money: 2500, inventory: { potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 10, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-4", name: "Játékos 4", money: 1000, inventory: { potato: 0, water: 0, clothes: 0, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-5", name: "Játékos 5", money: 1800, inventory: { potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2, wheat: 50, [ProductType.WheatSeed]: 100, flour: 20 }, workplace: "Tesztelő" }, // Teszt játékos
+  { id: "player-rich-1", name: "Gazdag Gazda", money: 8000, inventory: { potato: 0, water: 0, clothes: 0, wood: 50, brick: 50, stone: 50, hoe: 0, tractor: 0, wheat: 20, [ProductType.WheatSeed]: 20, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-rich-2", name: "Városatyja", money: 12000, inventory: { potato: 0, water: 0, clothes: 0, wood: 100, brick: 100, stone: 100, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-rich-3", name: "Tökmagolaj", money: 7000, inventory: { potato: 0, water: 0, clothes: 0, wood: 75, brick: 75, stone: 75, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 50, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-rich-4", name: "Búzabáró", money: 9500, inventory: { potato: 0, water: 0, clothes: 0, wood: 150, brick: 150, stone: 150, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 100, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-rich-5", name: "Kalászkirály", money: 11000, inventory: { potato: 0, water: 0, clothes: 0, wood: 200, brick: 200, stone: 200, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 200, flour: 0 }, workplace: "Munkanélküli" },
+  { id: "player-rich-6", name: "Gabonagazda", money: 15000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli" },
+  { id: "player-rich-7", name: "Mezőgazdász Mester", money: 18000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli" },
+  { id: "player-rich-8", name: "Aranykalász", money: 22000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli" },
+  { id: "player-rich-9", name: "Liszt Király", money: 28000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli" },
+  { id: "player-rich-10", name: "Gabona Mágus", money: 35000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli" },
 ];
 
 const PlayerSelectionScreen: React.FC = () => {
@@ -56,17 +56,17 @@ const PlayerSelectionScreen: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>(initialPlayers);
   const [isCreatePlayerDialogOpen, setIsCreatePlayerDialogOpen] = useState(false);
   const [newPlayerName, setNewPlayerName] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal"); // Új állapot a nehézségi szinthez
+  const [difficulty, setDifficulty] = useState<"easy" | "normal" | "hard">("normal");
 
   const getInitialResources = (selectedDifficulty: "easy" | "normal" | "hard") => {
     switch (selectedDifficulty) {
       case "easy":
-        return { money: 1500, wood: 20, brick: 10, stone: 5, hoe: 1, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 10, flour: 0 };
+        return { money: 3000, wood: 20, brick: 10, stone: 5, hoe: 1, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 10, flour: 0 };
       case "hard":
-        return { money: 500, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 };
+        return { money: 800, wood: 0, brick: 0, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 };
       case "normal":
       default:
-        return { money: 1000, wood: 5, brick: 2, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 };
+        return { money: 2000, wood: 5, brick: 2, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 };
     }
   };
 
@@ -155,9 +155,9 @@ const PlayerSelectionScreen: React.FC = () => {
                   <SelectValue placeholder="Válassz nehézséget" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="easy">Könnyű (1500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 20 fa, 10 tégla, 5 kő, 1 kapa, 10 vetőmag)</SelectItem>
-                  <SelectItem value="normal">Normál (1000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 5 fa, 2 tégla, 0 kő, 0 kapa, 5 vetőmag)</SelectItem>
-                  <SelectItem value="hard">Nehéz (500 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 0 fa, 0 tégla, 0 kő, 0 kapa, 0 vetőmag)</SelectItem>
+                  <SelectItem value="easy">Könnyű (3000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 20 fa, 10 tégla, 5 kő, 1 kapa, 10 vetőmag)</SelectItem>
+                  <SelectItem value="normal">Normál (2000 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 5 fa, 2 tégla, 0 kő, 0 kapa, 5 vetőmag)</SelectItem>
+                  <SelectItem value="hard">Nehéz (800 <Coins className="inline-block h-4 w-4 ml-1 text-green-500" /> , 0 fa, 0 tégla, 0 kő, 0 kapa, 0 vetőmag)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

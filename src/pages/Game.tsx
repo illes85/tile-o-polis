@@ -96,19 +96,19 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId, transactions: initialTransactions } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string, transactions?: Transaction[] };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20 }, workplace: "Tesztelő", workplaceSalary: 0 },
-    { id: "player-rich-1", name: "Gazdag Gazda", money: 50000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20, wheat: 20, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-2", name: "Városatyja", money: 250000, inventory: { wood: 100, brick: 100, stone: 100, [ProductType.WheatSeed]: 0, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-3", name: "Tökmagolaj", money: 150000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-4", name: "Búzabáró", money: 300000, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-5", name: "Kalászkirály", money: 500000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-9", name: "Liszt Király", money: 2500000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-10", name: "Gabona Mágus", money: 5000000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 1500, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20 }, workplace: "Tesztelő", workplaceSalary: 0 },
+    { id: "player-rich-1", name: "Gazdag Gazda", money: 8000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20, wheat: 20, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-2", name: "Városatyja", money: 12000, inventory: { wood: 100, brick: 100, stone: 100, [ProductType.WheatSeed]: 0, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-3", name: "Tökmagolaj", money: 7000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-4", name: "Búzabáró", money: 9500, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-5", name: "Kalászkirály", money: 11000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-6", name: "Gabonagazda", money: 15000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 18000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-8", name: "Aranykalász", money: 22000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-9", name: "Liszt Király", money: 28000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-10", name: "Gabona Mágus", money: 35000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
@@ -129,12 +129,17 @@ const Game = () => {
   const [farmlandActionState, setFarmlandActionState] = useState<{ isOpen: boolean, farmId: string, tileX: number, tileY: number, cropType: CropType, cropProgress: number } | null>(null);
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
-  const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({}); // <-- Ez a sor került feljebb
+  const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const sfxPlayerRef = useRef<SfxPlayerRef>(null);
   const isPlacementMode = isPlacingBuilding || isPlacingFarmland;
+
+  // Új állapotok a húzás funkcióhoz
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartCoords, setDragStartCoords] = useState<{ x: number; y: number } | null>(null);
+  const [draggedTiles, setDraggedTiles] = useState<{ x: number; y: number }[]>([]);
 
   const addTransaction = (playerId: string, type: "income" | "expense", description: string, amount: number) => {
     setTransactions(prev => [...prev, {
@@ -217,11 +222,13 @@ const Game = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setMsUntilNextTick(prev => {
-        if (prev <= 1000) {
+        const newPrev = prev - 1000;
+        // console.log(`Tick: ${newPrev / 1000}s remaining`); // Debug log
+        if (newPrev <= 0) {
           processEconomyTick();
           return RENT_INTERVAL_MS;
         }
-        return prev - 1000;
+        return newPrev;
       });
     }, 1000);
 
@@ -291,8 +298,133 @@ const Game = () => {
     setSelectedBuilding(building || null);
   };
 
-  const handleMapClick = (gridX: number, gridY: number) => {
-    if (isPlacingBuilding && buildingToPlace) {
+  // Segédfüggvény a húzott csempék kiszámításához
+  const getTilesInDrag = (start: { x: number; y: number }, end: { x: number; y: number }): { x: number; y: number }[] => {
+    const tiles: { x: number; y: number }[] = [];
+    const minX = Math.min(start.x, end.x);
+    const maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y);
+    const maxY = Math.max(start.y, end.y);
+
+    // Egyszerű téglalap alakú kijelölés
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        tiles.push({ x, y });
+      }
+    }
+    return tiles;
+  };
+
+  const handleMapMouseDown = (gridX: number, gridY: number) => {
+    if (isPlacingFarmland && selectedFarmId) {
+      setIsDragging(true);
+      setDragStartCoords({ x: gridX, y: gridY });
+      setDraggedTiles([{ x: gridX, y: gridY }]);
+    }
+  };
+
+  const handleMapMouseMove = (gridX: number, gridY: number) => {
+    setGhostBuildingCoords({ x: gridX, y: gridY }); // Mindig frissítjük a szellem épület pozícióját
+
+    if (isDragging && dragStartCoords && isPlacingFarmland && selectedFarmId) {
+      const currentDraggedTiles = getTilesInDrag(dragStartCoords, { x: gridX, y: gridY });
+      setDraggedTiles(currentDraggedTiles);
+    }
+  };
+
+  const handleMapMouseUp = (gridX: number, gridY: number) => {
+    if (isDragging && dragStartCoords && isPlacingFarmland && selectedFarmId) {
+      setIsDragging(false);
+      setDragStartCoords(null);
+
+      const finalDraggedTiles = getTilesInDrag(dragStartCoords, { x: gridX, y: gridY });
+      
+      const farm = buildings.find(b => b.id === selectedFarmId);
+      if (!farm || farm.employeeIds.length === 0) {
+        showError("A farm zárva van! Nincs alkalmazott.");
+        setDraggedTiles([]);
+        return;
+      }
+
+      const placeableTiles = finalDraggedTiles.filter(tile => 
+        !isCellOccupied(tile.x, tile.y, buildings) &&
+        isFarmlandPlaceable(tile.x, tile.y, selectedFarmId)
+      );
+
+      if (placeableTiles.length === 0) {
+        showError("Nem lehet ide szántóföldet tenni, vagy a hely foglalt!");
+        setDraggedTiles([]);
+        return;
+      }
+
+      const totalCost = placeableTiles.length * FARMLAND_COST_PER_TILE;
+      if (currentPlayer.money < totalCost) {
+        showError(`Nincs elég pénzed! Szükséges: ${totalCost} pénz.`);
+        setDraggedTiles([]);
+        return;
+      }
+
+      setPlayers(prev => prev.map(p => 
+        p.id === currentPlayerId ? {
+          ...p,
+          money: p.money - totalCost
+        } : p
+      ));
+
+      setBuildings(prev => prev.map(b => {
+        if (b.id === selectedFarmId) {
+          const newFarmlandTiles = placeableTiles.map(tile => ({
+            x: tile.x,
+            y: tile.y,
+            ownerId: currentPlayerId,
+            cropType: CropType.None,
+            cropProgress: 0,
+            isUnderConstruction: true,
+            buildProgress: 0
+          }));
+          return {
+            ...b,
+            farmlandTiles: [...(b.farmlandTiles || []), ...newFarmlandTiles]
+          };
+        }
+        return b;
+      }));
+
+      if (sfxPlayerRef.current) sfxPlayerRef.current.playSfx("construction-02", true);
+
+      placeableTiles.forEach(tile => {
+        let prog = 0;
+        const inv = setInterval(() => {
+          prog += 20;
+          setBuildings(prev => prev.map(b => 
+            b.id === selectedFarmId ? {
+              ...b,
+              farmlandTiles: b.farmlandTiles?.map(t => 
+                t.x === tile.x && t.y === tile.y ? { ...t, buildProgress: prog } : t
+              )
+            } : b
+          ));
+
+          if (prog >= 100) {
+            clearInterval(inv);
+            if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx();
+            setBuildings(prev => prev.map(b => 
+              b.id === selectedFarmId ? {
+                ...b,
+                farmlandTiles: b.farmlandTiles?.map(t => 
+                  t.x === tile.x && t.y === tile.y ? { ...t, isUnderConstruction: false } : t
+                )
+              } : b
+            ));
+            showSuccess(`Szántóföld kész: (${tile.x}, ${tile.y})!`);
+          }
+        }, 600);
+      });
+
+      setDraggedTiles([]); // Töröljük a húzott csempéket a befejezés után
+      setIsPlacingFarmland(false); // Kilépünk a lerakási módból
+    } else if (isPlacingBuilding && buildingToPlace) {
+      // Ez a rész marad az egyedi épület lerakásához
       if (isCellOccupied(gridX, gridY, buildings)) {
         showError("Hely foglalt!");
         return;
@@ -363,82 +495,6 @@ const Game = () => {
           showSuccess(`${buildingToPlace.name} kész!`);
         }
       }, buildingToPlace.duration / 10);
-    } else if (isPlacingFarmland && selectedFarmId) {
-      const farm = buildings.find(b => b.id === selectedFarmId);
-      if (!farm || farm.employeeIds.length === 0) {
-        showError("A farm zárva van! Nincs alkalmazott.");
-        return;
-      }
-
-      if (isCellOccupied(gridX, gridY, buildings)) {
-        showError("Hely foglalt!");
-        return;
-      }
-
-      if (!isFarmlandPlaceable(gridX, gridY, selectedFarmId)) {
-        showError("A szántóföldet a farm vagy más szántóföld mellé kell tenni!");
-        return;
-      }
-
-      if (currentPlayer.money < FARMLAND_COST_PER_TILE) {
-        showError("Nincs elég pénzed!");
-        return;
-      }
-
-      setIsPlacingFarmland(false);
-      const tileX = gridX;
-      const tileY = gridY;
-
-      setBuildings(prev => prev.map(b => 
-        b.id === selectedFarmId ? {
-          ...b,
-          farmlandTiles: [...(b.farmlandTiles || []), {
-            x: tileX,
-            y: tileY,
-            ownerId: currentPlayerId,
-            cropType: CropType.None,
-            cropProgress: 0,
-            isUnderConstruction: true,
-            buildProgress: 0
-          }]
-        } : b
-      ));
-
-      setPlayers(prev => prev.map(p => 
-        p.id === currentPlayerId ? {
-          ...p,
-          money: p.money - FARMLAND_COST_PER_TILE
-        } : p
-      ));
-
-      if (sfxPlayerRef.current) sfxPlayerRef.current.playSfx("construction-02", true);
-
-      let prog = 0;
-      const inv = setInterval(() => {
-        prog += 20;
-        setBuildings(prev => prev.map(b => 
-          b.id === selectedFarmId ? {
-            ...b,
-            farmlandTiles: b.farmlandTiles?.map(t => 
-              t.x === tileX && t.y === tileY ? { ...t, buildProgress: prog } : t
-            )
-          } : b
-        ));
-
-        if (prog >= 100) {
-          clearInterval(inv);
-          if (sfxPlayerRef.current) sfxPlayerRef.current.stopAllSfx();
-          setBuildings(prev => prev.map(b => 
-            b.id === selectedFarmId ? {
-              ...b,
-              farmlandTiles: b.farmlandTiles?.map(t => 
-                t.x === tileX && t.y === tileY ? { ...t, isUnderConstruction: false } : t
-              )
-            } : b
-          ));
-          showSuccess("Szántóföld kész!");
-        }
-      }, 600);
     }
   };
 
@@ -641,6 +697,8 @@ const Game = () => {
               setIsPlacingBuilding(false);
               setIsPlacingFarmland(false);
               setGhostBuildingCoords(null);
+              setIsDragging(false); // Hozzáadva a húzás állapotának reseteléséhez
+              setDraggedTiles([]); // Hozzáadva a húzott csempék reseteléséhez
             }} 
             className="w-full bg-red-600 flex items-center justify-center"
           >
@@ -673,8 +731,10 @@ const Game = () => {
             isPlacingBuilding={isPlacingBuilding} 
             buildingToPlace={buildingToPlace} 
             ghostBuildingCoords={ghostBuildingCoords} 
-            onGridMouseMove={(x,y) => setGhostBuildingCoords({x,y})} 
-            onMapClick={handleMapClick} 
+            onGridMouseMove={handleMapMouseMove} 
+            onMapClick={() => {}} // Az onMapClick most már nem kezeli a lerakást, hanem a mouseUp
+            onMapMouseDown={handleMapMouseDown} // Új eseménykezelő
+            onMapMouseUp={handleMapMouseUp} // Új eseménykezelő
             currentPlayerId={currentPlayerId} 
             currentBuildingRotation={currentBuildingRotation} 
             isPlacingFarmland={isPlacingFarmland} 
@@ -692,7 +752,7 @@ const Game = () => {
                   cropProgress: tile.cropProgress || 0
                 });
             }} 
-            ghostFarmlandTiles={[]} 
+            ghostFarmlandTiles={draggedTiles} // Átadjuk a húzott csempéket
             isPlacingRoad={false} 
             ghostRoadTiles={[]} 
             isDemolishingRoad={false} 
