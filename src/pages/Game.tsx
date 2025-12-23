@@ -212,7 +212,7 @@ const Game = () => {
     
   }, [buildings, players]);
 
-  // Malom feldolgozási időzítő (Most már csak a progress bar frissítésére és a befejezésre szolgál)
+  // Malom feldolgozási időzítő (Progress bar és befejezés)
   useEffect(() => {
     const processTimer = setInterval(() => {
       const now = Date.now();
@@ -242,7 +242,7 @@ const Game = () => {
                 return {
                   ...b,
                   millInventory: {
-                    wheat: b.millInventory?.wheat || 0, // A búza már el lett vonva az indításkor
+                    wheat: b.millInventory?.wheat || 0,
                     flour: (b.millInventory?.flour || 0) + totalFlour
                   }
                 };
@@ -258,32 +258,21 @@ const Game = () => {
   }, [millProcesses]);
 
 
-  // Gazdasági ciklus időzítő
+  // Gazdasági ciklus időzítő (Stabilizált setInterval)
   useEffect(() => {
-    let lastTime = performance.now();
-    let accumulatedTime = RENT_INTERVAL_MS - msUntilNextTick;
+    const interval = setInterval(() => {
+      setMsUntilNextTick(prev => {
+        const newPrev = prev - 1000;
+        
+        if (newPrev <= 0) {
+          processEconomyTick();
+          return RENT_INTERVAL_MS;
+        }
+        return newPrev;
+      });
+    }, 1000);
 
-    const tick = (currentTime: number) => {
-      const deltaTime = currentTime - lastTime;
-      lastTime = currentTime;
-      accumulatedTime += deltaTime;
-
-      // Frissítjük a hátralévő időt
-      // A progress bar-nak növekednie kell, ahogy az idő telik
-      setMsUntilNextTick(RENT_INTERVAL_MS - (accumulatedTime % RENT_INTERVAL_MS));
-
-      // Ha eltelt egy teljes ciklus
-      if (accumulatedTime >= RENT_INTERVAL_MS) {
-        processEconomyTick();
-        accumulatedTime %= RENT_INTERVAL_MS;
-        setMsUntilNextTick(RENT_INTERVAL_MS); // Reseteljük a progress bar-t
-      }
-
-      requestAnimationFrame(tick);
-    };
-
-    const animationFrameId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animationFrameId);
+    return () => clearInterval(interval);
   }, [processEconomyTick]);
 
 
@@ -316,7 +305,7 @@ const Game = () => {
     return () => clearInterval(growthTimer);
   }, []);
 
-  const tickProgress = ((RENT_INTERVAL_MS - msUntilNextTick) / RENT_INTERVAL_MS) * 100;
+  const tickProgress = 100 - ((msUntilNextTick / RENT_INTERVAL_MS) * 100); // Progress bar növekszik, ahogy az idő telik
   const secondsRemaining = Math.ceil(msUntilNextTick / 1000);
 
   const isCellOccupied = (x: number, y: number, currentBuildings: BuildingData[]): boolean => {
@@ -1199,7 +1188,7 @@ const Game = () => {
                         )}
                       </div>
                       
-                      {/* Búza eladás funkció */}
+                      {/* Búza feldolgozás indítása (csak tulajdonosnak) */}
                       {selectedBuilding.ownerId === currentPlayerId && (
                         <div className="p-3 border rounded-md bg-yellow-50/50 dark:bg-yellow-900/20">
                           <h4 className="font-semibold mb-2 flex items-center">
