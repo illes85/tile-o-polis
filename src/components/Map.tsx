@@ -44,8 +44,8 @@ interface MapProps {
   ghostBuildingCoords: { x: number; y: number } | null;
   onGridMouseMove: (gridX: number, gridY: number) => void; // Módosítva, hogy ne adja át az eseményt
   onMapClick: (x: number, y: number) => void; // Módosítva, hogy ne adja át az eseményt
-  onMapMouseDown: (x: number; y: number) => void; // Új prop
-  onMapMouseUp: (x: number; y: number) => void; // Új prop
+  onMapMouseDown: (x: number, y: number) => void; // Új prop - JAVÍTVA
+  onMapMouseUp: (x: number, y: number) => void; // Új prop - JAVÍTVA
   currentPlayerId: string;
   currentBuildingRotation: number;
   isPlacingFarmland: boolean;
