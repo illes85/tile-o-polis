@@ -415,11 +415,9 @@ const Game = () => {
                   <DialogDescription>Tulajdonos: {players.find(p => p.id === selectedBuilding.ownerId)?.name || "Nincs"}</DialogDescription>
                 </DialogHeader>
                 <div className="py-4 space-y-4">
-                  {selectedBuilding.ownerId === currentPlayerId && (
-                    <div className="bg-muted p-2 text-sm rounded">
-                      <strong>{selectedBuilding.type === "house" ? "Lakók:" : "Dolgozók:"}</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }
-                    </div>
-                  )}
+                  <div className="bg-muted p-2 text-sm rounded">
+                    <strong>{selectedBuilding.type === "house" ? "Lakók:" : "Dolgozók:"}</strong> { (selectedBuilding.type === "house" ? selectedBuilding.residentIds : selectedBuilding.employeeIds).map(id => players.find(p => p.id === id)?.name).join(", ") || "Senki" }
+                  </div>
                   {selectedBuilding.type === "shop" && <Button onClick={() => { setSelectedShopBuilding(selectedBuilding); setIsShopMenuOpen(true); setSelectedBuilding(null); }} className="w-full bg-purple-600">Bolt megnyitása</Button>}
                   {selectedBuilding.type === "farm" && selectedBuilding.ownerId === currentPlayerId && (
                     <Button 
