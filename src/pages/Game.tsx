@@ -17,7 +17,7 @@ import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { musicTracks } from "@/utils/musicFiles";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory } from "lucide-react";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
@@ -96,21 +96,19 @@ const Game = () => {
   const { initialPlayer, allPlayers, buildings: initialBuildingsState, currentPlayerId: initialCurrentPlayerId, transactions: initialTransactions } = (location.state || {}) as { initialPlayer?: Player, allPlayers?: Player[], buildings?: BuildingData[], currentPlayerId?: string, transactions?: Transaction[] };
 
   const [players, setPlayers] = useState<Player[]>(allPlayers || [
-    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100 }, workplace: "Tesztelő", workplaceSalary: 0 },
-    { id: "player-rich-1", name: "Gazdag Gazda", money: 50000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-2", name: "Városatyja", money: 250000, inventory: { wood: 100, brick: 100, stone: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-3", name: "Tökmagolaj", money: 150000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-4", name: "Búzabáró", money: 300000, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-5", name: "Kalászkirály", money: 500000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-9", name: "Liszt Király", money: 2500000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-10", name: "Gabona Mágus", money: 5000000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-11", name: "Búzafaragó", money: 3500000, inventory: { wood: 1500, brick: 1500, stone: 1500, [ProductType.WheatSeed]: 1500, wheat: 750, hoe: 30, tractor: 8 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-rich-12", name: "Kenyérlovag", money: 4200000, inventory: { wood: 1800, brick: 1800, stone: 1800, [ProductType.WheatSeed]: 1800, wheat: 900, hoe: 40, tractor: 12 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-1", name: "Játékos 1", money: 1000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-2", name: "Játékos 2", money: 750, inventory: { potato: 1, water: 1, wood: 5, brick: 3, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-test", name: "Teszt Játékos", money: 100000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20 }, workplace: "Tesztelő", workplaceSalary: 0 },
+    { id: "player-rich-1", name: "Gazdag Gazda", money: 50000, inventory: { wood: 50, brick: 50, stone: 50, [ProductType.WheatSeed]: 20, wheat: 20, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-2", name: "Városatyja", money: 250000, inventory: { wood: 100, brick: 100, stone: 100, [ProductType.WheatSeed]: 0, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-3", name: "Tökmagolaj", money: 150000, inventory: { wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-4", name: "Búzabáró", money: 300000, inventory: { wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-5", name: "Kalászkirály", money: 500000, inventory: { wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200, wheat: 0, flour: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-6", name: "Gabonagazda", money: 750000, inventory: { wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-7", name: "Mezőgazdász Mester", money: 1000000, inventory: { wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-8", name: "Aranykalász", money: 1500000, inventory: { wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-9", name: "Liszt Király", money: 2500000, inventory: { wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }, workplace: "Munkanélküli", workplaceSalary: 0 },
+    { id: "player-rich-10", name: "Gabona Mágus", money: 5000000, inventory: { wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }, workplace: "Munkanélküli", workplaceSalary: 0 },
   ]);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(initialCurrentPlayerId || initialPlayer?.id || players[0].id);
@@ -131,7 +129,6 @@ const Game = () => {
   const [farmlandActionState, setFarmlandActionState] = useState<{ isOpen: boolean, farmId: string, tileX: number, tileY: number, cropType: CropType, cropProgress: number } | null>(null);
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
-  const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
   const [mapOffsetX, setMapOffsetX] = useState(0);
   const [mapOffsetY, setMapOffsetY] = useState(0);
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -762,14 +759,21 @@ const Game = () => {
                   {selectedBuilding.type === "mill" && (
                     <div className="bg-muted/50 p-2 text-sm rounded border border-dashed">
                       <div className="flex items-center gap-2 mb-1">
-                        <Wheat className="h-4 w-4 text-amber-600" />
+                        <Factory className="h-4 w-4 text-amber-600" />
                         <span className="font-semibold">Malom információk:</span>
                       </div>
                       <p className="text-xs">
-                        Feldolgozás: 5 búza → 3 liszt<br />
-                        Időtartam: 10 másodperc<br />
+                        Feldolgozás: {MILL_WHEAT_CONSUMPTION_PER_PROCESS} búza → {MILL_FLOUR_PRODUCTION_PER_PROCESS} liszt<br />
+                        Időtartam: {MILL_PROCESSING_TIME_MS / 1000} másodperc<br />
                         Szükséges: alkalmazott
                       </p>
+                      <p className="text-xs mt-2">
+                        Tulajdonos búza készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.wheat || 0}** db<br />
+                        Tulajdonos liszt készlete: **{players.find(p => p.id === selectedBuilding.ownerId)?.inventory.flour || 0}** db
+                      </p>
+                      {selectedBuilding.employeeIds.length === 0 && (
+                        <p className="text-red-500 text-xs mt-2">Nincs alkalmazott a malomban, a feldolgozás szünetel!</p>
+                      )}
                     </div>
                   )}
                 </div>

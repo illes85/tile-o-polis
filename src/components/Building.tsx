@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat } from "lucide-react"; 
+import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat, Warehouse } from "lucide-react"; 
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; 
 import satorImage from "@/images/sator.png"; 
@@ -32,7 +32,7 @@ interface BuildingProps {
   y: number; 
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop"; 
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill"; 
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -237,6 +237,17 @@ const Building: React.FC<BuildingProps> = ({
         content = (
           <>
             <ShoppingBag className="h-4 w-4 mb-1" />
+            <span className="text-white text-[0.65rem] text-center">{name}</span>
+            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
+          </>
+        );
+        break;
+      case "mill":
+        visualClasses += " bg-amber-800 border border-amber-900 hover:bg-amber-900";
+        baseClasses += " p-1";
+        content = (
+          <>
+            <Warehouse className="h-4 w-4 mb-1" />
             <span className="text-white text-[0.65rem] text-center">{name}</span>
             {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
           </>
