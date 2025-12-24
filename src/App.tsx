@@ -15,7 +15,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<GameMenuScreen />} />
           <Route path="/select-player" element={<PlayerSelectionScreen />} /> {/* Új útvonal a játékosválasztóhoz */}

@@ -6,11 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { saveGame, loadGame } from "@/utils/saveLoad";
+import { BuildingData } from "@/components/Map";
+import { Transaction } from "@/components/MoneyHistory";
 
 const GameMenuScreen: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [lastGameState, setLastGameState] = useState<any | null>(null);
+  interface SavedGameState {
+    players: { id: string; name: string; money: number; inventory: Record<string, number>; workplace: string; workplaceSalary: number }[];
+    buildings: BuildingData[];
+    currentPlayerId: string;
+    transactions: Transaction[];
+  }
+  const [lastGameState, setLastGameState] = useState<SavedGameState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {

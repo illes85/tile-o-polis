@@ -9,28 +9,14 @@ import { ProductType } from "@/utils/products";
 interface PlayerInfoProps {
   playerName: string;
   money: number;
-  inventory: { 
-    potato: number; 
-    water: number; 
-    clothes: number; 
-    wood: number; 
-    brick: number; 
-    stone: number; 
-    hoe: number; 
-    tractor: number;
-    wheat: number;
-    [ProductType.WheatSeed]: number;
-    flour: number;
-    corn: number; // ÚJ
-    corn_flour: number; // ÚJ
-    popcorn: number; // ÚJ
-  };
+  inventory: Record<string, number>;
   workplace: string;
   workplaceSalary: number;
   ownedBusinesses: BuildingData[];
   playerSettingsButton: React.ReactNode;
   nextTickProgress: number;
   timeRemaining: number;
+  isMayor?: boolean;
 }
 
 const PlayerInfo: React.FC<PlayerInfoProps> = ({ 
@@ -42,7 +28,8 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
   ownedBusinesses, 
   playerSettingsButton, 
   nextTickProgress, 
-  timeRemaining 
+  timeRemaining,
+  isMayor
 }) => {
   return (
     <Card className="w-full bg-sidebar-accent text-sidebar-accent-foreground border-sidebar-border shadow-none">
@@ -54,6 +41,7 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
         <div className="flex items-center mb-2">
           <User className="mr-2 h-4 w-4 text-gray-500" />
           <span>Név: {playerName}</span>
+          {isMayor && <span className="ml-2 bg-yellow-500 text-black text-[0.6rem] px-1.5 py-0.5 rounded-full font-bold">Polgármester</span>}
         </div>
         <div className="flex items-center mb-2">
           <Coins className="mr-2 h-4 w-4 text-green-500" />
@@ -121,6 +109,10 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
             <li className="flex items-center text-[0.75rem]">
               <Pickaxe className="mr-1.5 h-3 w-3 text-amber-700" />
               Kapa: {inventory.hoe}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-amber-700 flex items-center justify-center">🪓</span>
+              Fejsze: {inventory[ProductType.Axe] || 0}
             </li>
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-green-600 flex items-center justify-center">🌱</span>

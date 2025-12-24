@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User, Home, Hammer, Briefcase, Leaf, Tent, Factory, Sprout, Building as BuildingIcon, Route, ShoppingBag, Trash2, Wheat, Warehouse, Popcorn } from "lucide-react"; 
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils"; 
 import satorImage from "@/images/sator.png"; 
 import hazikoImage from "@/images/haziko.png"; 
-import farmImage from "@/images/farm.png"; // ÚJ IMPORT
+import farmImage from "@/images/farm.png"; 
+import valyoghazImage from "@/images/vályogház 2.png"; // ÚJ VÁLYOGHÁZ KÉP IMPORTÁLÁSA
 
 // Tileset elérési utak
 const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
@@ -24,6 +25,8 @@ export interface FarmlandTile {
   ownerId: string;
   isUnderConstruction?: boolean; 
   buildProgress?: number; 
+  constructionEta?: number; // Építkezés befejezési ideje (timestamp)
+  originalDuration?: number; // Eredeti építési időtartam (ms)
   cropType: CropType; 
   cropProgress?: number; 
 }
@@ -48,6 +51,8 @@ interface BuildingProps {
   isGhost?: boolean;
   isUnderConstruction?: boolean;
   buildProgress?: number;
+  constructionEta?: number; // Építkezés befejezési ideje (timestamp)
+  originalDuration?: number; // Eredeti építési időtartam (ms)
   currentPlayerId: string;
   rotation: number;
   hasRoadNeighborTop?: boolean;
@@ -77,7 +82,9 @@ const Building: React.FC<BuildingProps> = ({
   employeeIds,
   isGhost = false,
   isUnderConstruction = false,
-  buildProgress = 0,
+  buildProgress = 0, 
+  constructionEta, 
+  originalDuration, // ÚJ PROP
   currentPlayerId,
   rotation,
   hasRoadNeighborTop = false,
@@ -90,6 +97,17 @@ const Building: React.FC<BuildingProps> = ({
   cropProgress = 0,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
+  // Frissítjük az időt másodpercenként a progressz számításához
+  useEffect(() => {
+    if (isUnderConstruction) {
+      const interval = setInterval(() => {
+        setNow(Date.now());
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isUnderConstruction]);
 
   const actualX = x * cellSizePx;
   const actualY = y * cellSizePx;
@@ -101,7 +119,7 @@ const Building: React.FC<BuildingProps> = ({
     width: width * cellSizePx,
     height: height * cellSizePx,
     zIndex: isGhost ? 50 : (type === "farmland" ? 0 : 1), 
-    opacity: isGhost ? 0.7 : 1,
+    opacity: isGhost ? 0.5 : 1,
     pointerEvents: isGhost ? 'none' : 'auto',
     transform: `rotate(${rotation}deg)`,
     transformOrigin: 'center center',
@@ -126,13 +144,19 @@ const Building: React.FC<BuildingProps> = ({
     }
   };
 
-  if (isUnderConstruction) {
+  if (isUnderConstruction && constructionEta && originalDuration) {
     visualClasses = "bg-gray-600 opacity-70 border border-gray-500";
+    
+    const timeElapsed = now - (constructionEta - originalDuration);
+    const progressValue = Math.min(100, Math.max(0, (timeElapsed / originalDuration) * 100));
+    const remainingTimeSec = Math.ceil(Math.max(0, (constructionEta - now) / 1000));
+
     content = (
       <div className="flex flex-col items-center justify-center h-full w-full p-1"> 
         <Hammer className="h-6 w-6 text-white mb-1" />
         <span className="text-white text-xs">Épül...</span>
-        <Progress value={buildProgress} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
+        <Progress value={progressValue} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
+        <span className="text-white text-[0.6rem] mt-1">{remainingTimeSec} mp</span>
       </div>
     );
   } else {
@@ -140,25 +164,41 @@ const Building: React.FC<BuildingProps> = ({
 
     switch (type) {
       case "house":
-        if (name === "Sátor" || name === "Házikó") {
-          if (isHovered) visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+        if (name === "Sátor") {
+          content = <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />;
+        } else if (name === "Házikó") {
+          content = <img src={hazikoImage} alt="Házikó" className="h-full w-full object-cover" />;
+        } else if (name === "Vályogház") {
+          content = <img src={valyoghazImage} alt="Vályogház" className="h-full w-full object-cover" />;
         } else {
           visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
           baseClasses += " p-1";
+          content = <span className="text-white text-xs">{name}</span>;
         }
-        content = (
-          <>
-            {name === "Sátor" && <img src={satorImage} alt="Sátor" className="h-full w-full object-cover" />}
-            {name === "Házikó" && <img src={hazikoImage} alt="Házikó" className="h-full w-full object-cover" />}
-            {name !== "Sátor" && name !== "Házikó" && <span className="text-white text-xs">{name}</span>}
-            {occupancy > 0 && (
+        
+        if (name !== "Sátor" && name !== "Házikó" && name !== "Vályogház") {
+            visualClasses += " bg-stone-400 border border-gray-500 hover:bg-stone-500";
+            baseClasses += " p-1";
+        }
+
+        if (occupancy > 0) {
+          content = (
+            <>
+              {content}
               <div className="absolute bottom-1 right-1 flex items-center space-x-0.5">
                 {Array.from({ length: occupancy }).map((_, index) => <User key={index} className="h-3 w-3 text-blue-200" />)}
               </div>
-            )}
-            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
-          </>
-        );
+            </>
+          );
+        }
+        if (isOwnedByPlayer) {
+            content = (
+                <>
+                    {content}
+                    <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />
+                </>
+            );
+        }
         break;
       case "office":
         visualClasses += " bg-blue-600 border border-gray-500 hover:bg-blue-700";
@@ -189,20 +229,16 @@ const Building: React.FC<BuildingProps> = ({
           <img src={farmImage} alt="Farm" className="h-full w-full object-cover" />
         );
         break;
-      case "farmland":
+      case "farmland": {
         visualClasses += " bg-yellow-800/40 border border-yellow-900/50 hover:bg-yellow-800/60";
-        
         let cropVisual = null;
-        let cropRow = 0; // Búza
-        if (cropType === CropType.Corn) cropRow = 1; // Kukorica (feltételezve, hogy a második sorban van a tilesetben)
-
+        let cropRow = 0;
+        if (cropType === CropType.Corn) cropRow = 1;
         if (cropType !== CropType.None) {
-          // Növekedési fázisok (4 szakasz a kompakt tilesetben)
           let stageX = 0;
           if (cropProgress >= 25 && cropProgress < 50) stageX = 1;
           else if (cropProgress >= 50 && cropProgress < 85) stageX = 2;
           else if (cropProgress >= 85) stageX = 3;
-
           cropVisual = (
             <div 
               style={{
@@ -210,7 +246,7 @@ const Building: React.FC<BuildingProps> = ({
                 height: '100%',
                 backgroundImage: `url(${CROP_TILESET})`,
                 backgroundPosition: `-${stageX * 48}px -${cropRow * 48}px`, 
-                backgroundSize: '192px 96px', // 4 fázis x 2 sor (búza, kukorica)
+                backgroundSize: '192px 96px',
                 imageRendering: 'pixelated'
               }}
             />
@@ -218,7 +254,6 @@ const Building: React.FC<BuildingProps> = ({
         } else {
           cropVisual = <Sprout className="h-4 w-4 text-green-300/50" />;
         }
-
         content = (
           <div className="flex flex-col items-center justify-center h-full w-full">
             {cropVisual}
@@ -230,6 +265,7 @@ const Building: React.FC<BuildingProps> = ({
           </div>
         );
         break;
+      }
       case "road":
         // Speciális út renderelés marad...
         break;
