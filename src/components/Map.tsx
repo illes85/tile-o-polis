@@ -5,6 +5,8 @@ import Building, { FarmlandTile, CropType } from "./Building";
 import { BuildingOption } from "./BuildMenu";
 import { Sprout, Route } from "lucide-react";
 import tilesetImage from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_terrain_A5_summer_32x32.png";
+import farmerSprite from "@/assets/32x32/Sprites/$farmer_32x32.png";
+import detailsImage from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_details_fall_32x32.png";
 
 export interface BuildingData {
   id: string;
@@ -32,8 +34,11 @@ export interface BuildingData {
   hasRoadNeighborLeft?: boolean;
   hasRoadNeighborRight?: boolean;
   level?: number; // Hozzáadva a szinthez
-  millInventory?: { wheat: number; flour: number }; // Malom készlete
+  millInventory?: { wheat: number; flour: number; corn?: number }; // Malom készlete
   popcornStandInventory?: { corn: number; popcorn: number }; // ÚJ: Popcorn Árus készlete
+  marketFeeType?: "percent" | "fixed";
+  marketFeeValue?: number;
+  activeMarketTransactions?: number;
 }
 
 interface MapProps {
@@ -61,6 +66,9 @@ interface MapProps {
   mapOffsetY: number;
   isPlacementMode: boolean;
   isDragging: boolean;
+  trees: { x: number; y: number }[];
+  stumps?: { x: number; y: number }[];
+  playerAvatars?: { id: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number }[];
 }
 
 const Map: React.FC<MapProps> = ({
@@ -88,10 +96,32 @@ const Map: React.FC<MapProps> = ({
   mapOffsetY,
   isPlacementMode,
   isDragging,
+  trees,
+  stumps = [],
+  playerAvatars,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const occupiedCells = useMemo(() => {
+    const occ = new Set<string>();
+    buildings.forEach(b => {
+      const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+      const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+      for (let dx = 0; dx < w; dx++) {
+        for (let dy = 0; dy < h; dy++) {
+          occ.add(`${b.x + dx},${b.y + dy}`);
+        }
+      }
+      if (b.farmlandTiles) {
+        b.farmlandTiles.forEach(ft => occ.add(`${ft.x},${ft.y}`));
+      }
+    });
+    return occ;
+  }, [buildings]);
+
+  const treePositions = trees;
 
   // Háttér textúra térkép generálása (csak egyszer, vagy ha változik a gridSize)
   const backgroundMap = useMemo(() => {
@@ -117,35 +147,43 @@ const Map: React.FC<MapProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const img = new Image();
-    img.src = tilesetImage;
-    img.onload = () => {
-      // Törlés
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const terrainImg = new Image();
+    terrainImg.src = tilesetImage;
+    const detailsImg = new Image();
+    detailsImg.src = detailsImage;
 
-      // Kirajzolás
+    const drawAll = () => {
+      if (!terrainImg.complete || !detailsImg.complete) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       for (let x = 0; x < gridSize; x++) {
         for (let y = 0; y < gridSize; y++) {
-          const tileType = backgroundMap[x][y]; // 1 vagy 2
-          // Forrás koordináták a tileset-en (32x32 tile méret feltételezve)
-          // Index 1 -> x=32, y=0
-          // Index 2 -> x=64, y=0
-          const srcX = tileType * 32; 
+          const tileType = backgroundMap[x][y];
+          const srcX = tileType * 32;
           const srcY = 0;
-
-          // Cél koordináták a vásznon
           const destX = x * cellSizePx;
           const destY = y * cellSizePx;
-
-          ctx.drawImage(
-            img,
-            srcX, srcY, 32, 32, // Forrás
-            destX, destY, cellSizePx, cellSizePx // Cél
-          );
+          ctx.drawImage(terrainImg, srcX, srcY, 32, 32, destX, destY, cellSizePx, cellSizePx);
         }
       }
+      const TREE_SRC_X = 32 * 4;
+      const TREE_SRC_Y = 32 * 6;
+      treePositions.forEach(pos => {
+        const destX = pos.x * cellSizePx;
+        const destY = pos.y * cellSizePx;
+        ctx.drawImage(detailsImg, TREE_SRC_X, TREE_SRC_Y, 32 * 3, 32 * 3, destX, destY, cellSizePx * 3, cellSizePx * 3);
+      });
+      const STUMP_SRC_X = 32 * 7;
+      const STUMP_SRC_Y = 32 * 6;
+      stumps.forEach(s => {
+        const destX = s.x * cellSizePx;
+        const destY = s.y * cellSizePx;
+        ctx.drawImage(detailsImg, STUMP_SRC_X, STUMP_SRC_Y, 32, 32, destX, destY, cellSizePx, cellSizePx);
+      });
     };
-  }, [backgroundMap, gridSize, cellSizePx]);
+    terrainImg.onload = drawAll;
+    detailsImg.onload = drawAll;
+    if (terrainImg.complete && detailsImg.complete) drawAll();
+  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps]);
 
   const getGridCoordsFromMouseEvent = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
@@ -297,7 +335,7 @@ const Map: React.FC<MapProps> = ({
           y={ghostBuildingCoords.y}
           width={buildingToPlace.width}
           height={buildingToPlace.height}
-          type={buildingToPlace.type as any}
+          type={buildingToPlace.type}
           cellSizePx={cellSizePx}
           onClick={() => {}}
           capacity={buildingToPlace.capacity}
@@ -343,6 +381,35 @@ const Map: React.FC<MapProps> = ({
           />
         ))
       )}
+
+      {Array.isArray(playerAvatars) && playerAvatars.map((p) => {
+        const dirRow = p.dir === "down" ? 0 : p.dir === "left" ? 1 : p.dir === "right" ? 2 : 3;
+        const frameWidth = cellSizePx;
+        const frameHeight = cellSizePx * 2;
+        const srcX = p.frame * frameWidth;
+        const srcY = dirRow * frameHeight;
+        const left = (p.renderX !== undefined ? p.renderX : p.x * cellSizePx);
+        const top = (p.renderY !== undefined ? p.renderY - cellSizePx : p.y * cellSizePx - cellSizePx);
+        return (
+          <div
+            key={`avatar-${p.id}`}
+            style={{
+              position: "absolute",
+              left,
+              top,
+              width: frameWidth,
+              height: frameHeight,
+              backgroundImage: `url(${farmerSprite})`,
+              backgroundPosition: `-${srcX}px -${srcY}px`,
+              backgroundSize: `${frameWidth * 3}px ${frameHeight * 4}px`,
+              backgroundRepeat: "no-repeat",
+              imageRendering: "pixelated",
+              zIndex: 5,
+            }}
+            aria-label="player-avatar"
+          />
+        );
+      })}
     </div>
   );
 };

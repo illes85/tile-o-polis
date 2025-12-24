@@ -1,6 +1,15 @@
 import { supabase } from '@/lib/supabase';
+import { BuildingData } from '@/components/Map';
+import { Transaction } from '@/components/MoneyHistory';
 
-export const saveGame = async (state: any) => {
+interface GameState {
+  players: { id: string; name: string; money: number; inventory: Record<string, number>; workplace: string; workplaceSalary: number }[];
+  buildings: BuildingData[];
+  currentPlayerId: string;
+  transactions: Transaction[];
+}
+
+export const saveGame = async (state: GameState) => {
   try {
     // Mentés local storage-ba biztonsági másolatként
     const serializedState = JSON.stringify(state);

@@ -119,7 +119,7 @@ const Building: React.FC<BuildingProps> = ({
     width: width * cellSizePx,
     height: height * cellSizePx,
     zIndex: isGhost ? 50 : (type === "farmland" ? 0 : 1), 
-    opacity: isGhost ? 0.7 : 1,
+    opacity: isGhost ? 0.5 : 1,
     pointerEvents: isGhost ? 'none' : 'auto',
     transform: `rotate(${rotation}deg)`,
     transformOrigin: 'center center',
@@ -229,20 +229,16 @@ const Building: React.FC<BuildingProps> = ({
           <img src={farmImage} alt="Farm" className="h-full w-full object-cover" />
         );
         break;
-      case "farmland":
+      case "farmland": {
         visualClasses += " bg-yellow-800/40 border border-yellow-900/50 hover:bg-yellow-800/60";
-        
         let cropVisual = null;
-        let cropRow = 0; // Búza
-        if (cropType === CropType.Corn) cropRow = 1; // Kukorica (feltételezve, hogy a második sorban van a tilesetben)
-
+        let cropRow = 0;
+        if (cropType === CropType.Corn) cropRow = 1;
         if (cropType !== CropType.None) {
-          // Növekedési fázisok (4 szakasz a kompakt tilesetben)
           let stageX = 0;
           if (cropProgress >= 25 && cropProgress < 50) stageX = 1;
           else if (cropProgress >= 50 && cropProgress < 85) stageX = 2;
           else if (cropProgress >= 85) stageX = 3;
-
           cropVisual = (
             <div 
               style={{
@@ -250,7 +246,7 @@ const Building: React.FC<BuildingProps> = ({
                 height: '100%',
                 backgroundImage: `url(${CROP_TILESET})`,
                 backgroundPosition: `-${stageX * 48}px -${cropRow * 48}px`, 
-                backgroundSize: '192px 96px', // 4 fázis x 2 sor (búza, kukorica)
+                backgroundSize: '192px 96px',
                 imageRendering: 'pixelated'
               }}
             />
@@ -258,7 +254,6 @@ const Building: React.FC<BuildingProps> = ({
         } else {
           cropVisual = <Sprout className="h-4 w-4 text-green-300/50" />;
         }
-
         content = (
           <div className="flex flex-col items-center justify-center h-full w-full">
             {cropVisual}
@@ -270,6 +265,7 @@ const Building: React.FC<BuildingProps> = ({
           </div>
         );
         break;
+      }
       case "road":
         // Speciális út renderelés marad...
         break;

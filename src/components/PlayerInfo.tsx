@@ -9,22 +9,7 @@ import { ProductType } from "@/utils/products";
 interface PlayerInfoProps {
   playerName: string;
   money: number;
-  inventory: { 
-    potato: number; 
-    water: number; 
-    clothes: number; 
-    wood: number; 
-    brick: number; 
-    stone: number; 
-    hoe: number; 
-    tractor: number;
-    wheat: number;
-    [ProductType.WheatSeed]: number;
-    flour: number;
-    corn: number; // ÚJ
-    corn_flour: number; // ÚJ
-    popcorn: number; // ÚJ
-  };
+  inventory: Record<string, number>;
   workplace: string;
   workplaceSalary: number;
   ownedBusinesses: BuildingData[];
@@ -124,6 +109,10 @@ const PlayerInfo: React.FC<PlayerInfoProps> = ({
             <li className="flex items-center text-[0.75rem]">
               <Pickaxe className="mr-1.5 h-3 w-3 text-amber-700" />
               Kapa: {inventory.hoe}
+            </li>
+            <li className="flex items-center text-[0.75rem]">
+              <span className="mr-1.5 h-3 w-3 text-amber-700 flex items-center justify-center">🪓</span>
+              Fejsze: {inventory[ProductType.Axe] || 0}
             </li>
             <li className="flex items-center text-[0.75rem]">
               <span className="mr-1.5 h-3 w-3 text-green-600 flex items-center justify-center">🌱</span>
