@@ -25,7 +25,7 @@ import ShopMenu from "@/components/ShopMenu";
 import MarketplaceMenu from "@/components/MarketplaceMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
-import JobHousingFinder from "@/components/JobHousingFinder"; // ÚJ IMPORT
+import JobHousingFinder from "@/components/JobHousingFinder";
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; errorMsg: string }> {
   constructor(props: { children: React.ReactNode }) {
@@ -84,6 +84,8 @@ const ROAD_STONE_COST_PER_TILE = 1;
 const FARMLAND_COST_PER_TILE = 3; 
 const ROAD_COST_PER_TILE = 5; 
 const FARMLAND_BUILD_DURATION_MS = 3000; // Egységes építési idő a szántóföld csempéknek
+const CHOP_DURATION_MS = 3000;
+const DEMOLISH_DURATION_MS = 5000;
 
 interface Player {
   id: string;
@@ -155,6 +157,35 @@ const availableBuildingOptions: BuildingOption[] = [
   { type: "popcorn_stand", category: "business", name: "Popcorn Árus", cost: 500, woodCost: 2, duration: 10000, width: 2, height: 2, salary: 5, capacity: 1 }, 
 ];
 
+const TEST_INVENTORY = allProducts.reduce((acc, p) => {
+  acc[p.type] = 1;
+  return acc;
+}, {} as Record<string, number>);
+
+Object.assign(TEST_INVENTORY, {
+  [ProductType.Potato]: 5,
+  [ProductType.Water]: 5,
+  [ProductType.Clothes]: 5,
+  [ProductType.Wood]: 50,
+  [ProductType.Brick]: 20,
+  [ProductType.Stone]: 20,
+  [ProductType.WheatSeed]: 10,
+  [ProductType.Wheat]: 10,
+  [ProductType.Flour]: 5,
+  [ProductType.CornSeed]: 10,
+  [ProductType.Corn]: 10,
+  [ProductType.CornFlour]: 5,
+  [ProductType.Popcorn]: 5,
+});
+
+const DEFAULT_PLAYERS: Player[] = [
+  { id: "player-test", name: "Teszt Elek", money: 50000, inventory: { ...TEST_INVENTORY }, workplace: "Munkanélküli", workplaceSalary: 0 },
+  { id: "player-2", name: "Lyukas Zsebű Lajos", money: 300, inventory: { ...TEST_INVENTORY }, workplace: "Munkanélküli", workplaceSalary: 0 },
+  { id: "player-3", name: "Gróf Csekkfüzet", money: 15000, inventory: { ...TEST_INVENTORY }, workplace: "Munkanélküli", workplaceSalary: 0 },
+  { id: "player-4", name: "Krajcár Kázmér", money: 2000, inventory: { ...TEST_INVENTORY }, workplace: "Munkanélküli", workplaceSalary: 0 },
+  { id: "player-5", name: "Zsírosbödön Ödön", money: 8000, inventory: { ...TEST_INVENTORY }, workplace: "Munkanélküli", workplaceSalary: 0 },
+];
+
 const Game = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -170,15 +201,12 @@ const Game = () => {
   const initialTransactions: Transaction[] | undefined = state?.transactions;
   const initialCurrentPlayerId: string | undefined = state?.currentPlayerId;
 
-  const [players, setPlayers] = useState<Player[]>(incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : [
-    { id: "player-1", name: "Játékos 1", money: 2000, inventory: { potato: 3, water: 2, wood: 10, brick: 5, stone: 0, hoe: 0, tractor: 0, wheat: 0, [ProductType.WheatSeed]: 5, flour: 0, clothes: 0, [ProductType.Corn]: 0, [ProductType.CornFlour]: 0, [ProductType.Popcorn]: 0, [ProductType.CornSeed]: 0 }, workplace: "Munkanélküli", workplaceSalary: 0 },
-    { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: { [ProductType.WheatSeed]: 100, wheat: 50, wood: 500, stone: 100, flour: 20, clothes: 5, [ProductType.Corn]: 50, [ProductType.CornFlour]: 10, [ProductType.Popcorn]: 5, [ProductType.CornSeed]: 50 }, workplace: "Tesztelő", workplaceSalary: 0 },
-  ]);
+  const [players, setPlayers] = useState<Player[]>(incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : DEFAULT_PLAYERS);
 
   const [currentPlayerId, setCurrentPlayerId] = useState<string>(() => {
-    const source = incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : undefined;
-    const fallbackId = source?.[0]?.id || "player-1";
-    if (initialCurrentPlayerId && source?.some(p => p.id === initialCurrentPlayerId)) {
+    const source = incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : DEFAULT_PLAYERS;
+    const fallbackId = source[0].id;
+    if (initialCurrentPlayerId && source.some(p => p.id === initialCurrentPlayerId)) {
       return initialCurrentPlayerId;
     }
     return fallbackId;
@@ -204,7 +232,8 @@ const Game = () => {
   const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
   const [playerPositions, setPlayerPositions] = useState<Record<string, { x: number; y: number; renderX: number; renderY: number; dir: "down" | "left" | "right" | "up"; frame: number; path: { x: number; y: number }[] }>>(() => {
     const init: Record<string, { x: number; y: number; renderX: number; renderY: number; dir: "down" | "left" | "right" | "up"; frame: number; path: { x: number; y: number }[] }> = {};
-    (incomingPlayers || []).forEach((p, i) => {
+    const source = incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : DEFAULT_PLAYERS;
+    source.forEach((p, i) => {
       const startX = 1 + i;
       const startY = 1;
       init[p.id] = { x: startX, y: startY, renderX: startX * CELL_SIZE_PX, renderY: startY * CELL_SIZE_PX, dir: "down", frame: 0, path: [] };
@@ -215,6 +244,16 @@ const Game = () => {
   const [isSelectingTree, setIsSelectingTree] = useState(false);
   const [stumps, setStumps] = useState<{ x: number; y: number }[]>([]);
   const [axeWoodCounter, setAxeWoodCounter] = useState<Record<string, number>>({});
+  const [chopProcess, setChopProcess] = useState<{
+    id: string;
+    playerId: string;
+    treeIndex: number;
+    treeX: number;
+    treeY: number;
+    startTime: number;
+    duration: number;
+  } | null>(null);
+  const [chopProgressPct, setChopProgressPct] = useState(0);
   
   const generateInitialTrees = (gridSize: number, initialBuildings: BuildingData[]) => {
     const positions: { x: number; y: number }[] = [];
@@ -475,6 +514,7 @@ const Game = () => {
       return;
     }
     setIsSelectingTree(true);
+    setSelectedBuilding(null);
     showSuccess("Válassz ki egy fát a térképen kivágáshoz!");
   };
 
@@ -510,6 +550,50 @@ const Game = () => {
     setTransactions(prev => [...prev, ...newTransactions]);
     
   }, [buildings, players]);
+
+  useEffect(() => {
+    if (!chopProcess) {
+      setChopProgressPct(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - chopProcess.startTime;
+      const pct = Math.min(100, (elapsed / chopProcess.duration) * 100);
+      setChopProgressPct(pct);
+      if (elapsed >= chopProcess.duration) {
+        clearInterval(timer);
+        const idx = chopProcess.treeIndex;
+        const tx = chopProcess.treeX;
+        const ty = chopProcess.treeY;
+        setTrees(prev => prev.filter((_, i) => i !== idx));
+        setStumps(prev => [...prev, { x: tx + 1, y: ty + 1 }]);
+        const gain = 3;
+        const prevCnt = axeWoodCounter[currentPlayerId] || 0;
+        const newCnt = prevCnt + gain;
+        let axeDec = 0;
+        let remain = newCnt;
+        while (remain >= 10) {
+          axeDec += 1;
+          remain -= 10;
+        }
+        setAxeWoodCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
+        setPlayers(prev => prev.map(p => 
+          p.id === currentPlayerId ? {
+            ...p,
+            inventory: {
+              ...p.inventory,
+              wood: (p.inventory.wood || 0) + gain,
+              [ProductType.Axe]: Math.max(0, (p.inventory[ProductType.Axe] || 0) - axeDec)
+            }
+          } : p
+        ));
+        addTransaction(currentPlayerId, "income", `Fa kivágása (nyers fa)`, 0);
+        showSuccess(`Fa kivágva. +${gain} fa. ${axeDec > 0 ? "A fejsze elhasználódott." : "A fejsze kopott."}`);
+        setChopProcess(null);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [chopProcess, axeWoodCounter, currentPlayerId]);
 
   // Építkezés befejezése és feldolgozási időzítők
   useEffect(() => {
@@ -588,6 +672,11 @@ const Game = () => {
   // Ref a processEconomyTick függvényhez, hogy az interval ne induljon újra minden renderkor
   const processEconomyTickRef = useRef(processEconomyTick);
   
+  const buildingsRef = useRef(buildings);
+  useEffect(() => {
+    buildingsRef.current = buildings;
+  }, [buildings]);
+  
   useEffect(() => {
     processEconomyTickRef.current = processEconomyTick;
   }, [processEconomyTick]);
@@ -660,24 +749,76 @@ const Game = () => {
     return () => clearInterval(growthTimer);
   }, []);
 
-  // Építkezés befejezésének figyelése ETA alapján
+  // Építkezés és Bontás ellenőrzése
   useEffect(() => {
     const constructionChecker = setInterval(() => {
       const now = Date.now();
+      const currentBuildings = buildingsRef.current;
       
-      setBuildings(prevBuildings => {
-        let hasChanges = false;
-        let isAnyBuildingUnderConstruction = false; // Figyeljük, hogy van-e folyamatban építkezés
+      const finishedDemolitions: BuildingData[] = [];
 
-        const newBuildings = prevBuildings.map(b => {
+      // Először összegyűjtjük a kész bontásokat és visszatérítünk
+      currentBuildings.forEach(b => {
+        if (b.isDemolishing && b.demolishEta && now >= b.demolishEta) {
+            finishedDemolitions.push(b);
+        }
+      });
+
+      if (finishedDemolitions.length > 0) {
+          finishedDemolitions.forEach(building => {
+              const buildingOption = availableBuildingOptions.find(o => o.type === building.type && o.name === building.name);
+              if (buildingOption) {
+                  const refundMoney = Math.floor(buildingOption.cost * DEMOLISH_REFUND_PERCENTAGE);
+                  const refundWood = Math.floor((buildingOption.woodCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+                  const refundBrick = Math.floor((buildingOption.brickCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+                  const refundStone = Math.floor((buildingOption.stoneCost || 0) * DEMOLISH_REFUND_PERCENTAGE);
+
+                  setPlayers(prev => prev.map(p => 
+                      p.id === currentPlayerId ? {
+                          ...p,
+                          money: p.money + refundMoney,
+                          inventory: {
+                              ...p.inventory,
+                              wood: (p.inventory.wood || 0) + refundWood,
+                              brick: (p.inventory.brick || 0) + refundBrick,
+                              stone: (p.inventory.stone || 0) + refundStone,
+                          }
+                      } : p
+                  ));
+                  showSuccess(`${building.name} lebontva. Visszatérítés: ${refundMoney} pénz.`);
+              }
+          });
+      }
+
+      setBuildings(prevBuildings => {
+        // Töröljük a lebontottakat
+        let nextBuildings = prevBuildings.filter(b => !finishedDemolitions.some(fd => fd.id === b.id));
+        
+        // Frissítjük a folyamatban lévőket (építés és bontás)
+        let localHasChanges = finishedDemolitions.length > 0;
+        let isAnyBuildingUnderConstruction = false;
+
+        nextBuildings = nextBuildings.map(b => {
           let updatedBuilding = { ...b };
           
-          // Épületek ellenőrzése
+          // Bontás progress
+          if (b.isDemolishing && b.demolishEta) {
+             const duration = b.demolishDuration || DEMOLISH_DURATION_MS;
+             const elapsed = now - (b.demolishEta - duration);
+             const progress = Math.min(100, (elapsed / duration) * 100);
+             if (Math.abs((b.demolishProgress || 0) - progress) > 0.5) {
+                 localHasChanges = true;
+                 updatedBuilding.demolishProgress = progress;
+             }
+             isAnyBuildingUnderConstruction = true; // Bontás is "munka"
+          }
+
+          // Építkezés ellenőrzése
           if (b.isUnderConstruction && b.constructionEta) {
             if (now >= b.constructionEta) {
               // Épület kész
               showSuccess(`${b.name} kész!`);
-              hasChanges = true;
+              localHasChanges = true;
               updatedBuilding = { 
                 ...updatedBuilding, 
                 isUnderConstruction: false, 
@@ -688,13 +829,11 @@ const Game = () => {
             } else {
                // Még épül
                isAnyBuildingUnderConstruction = true;
-               
                if (b.originalDuration) {
-                 // Progressz frissítése
                  const elapsed = now - (b.constructionEta - b.originalDuration);
                  const progress = Math.min(100, (elapsed / b.originalDuration) * 100);
                  if (Math.abs((b.buildProgress || 0) - progress) > 0.5) {
-                   hasChanges = true;
+                   localHasChanges = true;
                    updatedBuilding = { ...updatedBuilding, buildProgress: progress };
                  }
                }
@@ -713,7 +852,6 @@ const Game = () => {
                 } else {
                    // Még épül
                    isAnyBuildingUnderConstruction = true;
-
                    if (ft.originalDuration) {
                       const elapsed = now - (ft.constructionEta - ft.originalDuration);
                       const progress = Math.min(100, (elapsed / ft.originalDuration) * 100);
@@ -728,7 +866,7 @@ const Game = () => {
             });
 
             if (tilesChanged) {
-              hasChanges = true;
+              localHasChanges = true;
               updatedBuilding = { ...updatedBuilding, farmlandTiles: newFarmlandTiles };
             }
           }
@@ -736,21 +874,11 @@ const Game = () => {
           return updatedBuilding;
         });
 
-        // Ha nincs folyamatban lévő építkezés, állítsuk le a hangokat (biztonsági ellenőrzés)
-        // Ezt a setBuildings callback-en belül nehézkes hívni mellékhatásként, de működhet
-        // Jobb lenne useEffect-ben figyelni az isAnyBuildingUnderConstruction állapotot, 
-        // de itt a 'newBuildings' alapján dönthetünk azonnal.
-        // Mivel a stopAllSfx nem state update, meghívhatjuk.
+        // SFX leállítása ha minden kész
         if (!isAnyBuildingUnderConstruction && sfxPlayerRef.current) {
-             // Csak akkor állítjuk le, ha az előző állapotban még volt építkezés? 
-             // Nem, a biztonság kedvéért, ha kész lett valami, és nincs más, álljon le.
-             // De ez másodpercenként 10x fut. Nem baj, a stopAllSfx idempotens (vagy gyors).
-             // De ha folyamatosan hívogatjuk, az zavaró lehet más hangoknál.
-             // Ezért csak akkor hívjuk, ha volt változás (valami befejeződött).
-             // DE: a felhasználó panasza szerint "nem hallgatott el".
-             // Így most expliciten leállítjuk, ha valami befejeződött ÉS nincs más folyamatban.
              const wasAnyConstruction = prevBuildings.some(b => 
                 (b.isUnderConstruction && b.constructionEta) || 
+                (b.isDemolishing) ||
                 (b.type === 'farm' && b.farmlandTiles?.some(ft => ft.isUnderConstruction && ft.constructionEta))
              );
              
@@ -759,12 +887,21 @@ const Game = () => {
              }
         }
 
-        return hasChanges ? newBuildings : prevBuildings;
+        if (localHasChanges) return nextBuildings;
+        return prevBuildings;
       });
-    }, 100); 
+      
+      // Ha volt törlés, és a kijelölt épület is törlődött, akkor deselect
+      if (finishedDemolitions.length > 0 && selectedBuilding) {
+          if (finishedDemolitions.some(fd => fd.id === selectedBuilding.id)) {
+              setSelectedBuilding(null);
+          }
+      }
+
+    }, 100);
 
     return () => clearInterval(constructionChecker);
-  }, [sfxPlayerRef]); 
+  }, [currentPlayerId]); 
 
 
   const tickProgress = 100 - ((msUntilNextTick / RENT_INTERVAL_MS) * 100); 
@@ -1004,47 +1141,6 @@ const Game = () => {
       }
     } else if (isPlacingRoad) {
       setGhostRoadTiles([{ x: gridX, y: gridY }]);
-    } else if (isSelectingTree) {
-      const idx = trees.findIndex(t => gridX >= t.x && gridX < t.x + 3 && gridY >= t.y && gridY < t.y + 3);
-      if (idx === -1) {
-        showError("Nem fára kattintottál. Próbáld újra.");
-        return;
-      }
-      const tree = trees[idx];
-      const targetX = tree.x + 1;
-      const targetY = tree.y + 2;
-      executeAtTile(targetX, targetY, () => {
-        if ((currentPlayer.inventory[ProductType.Axe] || 0) < 1) {
-          showError("Nincs fejszéd a kivágáshoz!");
-          setIsSelectingTree(false);
-          return;
-        }
-        setTrees(prev => prev.filter((_, i) => i !== idx));
-        setStumps(prev => [...prev, { x: tree.x + 1, y: tree.y + 1 }]);
-        const gain = 3;
-        const prevCnt = axeWoodCounter[currentPlayerId] || 0;
-        const newCnt = prevCnt + gain;
-        let axeDec = 0;
-        let remain = newCnt;
-        while (remain >= 10) {
-          axeDec += 1;
-          remain -= 10;
-        }
-        setAxeWoodCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
-        setPlayers(prev => prev.map(p => 
-          p.id === currentPlayerId ? {
-            ...p,
-            inventory: {
-              ...p.inventory,
-              wood: (p.inventory.wood || 0) + gain,
-              [ProductType.Axe]: Math.max(0, (p.inventory[ProductType.Axe] || 0) - axeDec)
-            }
-          } : p
-        ));
-        addTransaction(currentPlayerId, "income", `Fa kivágása (nyers fa)`, 0);
-        showSuccess(`Fa kivágva. +${gain} fa. ${axeDec > 0 ? "A fejsze elhasználódott." : "A fejsze kopott."}`);
-        setIsSelectingTree(false);
-      });
     }
   };
 
@@ -1182,6 +1278,53 @@ const Game = () => {
       }
     } else if (isPlacingBuilding && buildingToPlace && ghostBuildingCoords) {
       handlePlaceBuilding(gridX, gridY, isShiftPressed);
+    } else if (isSelectingTree) {
+      const idx = trees.findIndex(t => gridX >= t.x && gridX < t.x + 3 && gridY >= t.y && gridY < t.y + 3);
+      if (idx === -1) {
+        showError("Nem fára kattintottál. Próbáld újra.");
+        return;
+      }
+      const tree = trees[idx];
+      // Find a valid adjacent tile to the tree (3x3 area)
+      // We'll try a few positions around the tree and pick the first valid one
+      // Tree is 3x3 at tree.x, tree.y
+      // Positions to try: bottom-center (x+1, y+3), top-center (x+1, y-1), left-center (x-1, y+1), right-center (x+3, y+1)
+      const possibleTargets = [
+        { x: tree.x + 1, y: tree.y + 3 }, // Bottom
+        { x: tree.x + 1, y: tree.y - 1 }, // Top
+        { x: tree.x - 1, y: tree.y + 1 }, // Left
+        { x: tree.x + 3, y: tree.y + 1 }, // Right
+      ];
+      
+      const target = possibleTargets.find(t => 
+        t.x >= 0 && t.x < MAP_GRID_SIZE && t.y >= 0 && t.y < MAP_GRID_SIZE &&
+        !trees.some(otherT => otherT !== tree && t.x >= otherT.x && t.x < otherT.x + 3 && t.y >= otherT.y && t.y < otherT.y + 3) &&
+        !stumps.some(s => s.x === t.x && s.y === t.y) &&
+        !buildings.some(b => {
+           const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+           const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+           return t.x >= b.x && t.x < b.x + w && t.y >= b.y && t.y < b.y + h;
+        })
+      ) || possibleTargets[0]; // Fallback to bottom if all blocked (pathfinder might still fail but better than inside)
+
+      executeAtTile(target.x, target.y, () => {
+        if ((currentPlayer.inventory[ProductType.Axe] || 0) < 1) {
+          showError("Nincs fejszéd a kivágáshoz!");
+          setIsSelectingTree(false);
+          return;
+        }
+        setChopProcess({
+          id: `chop-${Date.now()}-${Math.random()}`,
+          playerId: currentPlayerId,
+          treeIndex: idx,
+          treeX: tree.x,
+          treeY: tree.y,
+          startTime: Date.now(),
+          duration: CHOP_DURATION_MS,
+        });
+        showSuccess("Fa kivágása megkezdve...");
+        setIsSelectingTree(false);
+      });
     } else if (!isPlacementMode) {
       executeAtTile(gridX, gridY, () => {});
     }
@@ -1300,23 +1443,27 @@ const Game = () => {
       return;
     }
     const rent = building.rentalPrice ?? 0;
-    if (currentPlayer.money < rent) {
+    const isOwner = building.ownerId === currentPlayerId;
+    
+    if (!isOwner && currentPlayer.money < rent) {
       showError("Nincs elég pénzed az első bérleti díj kifizetéséhez!");
       return;
     }
     executeAtBuilding(buildingId, () => {
-      setPlayers(prev => prev.map(p => 
-        p.id === currentPlayerId ? {
-          ...p,
-          money: p.money - rent
-        } : p
-      ));
-      addTransaction(currentPlayerId, "expense", `Első bérleti díj: ${building.name}`, rent);
+      if (!isOwner) {
+        setPlayers(prev => prev.map(p => 
+          p.id === currentPlayerId ? {
+            ...p,
+            money: p.money - rent
+          } : p
+        ));
+        addTransaction(currentPlayerId, "expense", `Első bérleti díj: ${building.name}`, rent);
+      }
       setBuildings(prev => prev.map(b => 
         b.id === buildingId ? { 
           ...b, 
           residentIds: [...b.residentIds, currentPlayerId],
-          renterId: currentPlayerId
+          renterId: isOwner ? undefined : currentPlayerId
         } : b
       ));
       showSuccess(`Sikeresen beköltöztél a(z) ${building.name} ingatlanba!`);
@@ -1347,21 +1494,19 @@ const Game = () => {
     setSelectedBuilding(null);
   };
 
-  const handleEvictTenant = (buildingId: string) => {
+  const handleMoveOut = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
-    if (!building || building.ownerId !== currentPlayerId || !building.renterId) return;
+    if (!building || !building.residentIds.includes(currentPlayerId)) return;
 
-    const tenantId = building.renterId;
-    
     setBuildings(prev => prev.map(b => 
       b.id === buildingId ? { 
         ...b, 
-        residentIds: b.residentIds.filter(id => id !== tenantId),
-        renterId: undefined
+        residentIds: b.residentIds.filter(id => id !== currentPlayerId),
+        renterId: b.renterId === currentPlayerId ? undefined : b.renterId
       } : b
     ));
 
-    showSuccess(`A bérlő (ID: ${tenantId}) kiköltözött a(z) ${building.name} ingatlanból.`);
+    showSuccess(`Sikeresen kiköltöztél a(z) ${building.name} ingatlanból.`);
     setSelectedBuilding(null);
   };
 
@@ -1938,6 +2083,14 @@ const Game = () => {
     showSuccess(`Betakarítva ${yieldAmount} ${getProductByType(harvestedProduct)?.name || harvestedProduct}!`);
   };
 
+  const [playerSwitchEnabled, setPlayerSwitchEnabled] = useState(() => {
+    return localStorage.getItem("playerSwitchEnabled") !== "false";
+  });
+  const [avatarSize] = useState(() => {
+    const saved = localStorage.getItem("avatarSize");
+    return saved ? parseInt(saved, 10) : 100;
+  });
+
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
@@ -1950,6 +2103,7 @@ const Game = () => {
         />
       </div>
       
+      {playerSwitchEnabled && (
       <div className="mb-4 space-y-2">
         <Label className="text-xs text-sidebar-foreground">Játékos váltása (Teszt mód):</Label>
         <div className="flex items-center gap-2">
@@ -1971,6 +2125,7 @@ const Game = () => {
           </Button>
         </div>
       </div>
+      )}
       
         <PlayerInfo 
           playerName={currentPlayer.name} 
@@ -2033,12 +2188,13 @@ const Game = () => {
 
   return (
     <ErrorBoundary>
-    <MainLayout 
-      sidebarContent={sidebarContent} 
+      <MainLayout 
+        sidebarContent={sidebarContent} 
       mainContent={
       <div ref={mainContentRef} className="flex flex-col h-full items-center justify-center relative overflow-hidden">
           <GameMap 
-            buildings={buildings} 
+            avatarSize={avatarSize}
+            buildings={buildings}  
             gridSize={MAP_GRID_SIZE} 
             cellSizePx={CELL_SIZE_PX} 
             onBuildingClick={handleBuildingClick} 
@@ -2072,20 +2228,36 @@ const Game = () => {
             isDemolishingRoad={false} 
             mapOffsetX={mapOffsetX} 
             mapOffsetY={mapOffsetY} 
-            isPlacementMode={isPlacementMode} 
-            isDragging={isDragging}
-            trees={trees}
-            stumps={stumps}
-            playerAvatars={players.map(p => ({
-              id: p.id,
-              x: playerPositions[p.id]?.x || 0,
-              y: playerPositions[p.id]?.y || 0,
-              renderX: playerPositions[p.id]?.renderX,
-              renderY: playerPositions[p.id]?.renderY,
-              dir: playerPositions[p.id]?.dir || "down",
-              frame: playerPositions[p.id]?.frame || 0,
-            }))}
+          isPlacementMode={isPlacementMode} 
+          isDragging={isDragging}
+          trees={trees}
+          stumps={stumps}
+          isSelectingTree={isSelectingTree}
+          isTreeChoppingMode={!!chopProcess}
+          activeChopTree={chopProcess ? { x: chopProcess.treeX, y: chopProcess.treeY } : null}
+          treeChopProgress={chopProgressPct}
+          avatarSize={avatarSize}
+          playerAvatars={players.map(p => ({
+            id: p.id,
+            name: p.name,
+            x: playerPositions[p.id]?.x || 0,
+            y: playerPositions[p.id]?.y || 0,
+            renderX: playerPositions[p.id]?.renderX,
+            renderY: playerPositions[p.id]?.renderY,
+            dir: playerPositions[p.id]?.dir || "down",
+            frame: playerPositions[p.id]?.frame || 0,
+          }))}
           />
+          
+          {chopProcess && (
+            <div className="absolute bottom-4 left-4 bg-muted/70 dark:bg-black/50 backdrop-blur-sm border rounded p-3 w-64">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <span>🪓</span>
+                <span>Fa kivágása...</span>
+              </div>
+              <Progress value={chopProgressPct} className="h-2 mt-2" />
+            </div>
+          )}
           
           {selectedBuilding && (
             <Dialog open={!!selectedBuilding} onOpenChange={() => setSelectedBuilding(null)}>
@@ -2304,7 +2476,7 @@ const Game = () => {
                                 <p className="font-medium">
                                   {process.wheatConsumed} búza → {process.flourProduced} liszt
                                 </p>
-                                <Progress value={progress} className="h-2 mt-1" indicatorColor="bg-amber-500" />
+                                <Progress value={progress} className="h-2 mt-1" />
                                 <p className="text-right text-muted-foreground mt-1">
                                   {remainingTime > 0 ? `${remainingTime} mp hátra` : 'Befejezés...'}
                                 </p>
@@ -2552,7 +2724,7 @@ const Game = () => {
                                 <p className="font-medium">
                                   {process.cornConsumed} kukorica → {process.popcornProduced} popcorn
                                 </p>
-                                <Progress value={progress} className="h-2 mt-1" indicatorColor="bg-red-500" />
+                                <Progress value={progress} className="h-2 mt-1" />
                                 <p className="text-right text-muted-foreground mt-1">
                                   {remainingTime > 0 ? `${remainingTime} mp hátra` : 'Befejezés...'}
                                 </p>
@@ -2564,41 +2736,59 @@ const Game = () => {
                     </div>
                   )}
                 </div>
+                
+                {selectedBuilding.isDemolishing && (
+                    <div className="p-3 border rounded-md bg-red-50/50 dark:bg-red-900/20 mb-4 mx-4">
+                         <h4 className="font-semibold mb-2 flex items-center text-red-600">
+                              <Trash2 className="h-4 w-4 mr-2" /> Bontás folyamatban...
+                         </h4>
+                         <Progress value={selectedBuilding.demolishProgress || 0} className="h-2" />
+                         <p className="text-xs text-center mt-1 text-muted-foreground">
+                              {Math.max(0, Math.ceil(((selectedBuilding.demolishEta || 0) - Date.now()) / 1000))} mp hátra
+                         </p>
+                    </div>
+                )}
+
                 <DialogFooter>
-                  {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && selectedBuilding.residentIds.length < selectedBuilding.capacity && (
-                    <Button onClick={() => handleRentHouse(selectedBuilding.id)}>
-                      Beköltözés
-                    </Button>
-                  )}
-                  {selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId) && (
-                    <Button disabled>
-                      Megtelt
-                    </Button>
-                  )}
-                  {selectedBuilding.type === "house" && selectedBuilding.residentIds.includes(currentPlayerId) && (
-                    <Button variant="destructive" onClick={() => handleEvictTenant(selectedBuilding.id)}>
-                      Kiköltözés
-                    </Button>
-                  )}
-                  {selectedBuilding.salary && !selectedBuilding.employeeIds.includes(currentPlayerId) && currentPlayer.workplace === "Munkanélküli" && selectedBuilding.employeeIds.length < selectedBuilding.capacity && (
-                    <Button onClick={() => handleApplyForJob(selectedBuilding.id)}>
-                      Munkába állás
-                    </Button>
-                  )}
-                  {selectedBuilding.salary && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId) && (
-                    <Button disabled>
-                      Megtelt
-                    </Button>
-                  )}
-                  {selectedBuilding.salary && selectedBuilding.employeeIds.includes(currentPlayerId) && (
-                    <Button variant="destructive" onClick={() => handleResignFromJob(selectedBuilding.id)}>
-                      Felmondás
-                    </Button>
-                  )}
-                  {selectedBuilding.ownerId === currentPlayerId && (
-                    <Button variant="destructive" onClick={() => handleDemolishBuilding(selectedBuilding.id)}>
-                      <Trash2 className="h-4 w-4 mr-2" /> Lebontás
-                    </Button>
+                  {!selectedBuilding.isDemolishing && (
+                    <>
+                      {selectedBuilding.type === "house" && !selectedBuilding.residentIds.includes(currentPlayerId) && selectedBuilding.residentIds.length < selectedBuilding.capacity && (
+                        <Button onClick={() => handleRentHouse(selectedBuilding.id)}>
+                          Beköltözés
+                        </Button>
+                      )}
+                      {selectedBuilding.type === "house" && selectedBuilding.residentIds.length >= selectedBuilding.capacity && !selectedBuilding.residentIds.includes(currentPlayerId) && (
+                        <Button disabled>
+                          Megtelt
+                        </Button>
+                      )}
+                      {selectedBuilding.type === "house" && selectedBuilding.residentIds.includes(currentPlayerId) && (
+                        <Button variant="destructive" onClick={() => handleMoveOut(selectedBuilding.id)}>
+                          Kiköltözés
+                        </Button>
+                      )}
+                      
+                      {selectedBuilding.salary && !selectedBuilding.employeeIds.includes(currentPlayerId) && selectedBuilding.employeeIds.length < selectedBuilding.capacity && (
+                        <Button onClick={() => handleApplyForJob(selectedBuilding.id)}>
+                          {currentPlayer.workplace === "Munkanélküli" ? "Munkába állás" : "Átjelentkezés ide"}
+                        </Button>
+                      )}
+                      {selectedBuilding.salary && selectedBuilding.employeeIds.length >= selectedBuilding.capacity && !selectedBuilding.employeeIds.includes(currentPlayerId) && (
+                        <Button disabled>
+                          Megtelt
+                        </Button>
+                      )}
+                      {selectedBuilding.salary && selectedBuilding.employeeIds.includes(currentPlayerId) && (
+                        <Button variant="destructive" onClick={() => handleResignFromJob(selectedBuilding.id)}>
+                          Felmondás
+                        </Button>
+                      )}
+                      {selectedBuilding.ownerId === currentPlayerId && (
+                        <Button variant="destructive" onClick={() => handleDemolishBuilding(selectedBuilding.id)}>
+                          <Trash2 className="h-4 w-4 mr-2" /> Lebontás
+                        </Button>
+                      )}
+                    </>
                   )}
                   <Button variant="outline" onClick={() => setSelectedBuilding(null)}>
                     Bezárás
@@ -2654,6 +2844,7 @@ const Game = () => {
                       } : i
                     )
                   }));
+                  addTransaction(currentPlayerId, "expense", `Bolt rendelés: ${it.name} (${q} db)`, it.wholesalePrice * q);
                   showSuccess("Rendelés leadva.");
                 });
               }}

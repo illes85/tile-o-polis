@@ -155,7 +155,7 @@ const Building: React.FC<BuildingProps> = ({
       <div className="flex flex-col items-center justify-center h-full w-full p-1"> 
         <Hammer className="h-6 w-6 text-white mb-1" />
         <span className="text-white text-xs">Épül...</span>
-        <Progress value={progressValue} className="w-3/4 h-2 mt-1" indicatorColor="bg-yellow-400" />
+        <Progress value={progressValue} className="w-3/4 h-2 mt-1" />
         <span className="text-white text-[0.6rem] mt-1">{remainingTimeSec} mp</span>
       </div>
     );

@@ -91,8 +91,9 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
 
     const renderHousingCard = (house: BuildingData) => {
         const isCurrentResidence = house.residentIds.includes(currentPlayer.id);
-        const canRent = !isRenting || isCurrentResidence;
-        const isAffordable = currentPlayer.money >= (house.rentalPrice || 0);
+        const isOwner = house.ownerId === currentPlayer.id;
+        const canRent = !isRenting || isCurrentResidence || isOwner;
+        const isAffordable = currentPlayer.money >= (house.rentalPrice || 0) || isOwner;
 
         return (
             <Card key={house.id} className={`p-3 flex justify-between items-center border-l-4 ${isAffordable ? 'border-green-500' : 'border-red-500'}`}>
@@ -114,7 +115,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
                     disabled={!canRent || !isAffordable}
                     variant={isCurrentResidence ? "secondary" : "default"}
                 >
-                    {isCurrentResidence ? <><CheckCircle className="h-4 w-4 mr-1" /> Itt laksz</> : "Bérlés"}
+                    {isCurrentResidence ? <><CheckCircle className="h-4 w-4 mr-1" /> Itt laksz</> : (isOwner ? "Beköltözés" : "Bérlés")}
                 </Button>
             </Card>
         );

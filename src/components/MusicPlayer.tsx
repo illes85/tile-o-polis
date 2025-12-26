@@ -67,7 +67,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
         audioRef.current.play().catch(e => console.error("Error playing audio:", e));
       }
     }
-  }, [currentTrackIndex, tracks]);
+  }, [currentTrackIndex, tracks, isPlaying]);
 
   // Effect to handle play/pause toggle and initial volume setting
   useEffect(() => {

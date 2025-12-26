@@ -39,6 +39,10 @@ export interface BuildingData {
   marketFeeType?: "percent" | "fixed";
   marketFeeValue?: number;
   activeMarketTransactions?: number;
+  isDemolishing?: boolean;
+  demolishProgress?: number;
+  demolishEta?: number;
+  demolishDuration?: number;
 }
 
 interface MapProps {
@@ -68,8 +72,14 @@ interface MapProps {
   isDragging: boolean;
   trees: { x: number; y: number }[];
   stumps?: { x: number; y: number }[];
-  playerAvatars?: { id: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number }[];
+  playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number }[];
+  isSelectingTree?: boolean;
+  isTreeChoppingMode?: boolean;
+  treeChopProgress?: number;
+  activeChopTree?: { x: number; y: number } | null;
+  avatarSize?: number;
 }
+
 
 const Map: React.FC<MapProps> = ({
   buildings,
@@ -99,6 +109,11 @@ const Map: React.FC<MapProps> = ({
   trees,
   stumps = [],
   playerAvatars,
+  isSelectingTree,
+  isTreeChoppingMode,
+  treeChopProgress = 0,
+  activeChopTree,
+  avatarSize = 100,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -179,11 +194,29 @@ const Map: React.FC<MapProps> = ({
         const destY = s.y * cellSizePx;
         ctx.drawImage(detailsImg, STUMP_SRC_X, STUMP_SRC_Y, 32, 32, destX, destY, cellSizePx, cellSizePx);
       });
+
+      if (isTreeChoppingMode && treeChopProgress > 0 && activeChopTree) {
+        const progressBarX = activeChopTree.x * cellSizePx;
+        const progressBarY = activeChopTree.y * cellSizePx;
+        
+        // Draw background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
+        
+        // Draw progress
+        ctx.fillStyle = '#00cc00';
+        ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, (cellSizePx * 2) * (treeChopProgress / 100), 8);
+        
+        // Draw border
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
+      }
     };
     terrainImg.onload = drawAll;
     detailsImg.onload = drawAll;
     if (terrainImg.complete && detailsImg.complete) drawAll();
-  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps]);
+  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps, isTreeChoppingMode, treeChopProgress, activeChopTree]);
 
   const getGridCoordsFromMouseEvent = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
@@ -231,7 +264,18 @@ const Map: React.FC<MapProps> = ({
     if (isDemolishingRoad) {
       return "cell";
     }
+    if (isSelectingTree) {
+      return "none";
+    }
     return "default";
+  };
+
+  const getAbbreviatedName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length <= 1) return fullName;
+    const lastName = parts.pop();
+    const abbreviatedParts = parts.map(part => `${part.charAt(0)}.`);
+    return `${abbreviatedParts.join(" ")} ${lastName}`;
   };
 
   return (
@@ -269,6 +313,23 @@ const Map: React.FC<MapProps> = ({
           height: mapHeightPx, // Itt marad a container mérete
         }}
       />
+
+      {isSelectingTree && ghostBuildingCoords && (
+        <div
+          style={{
+            position: "absolute",
+            left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.4,
+            top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.4,
+            pointerEvents: "none",
+            zIndex: 10,
+            fontSize: Math.max(14, Math.floor(cellSizePx * 0.6)),
+            lineHeight: 1,
+          }}
+          aria-label="axe-cursor"
+        >
+          🪓
+        </div>
+      )}
 
       {allFarmlandTiles.map((tile, index) => (
         <Building
@@ -390,6 +451,9 @@ const Map: React.FC<MapProps> = ({
         const srcY = dirRow * frameHeight;
         const left = (p.renderX !== undefined ? p.renderX : p.x * cellSizePx);
         const top = (p.renderY !== undefined ? p.renderY - cellSizePx : p.y * cellSizePx - cellSizePx);
+        const scale = (avatarSize || 100) / 100;
+        const labelTopOffset = frameHeight * (1 - scale) - 12;
+
         return (
           <div
             key={`avatar-${p.id}`}
@@ -399,15 +463,41 @@ const Map: React.FC<MapProps> = ({
               top,
               width: frameWidth,
               height: frameHeight,
-              backgroundImage: `url(${farmerSprite})`,
-              backgroundPosition: `-${srcX}px -${srcY}px`,
-              backgroundSize: `${frameWidth * 3}px ${frameHeight * 4}px`,
-              backgroundRepeat: "no-repeat",
-              imageRendering: "pixelated",
               zIndex: 5,
             }}
-            aria-label="player-avatar"
-          />
+          >
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                backgroundImage: `url(${farmerSprite})`,
+                backgroundPosition: `-${srcX}px -${srcY}px`,
+                backgroundSize: `${frameWidth * 3}px ${frameHeight * 4}px`,
+                backgroundRepeat: "no-repeat",
+                imageRendering: "pixelated",
+                transform: `scale(${scale})`,
+                transformOrigin: "bottom center",
+              }}
+              aria-label="player-avatar"
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: labelTopOffset,
+                left: "50%",
+                transform: "translateX(-50%)",
+                backgroundColor: "rgba(0,0,0,0.5)",
+                color: "white",
+                padding: "1px 4px",
+                borderRadius: "4px",
+                fontSize: "10px",
+                whiteSpace: "nowrap",
+                pointerEvents: "none",
+              }}
+            >
+              {getAbbreviatedName(p.name)}
+            </div>
+          </div>
         );
       })}
     </div>

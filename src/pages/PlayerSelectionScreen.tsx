@@ -10,68 +10,79 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess, showError } from "@/utils/toast";
 import { Coins } from "lucide-react";
-import { ProductType } from "@/utils/products";
+import { ProductType, allProducts } from "@/utils/products";
 
 interface Player {
   id: string;
   name: string;
   money: number;
-  inventory: {
-    potato: number;
-    water: number;
-    clothes: number;
-    wood: number;
-    brick: number;
-    stone: number;
-    hoe: number;
-    tractor: number;
-    wheat: number;
-    [ProductType.WheatSeed]: number;
-    [ProductType.CornSeed]: number; // ÚJ
-    flour: number;
-    [ProductType.Corn]: number;
-    [ProductType.CornFlour]: number;
-    [ProductType.Popcorn]: number;
-  };
+  inventory: Record<string, number>;
   workplace: string;
 }
 
-const createInitialInventory = (base: Partial<Player['inventory']> = {}) => ({
-    potato: 0,
-    water: 0,
-    clothes: 0,
-    wood: 0,
-    brick: 0,
-    stone: 0,
-    hoe: 0,
-    tractor: 0,
-    wheat: 0,
-    [ProductType.WheatSeed]: 0,
-    [ProductType.CornSeed]: 0,
-    flour: 0,
-    [ProductType.Corn]: 0,
-    [ProductType.CornFlour]: 0,
-    [ProductType.Popcorn]: 0,
-    ...base,
-});
+const createInitialInventory = (base: Record<string, number> = {}) => {
+  const defaults = allProducts.reduce((acc, p) => ({ ...acc, [p.type]: 0 }), {} as Record<string, number>);
+  return { ...defaults, ...base };
+};
+
+const testInventoryBase = allProducts.reduce((acc, p) => ({ ...acc, [p.type]: 1 }), {} as Record<string, number>);
 
 const initialPlayers: Player[] = [
-  { id: "player-1", name: "Játékos 1", money: 2000, inventory: createInitialInventory({ potato: 3, water: 2, clothes: 1, wood: 10, brick: 5, [ProductType.WheatSeed]: 5 }), workplace: "Munkanélküli" },
-  { id: "player-2", name: "Játékos 2", money: 1500, inventory: createInitialInventory({ potato: 1, water: 1, wood: 5, brick: 3 }), workplace: "Munkanélküli" },
-  { id: "player-3", name: "Játékos 3", money: 2500, inventory: createInitialInventory({ potato: 5, water: 3, clothes: 2, wood: 15, brick: 8, [ProductType.WheatSeed]: 10 }), workplace: "Munkanélküli" },
-  { id: "player-4", name: "Játékos 4", money: 1000, inventory: createInitialInventory(), workplace: "Munkanélküli" },
-  { id: "player-5", name: "Játékos 5", money: 1800, inventory: createInitialInventory({ potato: 2, water: 1, clothes: 1, wood: 8, brick: 4, [ProductType.WheatSeed]: 5 }), workplace: "Munkanélküli" },
-  { id: "player-test", name: "Teszt Játékos", money: 50000, inventory: createInitialInventory({ potato: 100, water: 100, clothes: 50, wood: 500, brick: 200, stone: 100, hoe: 10, tractor: 2, wheat: 50, [ProductType.WheatSeed]: 100, flour: 20, [ProductType.CornSeed]: 50, [ProductType.Corn]: 50, [ProductType.CornFlour]: 10, [ProductType.Popcorn]: 5 }), workplace: "Tesztelő" }, // Teszt játékos
-  { id: "player-rich-1", name: "Gazdag Gazda", money: 8000, inventory: createInitialInventory({ wood: 50, brick: 50, stone: 50, wheat: 20, [ProductType.WheatSeed]: 20, [ProductType.CornSeed]: 10 }), workplace: "Munkanélküli" },
-  { id: "player-rich-2", name: "Városatyja", money: 12000, inventory: createInitialInventory({ wood: 100, brick: 100, stone: 100 }), workplace: "Munkanélküli" },
-  { id: "player-rich-3", name: "Tökmagolaj", money: 7000, inventory: createInitialInventory({ wood: 75, brick: 75, stone: 75, [ProductType.WheatSeed]: 50, [ProductType.CornSeed]: 20 }), workplace: "Munkanélküli" },
-  { id: "player-rich-4", name: "Búzabáró", money: 9500, inventory: createInitialInventory({ wood: 150, brick: 150, stone: 150, [ProductType.WheatSeed]: 100 }), workplace: "Munkanélküli" },
-  { id: "player-rich-5", name: "Kalászkirály", money: 11000, inventory: createInitialInventory({ wood: 200, brick: 200, stone: 200, [ProductType.WheatSeed]: 200 }), workplace: "Munkanélküli" },
-  { id: "player-rich-6", name: "Gabonagazda", money: 15000, inventory: createInitialInventory({ wood: 300, brick: 300, stone: 300, [ProductType.WheatSeed]: 300, wheat: 100, flour: 50 }), workplace: "Munkanélküli" },
-  { id: "player-rich-7", name: "Mezőgazdász Mester", money: 18000, inventory: createInitialInventory({ wood: 500, brick: 500, stone: 500, [ProductType.WheatSeed]: 500, wheat: 200, hoe: 10, flour: 100 }), workplace: "Munkanélküli" },
-  { id: "player-rich-8", name: "Aranykalász", money: 22000, inventory: createInitialInventory({ wood: 750, brick: 750, stone: 750, [ProductType.WheatSeed]: 750, wheat: 300, tractor: 2, flour: 150 }), workplace: "Munkanélküli" },
-  { id: "player-rich-9", name: "Liszt Király", money: 28000, inventory: createInitialInventory({ wood: 1000, brick: 1000, stone: 1000, [ProductType.WheatSeed]: 1000, wheat: 500, hoe: 20, tractor: 5, flour: 250 }), workplace: "Munkanélküli" },
-  { id: "player-rich-10", name: "Gabona Mágus", money: 35000, inventory: createInitialInventory({ wood: 2000, brick: 2000, stone: 2000, [ProductType.WheatSeed]: 2000, wheat: 1000, hoe: 50, tractor: 10, flour: 500 }), workplace: "Munkanélküli" },
+  { 
+    id: "player-test", 
+    name: "Teszt Elek", 
+    money: 50000, 
+    inventory: createInitialInventory({ 
+      ...testInventoryBase,
+      wood: 500, stone: 100, flour: 20, clothes: 5, 
+      [ProductType.WheatSeed]: 100, wheat: 50, 
+      [ProductType.Corn]: 50, [ProductType.CornFlour]: 10, [ProductType.Popcorn]: 5, [ProductType.CornSeed]: 50 
+    }), 
+    workplace: "Munkanélküli" 
+  },
+  { 
+    id: "player-2", 
+    name: "Lyukas Zsebű Lajos", 
+    money: 300, 
+    inventory: createInitialInventory({ 
+      potato: 2, water: 1, hoe: 1, 
+      [ProductType.WheatSeed]: 2, clothes: 1 
+    }), 
+    workplace: "Munkanélküli" 
+  },
+  { 
+    id: "player-3", 
+    name: "Gróf Csekkfüzet", 
+    money: 15000, 
+    inventory: createInitialInventory({ 
+      potato: 10, water: 10, wood: 50, brick: 50, stone: 20, hoe: 1, tractor: 1, 
+      wheat: 20, [ProductType.WheatSeed]: 20, flour: 10, clothes: 10, 
+      [ProductType.Corn]: 10, [ProductType.CornFlour]: 5, [ProductType.Popcorn]: 5, [ProductType.CornSeed]: 10 
+    }), 
+    workplace: "Munkanélküli" 
+  },
+  { 
+    id: "player-4", 
+    name: "Krajcár Kázmér", 
+    money: 2000, 
+    inventory: createInitialInventory({ 
+      potato: 5, water: 3, wood: 10, brick: 5, stone: 2, hoe: 1, 
+      wheat: 5, [ProductType.WheatSeed]: 5, flour: 2, clothes: 2, 
+      [ProductType.Corn]: 2, [ProductType.CornFlour]: 1, [ProductType.CornSeed]: 2 
+    }), 
+    workplace: "Munkanélküli" 
+  },
+  { 
+    id: "player-5", 
+    name: "Zsírosbödön Ödön", 
+    money: 8000, 
+    inventory: createInitialInventory({ 
+      potato: 8, water: 8, wood: 30, brick: 20, stone: 10, hoe: 1, 
+      wheat: 15, [ProductType.WheatSeed]: 15, flour: 5, clothes: 5, 
+      [ProductType.Corn]: 5, [ProductType.CornFlour]: 2, [ProductType.Popcorn]: 2, [ProductType.CornSeed]: 5 
+    }), 
+    workplace: "Munkanélküli" 
+  },
 ];
 
 const PlayerSelectionScreen: React.FC = () => {

@@ -18,10 +18,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   return (
     <ResizablePanelGroup
       direction="horizontal"
-      className="min-h-screen w-full rounded-lg border"
+      className="h-screen w-full rounded-lg border overflow-hidden"
     >
       <ResizablePanel defaultSize={defaultLayout[0]} minSize={20} maxSize={35}>
-        <div className="flex h-full flex-col p-4 bg-sidebar text-sidebar-foreground">
+        <div className="flex h-full flex-col p-4 bg-sidebar text-sidebar-foreground overflow-y-auto">
           {sidebarContent}
         </div>
       </ResizablePanel>
