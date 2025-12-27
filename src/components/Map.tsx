@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import Building, { FarmlandTile, CropType } from "./Building";
 import { BuildingOption } from "./BuildMenu";
 import { Sprout, Route } from "lucide-react";
 import tilesetImage from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_terrain_A5_summer_32x32.png";
 import farmerSprite from "@/assets/32x32/Sprites/$farmer_32x32.png";
-import detailsImage from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_details_fall_32x32.png";
+import detailsImage from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_details_summer_32x32.png";
 
 export interface BuildingData {
   id: string;
@@ -15,7 +15,7 @@ export interface BuildingData {
   y: number;
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand";
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand" | "bank";
   rentalPrice?: number;
   salary?: number;
   capacity: number;
@@ -72,12 +72,21 @@ interface MapProps {
   isDragging: boolean;
   trees: { x: number; y: number }[];
   stumps?: { x: number; y: number }[];
+  stones?: { x: number; y: number }[]; // Új prop a kövekhez
   playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number }[];
   isSelectingTree?: boolean;
+  isSelectingStone?: boolean; // Új prop kő kiválasztáshoz
   isTreeChoppingMode?: boolean;
+  isStoneMiningMode?: boolean; // Új prop kőbányászat módhoz
   treeChopProgress?: number;
+  stoneMineProgress?: number; // Új prop kőbányászat folyamathoz
   activeChopTree?: { x: number; y: number } | null;
+  activeMineStone?: { x: number; y: number } | null; // Új prop aktív kőhöz
   avatarSize?: number;
+  axeAnimation?: { x: number; y: number; active: boolean } | null;
+  pickaxeAnimation?: { x: number; y: number; active: boolean } | null; // Új prop csákány animációhoz
+  shopInventories?: Record<string, any[]>; // Shop inventory data
+  bankConfigs?: Record<string, { interestRate: number; maxLoanAmount: number }>; // Bank configs
 }
 
 
@@ -108,12 +117,21 @@ const Map: React.FC<MapProps> = ({
   isDragging,
   trees,
   stumps = [],
+  stones = [], // Új
   playerAvatars,
   isSelectingTree,
+  isSelectingStone, // Új
   isTreeChoppingMode,
+  isStoneMiningMode, // Új
   treeChopProgress = 0,
+  stoneMineProgress = 0, // Új
   activeChopTree,
+  activeMineStone, // Új
   avatarSize = 100,
+  axeAnimation,
+  pickaxeAnimation, // Új
+  shopInventories = {},
+  bankConfigs = {},
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx * 1.5;
@@ -180,19 +198,36 @@ const Map: React.FC<MapProps> = ({
           ctx.drawImage(terrainImg, srcX, srcY, 32, 32, destX, destY, cellSizePx, cellSizePx);
         }
       }
-      const TREE_SRC_X = 32 * 4;
+      
+      // Tönkök kirajzolása
+      // A felhasználó szerint: 4. oszlop (index 3), 6. sor (index 5)
+      const STUMP_SRC_X = 3 * 32; 
+      const STUMP_SRC_Y = 5 * 32;
+      
+      stumps.forEach(s => {
+        const destX = s.x * cellSizePx;
+        const destY = s.y * cellSizePx;
+        ctx.drawImage(detailsImg, STUMP_SRC_X, STUMP_SRC_Y, 32, 32, destX, destY, cellSizePx, cellSizePx);
+      });
+
+      // Kövek kirajzolása
+      // A felhasználó szerint: 2-3. oszlop (index 1-2), 5-6. sor (index 4-5) -> 2x2 blokk
+      const STONE_SRC_X = 1 * 32;
+      const STONE_SRC_Y = 4 * 32;
+
+      stones.forEach(s => {
+        const destX = s.x * cellSizePx;
+        const destY = s.y * cellSizePx;
+        // 2x2-es méret (64x64 forrás, 2x cella cél)
+        ctx.drawImage(detailsImg, STONE_SRC_X, STONE_SRC_Y, 64, 64, destX, destY, cellSizePx * 2, cellSizePx * 2);
+      });
+
+      const TREE_SRC_X = 32 * 1;
       const TREE_SRC_Y = 32 * 6;
       treePositions.forEach(pos => {
         const destX = pos.x * cellSizePx;
         const destY = pos.y * cellSizePx;
         ctx.drawImage(detailsImg, TREE_SRC_X, TREE_SRC_Y, 32 * 3, 32 * 3, destX, destY, cellSizePx * 3, cellSizePx * 3);
-      });
-      const STUMP_SRC_X = 32 * 7;
-      const STUMP_SRC_Y = 32 * 6;
-      stumps.forEach(s => {
-        const destX = s.x * cellSizePx;
-        const destY = s.y * cellSizePx;
-        ctx.drawImage(detailsImg, STUMP_SRC_X, STUMP_SRC_Y, 32, 32, destX, destY, cellSizePx, cellSizePx);
       });
 
       if (isTreeChoppingMode && treeChopProgress > 0 && activeChopTree) {
@@ -212,11 +247,29 @@ const Map: React.FC<MapProps> = ({
         ctx.lineWidth = 1;
         ctx.strokeRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
       }
+
+      if (isStoneMiningMode && stoneMineProgress > 0 && activeMineStone) {
+        const progressBarX = activeMineStone.x * cellSizePx;
+        const progressBarY = activeMineStone.y * cellSizePx;
+        
+        // Draw background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx, 6);
+        
+        // Draw progress
+        ctx.fillStyle = '#888888'; // Grey for stone
+        ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx * (stoneMineProgress / 100), 6);
+        
+        // Draw border
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(progressBarX, progressBarY - 10, cellSizePx, 6);
+      }
     };
     terrainImg.onload = drawAll;
     detailsImg.onload = drawAll;
     if (terrainImg.complete && detailsImg.complete) drawAll();
-  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps, isTreeChoppingMode, treeChopProgress, activeChopTree]);
+  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps, stones, isTreeChoppingMode, treeChopProgress, activeChopTree, isStoneMiningMode, stoneMineProgress, activeMineStone]);
 
   const getGridCoordsFromMouseEvent = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
@@ -228,9 +281,117 @@ const Map: React.FC<MapProps> = ({
     return { gridX, gridY };
   };
 
+  const [hoveredAsset, setHoveredAsset] = useState<{ x: number; y: number; name: string; quantity: React.ReactNode } | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
+
   const handleMapMouseMoveInternal = (event: React.MouseEvent<HTMLDivElement>) => {
     const { gridX, gridY } = getGridCoordsFromMouseEvent(event);
     onGridMouseMove(gridX, gridY);
+
+    const mapRect = event.currentTarget.getBoundingClientRect();
+    setMousePos({ x: event.clientX - mapRect.left, y: event.clientY - mapRect.top });
+
+    let found = null;
+
+    // Check trees (3x3)
+    for (const t of trees) {
+      if (gridX >= t.x && gridX < t.x + 3 && gridY >= t.y && gridY < t.y + 3) {
+        found = { x: t.x, y: t.y, name: "Fa", quantity: "12 egység" };
+        break;
+      }
+    }
+
+    // Check stones (2x2)
+    if (!found) {
+      for (const s of stones) {
+        if (gridX >= s.x && gridX < s.x + 2 && gridY >= s.y && gridY < s.y + 2) {
+          found = { x: s.x, y: s.y, name: "Kő", quantity: "10 egység" };
+          break;
+        }
+      }
+    }
+
+    // Check buildings and farmlands
+    if (!found) {
+      for (const b of buildings) {
+        // Check farmland tiles first (more specific)
+        if (b.farmlandTiles) {
+           const ft = b.farmlandTiles.find(t => t.x === gridX && t.y === gridY);
+           if (ft) {
+              let name = "Szántóföld";
+              let info: React.ReactNode = "Üres";
+              if (ft.cropType && ft.cropType !== "none") {
+                 const cropNames: Record<string, string> = { "wheat": "Búza", "corn": "Kukorica", "none": "Nincs" };
+                 name = cropNames[ft.cropType] || ft.cropType;
+                 
+                 if (ft.isUnderConstruction) {
+                     info = "Művelés alatt...";
+                 } else {
+                     const progress = Math.floor(ft.cropProgress || 0);
+                     info = `Érettség: ${progress}%`;
+                     if (progress >= 100) info = "Aratható!";
+                 }
+              }
+              found = { x: gridX, y: gridY, name, quantity: info };
+              break;
+           }
+        }
+
+        // Check main building body
+        const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+        const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+        if (gridX >= b.x && gridX < b.x + w && gridY >= b.y && gridY < b.y + h) {
+           let info: React.ReactNode = "";
+           if (b.isUnderConstruction) {
+             info = `Építés alatt (${Math.floor(b.buildProgress || 0)}%)`;
+           } else {
+             if (b.type === 'mill') {
+               info = `Liszt: ${b.millInventory?.flour || 0}, Búza: ${b.millInventory?.wheat || 0}`;
+             } else if (b.type === 'popcorn_stand') {
+               info = `Popcorn: ${b.popcornStandInventory?.popcorn || 0}`;
+             } else if (b.type === 'house') {
+                info = `Lakók: ${b.residentIds.length}/${b.capacity}`;
+             } else if (b.type === 'shop') {
+                const items = shopInventories[b.id] || [];
+                // Check if any item has stock > 0
+                const hasStock = items.some((item: any) => item.stock > 0);
+                
+                info = (
+                    <div className="flex flex-col gap-0.5 mt-1">
+                        <div className="font-bold underline mb-0.5">Kínálat:</div>
+                        {items.length > 0 ? (
+                            items.map((item: any, idx: number) => (
+                                <div key={idx} className={item.stock === 0 ? "line-through text-gray-400" : ""}>
+                                    {item.name}: {item.sellPrice} Ft ({item.stock} db)
+                                </div>
+                            ))
+                        ) : (
+                            <div className="text-gray-400 italic">Jelenleg nincs áru.</div>
+                        )}
+                        <div className="mt-1 text-xs text-gray-300">Dolgozók: {b.employeeIds.length}/{b.capacity}</div>
+                    </div>
+                );
+             } else if (b.type === 'bank') {
+                const config = bankConfigs[b.id];
+                info = (
+                  <div className="flex flex-col gap-0.5 mt-1">
+                     <div className="font-bold">Bank Információk:</div>
+                     <div>Kamatláb: {config?.interestRate ?? 20}%</div>
+                     <div>Max Hitel: {config?.maxLoanAmount ?? 10000} Ft</div>
+                     <div className="mt-1 text-xs text-gray-300">Dolgozók: {b.employeeIds.length}/{b.capacity}</div>
+                  </div>
+                );
+             } else if (b.type === 'office' || b.type === 'forestry' || b.type === 'farm') {
+                info = `Dolgozók: ${b.employeeIds.length}/${b.capacity}`;
+             }
+           }
+           found = { x: b.x, y: b.y, name: b.name, quantity: info };
+           break;
+        }
+      }
+    }
+
+    setHoveredAsset(found);
   };
 
   const handleMapMouseDownInternal = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -265,6 +426,9 @@ const Map: React.FC<MapProps> = ({
       return "cell";
     }
     if (isSelectingTree) {
+      return "none";
+    }
+    if (isSelectingStone) {
       return "none";
     }
     return "default";
@@ -328,6 +492,44 @@ const Map: React.FC<MapProps> = ({
           aria-label="axe-cursor"
         >
           🪓
+        </div>
+      )}
+
+      {isSelectingStone && ghostBuildingCoords && (
+        <div
+          style={{
+            position: "absolute",
+            left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.2,
+            top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.2,
+            pointerEvents: "none",
+            zIndex: 10,
+            fontSize: Math.max(14, Math.floor(cellSizePx * 0.6)),
+            lineHeight: 1,
+          }}
+          aria-label="pickaxe-cursor"
+        >
+          ⛏️
+        </div>
+      )}
+
+      {hoveredAsset && mousePos && (
+        <div
+          style={{
+            position: "absolute",
+            left: mousePos.x + 15,
+            top: mousePos.y + 15,
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            color: "white",
+            padding: "4px 8px",
+            borderRadius: "4px",
+            fontSize: "12px",
+            zIndex: 100,
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <div className="font-bold">{hoveredAsset.name}</div>
+          <div>{hoveredAsset.quantity}</div>
         </div>
       )}
 
@@ -443,6 +645,59 @@ const Map: React.FC<MapProps> = ({
         ))
       )}
 
+      {isPlacingRoad && ghostBuildingCoords && (
+        ghostRoadTiles.length > 0 ? (
+          ghostRoadTiles.map((tile, index) => (
+            <Building
+              id={`ghost-road-${index}`}
+              key={`ghost-road-${index}`}
+              name="Út"
+              x={tile.x}
+              y={tile.y}
+              width={1}
+              height={1}
+              type="road"
+              cellSizePx={cellSizePx}
+              onClick={() => {}}
+              capacity={0}
+              ownerId={currentPlayerId}
+              residentIds={[]}
+              employeeIds={[]}
+              isGhost={true}
+              isUnderConstruction={false}
+              buildProgress={0}
+              currentPlayerId={currentPlayerId}
+              rotation={0}
+              isPlacementMode={isPlacementMode}
+              isDemolishingRoad={isDemolishingRoad}
+            />
+          ))
+        ) : (
+          <Building
+              id={`ghost-road-single`}
+              name="Út"
+              x={ghostBuildingCoords.x}
+              y={ghostBuildingCoords.y}
+              width={1}
+              height={1}
+              type="road"
+              cellSizePx={cellSizePx}
+              onClick={() => {}}
+              capacity={0}
+              ownerId={currentPlayerId}
+              residentIds={[]}
+              employeeIds={[]}
+              isGhost={true}
+              isUnderConstruction={false}
+              buildProgress={0}
+              currentPlayerId={currentPlayerId}
+              rotation={0}
+              isPlacementMode={isPlacementMode}
+              isDemolishingRoad={isDemolishingRoad}
+            />
+        )
+      )}
+
       {Array.isArray(playerAvatars) && playerAvatars.map((p) => {
         const dirRow = p.dir === "down" ? 0 : p.dir === "left" ? 1 : p.dir === "right" ? 2 : 3;
         const frameWidth = cellSizePx;
@@ -500,6 +755,50 @@ const Map: React.FC<MapProps> = ({
           </div>
         );
       })}
+
+      {/* Axe Animation Overlay */}
+      {axeAnimation && axeAnimation.active && (
+        <div
+          style={{
+            position: "absolute",
+            left: (axeAnimation.x * cellSizePx) + mapOffsetX,
+            top: (axeAnimation.y * cellSizePx) + mapOffsetY,
+            width: cellSizePx,
+            height: cellSizePx,
+            zIndex: 200,
+            pointerEvents: "none",
+            fontSize: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "chop 0.5s ease-in-out infinite",
+          }}
+        >
+          🪓
+        </div>
+      )}
+
+      {/* Pickaxe Animation Overlay */}
+      {pickaxeAnimation && pickaxeAnimation.active && (
+        <div
+          style={{
+            position: "absolute",
+            left: (pickaxeAnimation.x * cellSizePx) + mapOffsetX,
+            top: (pickaxeAnimation.y * cellSizePx) + mapOffsetY,
+            width: cellSizePx,
+            height: cellSizePx,
+            zIndex: 200,
+            pointerEvents: "none",
+            fontSize: "24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            animation: "chop 0.5s ease-in-out infinite", // Reuse chop animation
+          }}
+        >
+          ⛏️
+        </div>
+      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { Coins, Hammer, Users, Briefcase, Leaf, Square as BrickIcon, Gem } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export interface BuildingOption {
-  type: "house" | "office" | "forestry" | "farm" | "shop" | "mill" | "popcorn_stand"; // ÚJ TÍPUS
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand" | "quarry" | "bank";// ÚJ TÍPUS
   category: "residential" | "business";
   name: string;
   cost: number;

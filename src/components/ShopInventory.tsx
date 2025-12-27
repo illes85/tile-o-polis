@@ -123,26 +123,20 @@ const ShopInventory: React.FC<ShopInventoryProps> = ({
           <CardTitle className="text-lg font-semibold">Új termék felvétele</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Termék</Label>
-              <Select onValueChange={(v) => setSelectedProductType(v as ProductType)} value={selectedProductType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Válassz..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allProducts.map(p => (
-                    <SelectItem key={p.type} value={p.type} disabled={shopItems.some(si => si.type === p.type)}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Eladási ár</Label>
-              <Input type="number" value={initialSellPrice} onChange={e => setInitialSellPrice(Number(e.target.value))} />
-            </div>
+          <div className="space-y-2">
+            <Label>Termék</Label>
+            <Select onValueChange={(v) => setSelectedProductType(v as ProductType)} value={selectedProductType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Válassz..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allProducts.map(p => (
+                  <SelectItem key={p.type} value={p.type} disabled={shopItems.some(si => si.type === p.type)}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button onClick={handleAddNewItem} className="w-full" disabled={!selectedProductType || shopItems.length >= slotLimit}>
             Hozzáadás ({shopItems.length}/{slotLimit})

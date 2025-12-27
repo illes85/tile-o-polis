@@ -8,10 +8,14 @@ import satorImage from "@/images/sator.png";
 import hazikoImage from "@/images/haziko.png"; 
 import farmImage from "@/images/farm.png"; 
 import valyoghazImage from "@/images/vályogház 2.png"; // ÚJ VÁLYOGHÁZ KÉP IMPORTÁLÁSA
+import cropTileset from "@/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
+import detailsTileset from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_details_summer_32x32.png";
+import buildingTileset32 from "@/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_buildings_32x32.png";
 
 // Tileset elérési utak
-const CROP_TILESET = "/src/assets/48x48/Tilesets (Compact)/vectoraith_tileset_farmingsims_crops_48x48.png";
-const BUILDING_TILESET_32 = "/src/assets/32x32/Tilesets (Modular)/vectoraith_tileset_farmingsims_buildings_32x32.png";
+const CROP_TILESET = cropTileset;
+const DETAILS_TILESET = detailsTileset;
+const BUILDING_TILESET_32 = buildingTileset32;
 
 export enum CropType {
   None = "none",
@@ -38,7 +42,7 @@ interface BuildingProps {
   y: number; 
   width: number;
   height: number;
-  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand"; 
+  type: "house" | "office" | "forestry" | "farm" | "farmland" | "road" | "shop" | "mill" | "popcorn_stand" | "bank"; 
   cellSizePx: number;
   onClick: (buildingId: string) => void;
   rentalPrice?: number;
@@ -131,7 +135,10 @@ const Building: React.FC<BuildingProps> = ({
   const isPlayerEmployedHere = employeeIds.includes(currentPlayerId);
 
   let content;
-  let baseClasses = "flex flex-col items-center justify-center text-xs text-white relative overflow-hidden";
+  let baseClasses = "flex flex-col items-center justify-center text-xs text-white relative";
+  if (type !== "farmland") {
+    baseClasses += " overflow-hidden";
+  }
   let visualClasses = ""; 
 
   const handleClick = (event: React.MouseEvent) => {
@@ -232,26 +239,68 @@ const Building: React.FC<BuildingProps> = ({
       case "farmland": {
         visualClasses += " bg-yellow-800/40 border border-yellow-900/50 hover:bg-yellow-800/60";
         let cropVisual = null;
-        let cropRow = 0;
-        if (cropType === CropType.Corn) cropRow = 1;
+        
         if (cropType !== CropType.None) {
-          let stageX = 0;
-          if (cropProgress >= 25 && cropProgress < 50) stageX = 1;
-          else if (cropProgress >= 50 && cropProgress < 85) stageX = 2;
-          else if (cropProgress >= 85) stageX = 3;
-          cropVisual = (
-            <div 
-              style={{
-                width: '100%',
-                height: '100%',
-                backgroundImage: `url(${CROP_TILESET})`,
-                backgroundPosition: `-${stageX * 48}px -${cropRow * 48}px`, 
-                backgroundSize: '192px 96px',
-                imageRendering: 'pixelated'
-              }}
-            />
-          );
-        } else {
+          if (cropType === CropType.Corn) {
+            // Corn logic: 32x64px (1x2 tiles), growing upwards.
+            // Stages based on progress: 0-25 (Stage 1), 25-50 (Stage 2), 50-85 (Stage 3), 85+ (Stage 4)
+            // Rows 9-16 (Indices 8-15 0-based? User said 9-16. Let's assume 1-based indices 8-15).
+            // Each stage is 2 tiles high (64px).
+            // Stage 1: Rows 9-10 (Index 8-9) -> Y = 8 * 32 = 256
+            // Stage 2: Rows 11-12 (Index 10-11) -> Y = 10 * 32 = 320
+            // Stage 3: Rows 13-14 (Index 12-13) -> Y = 12 * 32 = 384
+            // Stage 4: Rows 15-16 (Index 14-15) -> Y = 14 * 32 = 448
+            // Column 1 (Index 0) -> X = 0
+            
+            let stageY = 256; // Default Stage 1
+            if (cropProgress >= 25 && cropProgress < 50) stageY = 320;
+            else if (cropProgress >= 50 && cropProgress < 85) stageY = 384;
+            else if (cropProgress >= 85) stageY = 448;
+
+            // Variation logic: use column 1 or 2 based on position
+            // Column 1 is 0px, Column 2 is 32px
+            const variant = (x + y) % 2;
+            const bgX = variant * 32;
+
+            cropVisual = (
+              <div 
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  bottom: 0,
+                  width: '32px',
+                  height: '64px',
+                  backgroundImage: `url("${DETAILS_TILESET}")`,
+                  backgroundPosition: `-${bgX}px -${stageY}px`, 
+                  imageRendering: 'pixelated',
+                  zIndex: 10, // Ensure it overlaps if needed
+                  pointerEvents: 'none'
+                }}
+              />
+            );
+          } else {
+             // Wheat logic (existing)
+             cropVisual = (
+                <div 
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    bottom: 0,
+                    width: '48px',
+                    height: '48px',
+                    backgroundImage: `url("${CROP_TILESET}")`, // Visszaállítva CROP_TILESET-re
+                    backgroundPosition: `-${(Math.min(3, Math.floor((cropProgress || 0) / 25))) * 48}px 0px`,
+                    imageRendering: 'pixelated',
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                    transform: 'scale(0.66)', // 48px -> 32px
+                    transformOrigin: 'bottom left'
+                  }}
+                />
+             );
+          }
+        }
+ else {
           cropVisual = <Sprout className="h-4 w-4 text-green-300/50" />;
         }
         content = (

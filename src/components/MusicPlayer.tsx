@@ -9,15 +9,28 @@ import { cn } from "@/lib/utils";
 
 interface MusicPlayerProps {
   tracks: string[];
+  initialDelay?: number;
 }
 
-const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
+const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks, initialDelay = 0 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(true); // Alapértelmezetten bekapcsolva
+  const [isPlaying, setIsPlaying] = useState(false); // Kezdetben hamis, a delay után lesz igaz
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [volume, setVolume] = useState(0.4); // Kezdeti hangerő 40%
   const [isShuffling, setIsShuffling] = useState(true); // Alapértelmezetten keverés aktív
   const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('all'); // Alapértelmezetten összes ismétlése aktív
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (initialDelay > 0) {
+      timeout = setTimeout(() => {
+        setIsPlaying(true);
+      }, initialDelay);
+    } else {
+      setIsPlaying(true);
+    }
+    return () => clearTimeout(timeout);
+  }, [initialDelay]);
 
   const playNextTrack = useCallback(() => {
     if (tracks.length === 0) return;
@@ -59,12 +72,26 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({ tracks }) => {
     }
 
     if (audioRef.current) {
-      audioRef.current.src = tracks[currentTrackIndex];
-      audioRef.current.load(); // Reload the new source
-      
-      // Ha isPlaying true, indítsuk el a lejátszást
-      if (isPlaying) { 
-        audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+      const newSrc = tracks[currentTrackIndex];
+      // Csak akkor töltsük újra, ha a forrás megváltozott
+      if (audioRef.current.src !== newSrc && audioRef.current.src !== window.location.origin + newSrc) {
+         // Note: audio.src property returns absolute URL, so we might need to check against that
+         // But tracks usually contain relative or absolute paths. 
+         // Let's rely on checking if the ending matches or just set it if we are sure.
+         // A safer check:
+         const currentSrc = audioRef.current.getAttribute('src');
+         if (currentSrc !== newSrc) {
+            audioRef.current.src = newSrc;
+            audioRef.current.load();
+            if (isPlaying) { 
+              audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+            }
+         }
+      } else {
+        // Ha a forrás ugyanaz, de nem játszik és kéne
+        if (isPlaying && audioRef.current.paused) {
+           audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+        }
       }
     }
   }, [currentTrackIndex, tracks, isPlaying]);

@@ -23,6 +23,7 @@ import FarmlandActionDialog from "@/components/FarmlandActionDialog";
 import { CropType, FarmlandTile } from "@/components/Building";
 import ShopMenu from "@/components/ShopMenu";
 import MarketplaceMenu from "@/components/MarketplaceMenu";
+import BankMenu, { Loan, BankConfig } from "@/components/BankMenu";
 import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 import JobHousingFinder from "@/components/JobHousingFinder";
@@ -149,6 +150,7 @@ const availableBuildingOptions: BuildingOption[] = [
   { type: "house", category: "residential", name: "Nagy Villa", cost: 3500, duration: 60000, width: 4, height: 4, rentalPrice: 70, capacity: 8 },
   { type: "office", category: "business", name: "Közszolgálati Iroda", cost: 1000, duration: 20000, width: 3, height: 8, salary: OFFICE_SALARY_PER_INTERVAL, capacity: 4 },
   { type: "forestry", category: "business", name: "Erdészház", cost: 850, woodCost: 5, duration: 15000, width: 4, height: 4, salary: 8, capacity: 1 },
+  { type: "quarry", category: "business", name: "Kőfejtő", cost: 1200, woodCost: 10, duration: 25000, width: 3, height: 3, salary: 12, capacity: 1 },
   { type: "farm", category: "business", name: "Farm", cost: 1000, brickCost: 5, woodCost: 3, duration: 15000, width: 4, height: 4, salary: 5, capacity: 2 },
   { type: "office", category: "business", name: "Polgármesteri Hivatal", cost: 2500, woodCost: 10, brickCost: 15, duration: 40000, width: 4, height: 3, salary: 20, capacity: 5 },
   { type: "shop", category: "business", name: "Bolt", cost: 1500, woodCost: 8, brickCost: 10, duration: 30000, width: 3, height: 3, salary: 10, capacity: 3 },
@@ -230,6 +232,11 @@ const Game = () => {
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [selectedShopBuilding, setSelectedShopBuilding] = useState<BuildingData | null>(null);
   const [shopInventories, setShopInventories] = useState<Record<string, ShopItem[]>>({});
+
+  const [bankConfigs, setBankConfigs] = useState<Record<string, BankConfig>>({});
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [isBankMenuOpen, setIsBankMenuOpen] = useState(false);
+  const [selectedBankBuilding, setSelectedBankBuilding] = useState<BuildingData | null>(null);
   const [playerPositions, setPlayerPositions] = useState<Record<string, { x: number; y: number; renderX: number; renderY: number; dir: "down" | "left" | "right" | "up"; frame: number; path: { x: number; y: number }[] }>>(() => {
     const init: Record<string, { x: number; y: number; renderX: number; renderY: number; dir: "down" | "left" | "right" | "up"; frame: number; path: { x: number; y: number }[] }> = {};
     const source = incomingPlayers && incomingPlayers.length > 0 ? incomingPlayers : DEFAULT_PLAYERS;
@@ -242,8 +249,9 @@ const Game = () => {
   });
   const [pendingActions, setPendingActions] = useState<Record<string, (() => void) | null>>({});
   const [isSelectingTree, setIsSelectingTree] = useState(false);
-  const [stumps, setStumps] = useState<{ x: number; y: number }[]>([]);
+  const [stumps, setStumps] = useState<{ x: number; y: number; cyclesRemaining?: number }[]>([]);
   const [axeWoodCounter, setAxeWoodCounter] = useState<Record<string, number>>({});
+  const [pickaxeStoneCounter, setPickaxeStoneCounter] = useState<Record<string, number>>({});
   const [chopProcess, setChopProcess] = useState<{
     id: string;
     playerId: string;
@@ -254,7 +262,42 @@ const Game = () => {
     duration: number;
   } | null>(null);
   const [chopProgressPct, setChopProgressPct] = useState(0);
+
+  const [isSelectingStone, setIsSelectingStone] = useState(false);
+  const [stoneMineProcess, setStoneMineProcess] = useState<{
+    id: string;
+    playerId: string;
+    stoneIndex: number;
+    stoneX: number;
+    stoneY: number;
+    startTime: number;
+    duration: number;
+  } | null>(null);
+  const [stoneMineProgressPct, setStoneMineProgressPct] = useState(0);
   
+  const [axeAnimation, setAxeAnimation] = useState<{ x: number; y: number; active: boolean } | null>(null);
+  const [pickaxeAnimation, setPickaxeAnimation] = useState<{ x: number; y: number; active: boolean } | null>(null);
+
+  // Stop axe animation after some time
+  useEffect(() => {
+    if (axeAnimation?.active) {
+      const timer = setTimeout(() => {
+        setAxeAnimation(null);
+      }, 1500); // 3 chops (0.5s each)
+      return () => clearTimeout(timer);
+    }
+  }, [axeAnimation]);
+
+  // Stop pickaxe animation after some time
+  useEffect(() => {
+    if (pickaxeAnimation?.active) {
+      const timer = setTimeout(() => {
+        setPickaxeAnimation(null);
+      }, 1500); // 3 chops (0.5s each)
+      return () => clearTimeout(timer);
+    }
+  }, [pickaxeAnimation]);
+
   const generateInitialTrees = (gridSize: number, initialBuildings: BuildingData[]) => {
     const positions: { x: number; y: number }[] = [];
     const occ = new Set<string>();
@@ -282,7 +325,43 @@ const Game = () => {
     }
     return positions;
   };
+
+  const generateInitialStones = (gridSize: number, initialBuildings: BuildingData[], treePositions: { x: number; y: number }[]) => {
+    const positions: { x: number; y: number }[] = [];
+    const occ = new Set<string>();
+    (initialBuildings || []).forEach(b => {
+      const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+      const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+      for (let dx = 0; dx < w; dx++) for (let dy = 0; dy < h; dy++) occ.add(`${b.x+dx},${b.y+dy}`);
+      b.farmlandTiles?.forEach(ft => occ.add(`${ft.x},${ft.y}`));
+    });
+    // Add trees to occupied cells
+    treePositions.forEach(t => {
+      for (let dx = 0; dx < 3; dx++) for (let dy = 0; dy < 3; dy++) occ.add(`${t.x+dx},${t.y+dy}`);
+    });
+
+    const maxStones = Math.max(5, Math.floor(gridSize / 1.5)); // More stones for gameplay
+    let attempts = 0;
+    while (positions.length < maxStones && attempts < gridSize * gridSize) {
+      attempts++;
+      const x = Math.floor(Math.random() * (gridSize - 1));
+      const y = Math.floor(Math.random() * (gridSize - 1));
+      // Check 2x2 area for stones
+      const cells = [
+        `${x},${y}`, `${x+1},${y}`,
+        `${x},${y+1}`, `${x+1},${y+1}`
+      ];
+      
+      if (cells.every(c => !occ.has(c))) {
+        positions.push({ x, y });
+        cells.forEach(c => occ.add(c));
+      }
+    }
+    return positions;
+  };
+
   const [trees, setTrees] = useState<{ x: number; y: number }[]>(() => generateInitialTrees(MAP_GRID_SIZE, initialBuildingsState || []));
+  const [stones, setStones] = useState<{ x: number; y: number }[]>(() => generateInitialStones(MAP_GRID_SIZE, initialBuildingsState || [], trees));
   
   const findPath = useCallback((start: { x: number; y: number }, goal: { x: number; y: number }) => {
     const inBounds = (x: number, y: number) => x >= 0 && x < MAP_GRID_SIZE && y >= 0 && y < MAP_GRID_SIZE;
@@ -298,6 +377,7 @@ const Game = () => {
       for (let dx = 0; dx < 3; dx++) for (let dy = 0; dy < 3; dy++) blocked.add(`${t.x+dx},${t.y+dy}`);
     });
     stumps.forEach(s => blocked.add(`${s.x},${s.y}`));
+    stones.forEach(s => blocked.add(`${s.x},${s.y}`)); // Stones block path
     Object.entries(playerPositions).forEach(([pid, pos]) => {
       if (pid !== currentPlayerId) blocked.add(`${pos.x},${pos.y}`);
     });
@@ -518,6 +598,18 @@ const Game = () => {
     showSuccess("Válassz ki egy fát a térképen kivágáshoz!");
   };
 
+  const handleMineStone = (quarryId: string) => {
+    const quarry = buildings.find(b => b.id === quarryId);
+    if (!quarry || quarry.type !== 'quarry') return;
+    if ((currentPlayer.inventory[ProductType.Pickaxe] || 0) < 1) {
+      showError("Szükséges eszköz: Csákány ⛏️");
+      return;
+    }
+    setIsSelectingStone(true);
+    setSelectedBuilding(null);
+    showSuccess("Válassz ki egy követ a térképen bányászáshoz!");
+  };
+
   const processEconomyTick = useCallback(() => {
     const newTransactions: Transaction[] = [];
     const playerBalanceChanges: Record<string, number> = {};
@@ -567,14 +659,14 @@ const Game = () => {
         const ty = chopProcess.treeY;
         setTrees(prev => prev.filter((_, i) => i !== idx));
         setStumps(prev => [...prev, { x: tx + 1, y: ty + 1 }]);
-        const gain = 3;
+        const gain = 12;
         const prevCnt = axeWoodCounter[currentPlayerId] || 0;
         const newCnt = prevCnt + gain;
         let axeDec = 0;
         let remain = newCnt;
-        while (remain >= 10) {
+        while (remain >= 40) {
           axeDec += 1;
-          remain -= 10;
+          remain -= 40;
         }
         setAxeWoodCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
         setPlayers(prev => prev.map(p => 
@@ -594,6 +686,84 @@ const Game = () => {
     }, 100);
     return () => clearInterval(timer);
   }, [chopProcess, axeWoodCounter, currentPlayerId]);
+
+  useEffect(() => {
+    if (!stoneMineProcess) {
+      setStoneMineProgressPct(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - stoneMineProcess.startTime;
+      const pct = Math.min(100, (elapsed / stoneMineProcess.duration) * 100);
+      setStoneMineProgressPct(pct);
+      if (elapsed >= stoneMineProcess.duration) {
+        clearInterval(timer);
+        const idx = stoneMineProcess.stoneIndex;
+        // const sx = stoneMineProcess.stoneX;
+        // const sy = stoneMineProcess.stoneY;
+        setStones(prev => prev.filter((_, i) => i !== idx));
+        
+        const gain = 10; 
+        const prevCnt = pickaxeStoneCounter[currentPlayerId] || 0;
+        const newCnt = prevCnt + gain;
+        let pickaxeDec = 0;
+        let remain = newCnt;
+        while (remain >= 40) { 
+          pickaxeDec += 1;
+          remain -= 40;
+        }
+        setPickaxeStoneCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
+        setPlayers(prev => prev.map(p => 
+          p.id === currentPlayerId ? {
+            ...p,
+            inventory: {
+              ...p.inventory,
+              [ProductType.Stone]: (p.inventory[ProductType.Stone] || 0) + gain,
+              [ProductType.Pickaxe]: Math.max(0, (p.inventory[ProductType.Pickaxe] || 0) - pickaxeDec)
+            }
+          } : p
+        ));
+        addTransaction(currentPlayerId, "income", `Kőbányászat (kő)`, 0);
+        showSuccess(`Kő kibányászva. +${gain} kő. ${pickaxeDec > 0 ? "A csákány elhasználódott." : "A csákány kopott."}`);
+        setStoneMineProcess(null);
+      }
+    }, 100);
+    return () => clearInterval(timer);
+  }, [stoneMineProcess, pickaxeStoneCounter, currentPlayerId]);
+
+  // Tönkök élettartamának kezelése (ciklusok)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStumps(prev => {
+        const nextStumps: typeof prev = [];
+        let hasChanges = false;
+        
+        prev.forEach(stump => {
+          if (stump.cyclesRemaining !== undefined) {
+            if (stump.cyclesRemaining > 1) {
+              nextStumps.push({ ...stump, cyclesRemaining: stump.cyclesRemaining - 1 });
+              hasChanges = true;
+            } else {
+              // Ha 1 vagy kevesebb, akkor eltűnik
+              hasChanges = true;
+            }
+          } else {
+            // Ha nincs cyclesRemaining (régi tönk), akkor maradjon, vagy adjunk neki?
+            // Tegyük fel, hogy végtelen, vagy adjunk neki defaultot.
+            // Most inkább hagyjuk békén, vagy töröljük?
+            // A feladat szerint "fa kivágása után... 10 ciklus".
+            // A meglévő tönkökkel mit kezdjünk? Tegyük fel, hogy örök életűek voltak eddig,
+            // de mostantól eltűnnek. Adjunk nekik 10-et ha nincs.
+            nextStumps.push({ ...stump, cyclesRemaining: 9 });
+            hasChanges = true;
+          }
+        });
+        
+        return hasChanges ? nextStumps : prev;
+      });
+    }, 1000); // 1 másodperc = 1 ciklus a tönköknek
+    return () => clearInterval(timer);
+  }, []);
 
   // Építkezés befejezése és feldolgozási időzítők
   useEffect(() => {
@@ -932,9 +1102,107 @@ const Game = () => {
     return inFarmProximity || nextToOtherTile;
   };
 
+  const handleTakeLoan = (amount: number, lenderId: string, interestRate: number) => {
+    // Determine lender name
+    let lenderName = "Központi Bank";
+    if (lenderId !== 'system') {
+      const lender = players.find(p => p.id === lenderId);
+      lenderName = lender ? `${lender.name} Bankja` : "Ismeretlen Bank";
+    }
+
+    const totalRepayment = Math.floor(amount * (1 + interestRate / 100));
+    const newLoan: Loan = {
+      id: `loan-${Date.now()}-${Math.random()}`,
+      borrowerId: currentPlayerId,
+      lenderId,
+      lenderName,
+      amount,
+      interestRate,
+      totalRepayment,
+      remainingRepayment: totalRepayment,
+      dueDate: Date.now() + 10 * 60 * 1000, // 10 perc múlva esedékes (példa)
+    };
+
+    setLoans(prev => [...prev, newLoan]);
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? { ...p, money: p.money + amount } : p
+    ));
+
+    // If lender is a player, deduct money from them (if we want realistic bank reserves, but for now let's say banks have infinite money or separate logic)
+    // The prompt says "player-built bank... owner decides terms". It doesn't explicitly say the money comes from the player's pocket, but it implies a business. 
+    // Usually in these games, bank has its own capital. For simplicity, let's just give money to borrower. 
+    // If it's a player bank, maybe the player SHOULD provide the capital? 
+    // "Játékos is építhet majd BANK épületet... tulajdonos maga döntheti el az általa nyújtott kölcsönök feltételeit."
+    // Let's assume for now the money is "created" by the bank license (game logic) or deducted if we want realism.
+    // Given the "high cost" to build, maybe it allows lending "system" money but taking the profit?
+    // Or maybe the player has to deposit money?
+    // Let's keep it simple: Borrower gets money. If lender is player, they don't lose money immediately (it's a loan), but they will receive the repayment.
+    
+    addTransaction(currentPlayerId, "income", `Hitel felvétele (${lenderName})`, amount);
+    showSuccess(`Sikeresen felvettél ${amount} Ft hitelt!`);
+  };
+
+  const handleRepayLoan = (loanId: string, amount: number) => {
+    const loan = loans.find(l => l.id === loanId);
+    if (!loan) return;
+
+    if (currentPlayer.money < amount) {
+      showError("Nincs elég pénzed a törlesztéshez!");
+      return;
+    }
+
+    const newRemaining = loan.remainingRepayment - amount;
+    
+    // Update player money
+    setPlayers(prev => prev.map(p => 
+      p.id === currentPlayerId ? { ...p, money: p.money - amount } : p
+    ));
+
+    // If lender is a player, they get the money
+    if (loan.lenderId !== 'system') {
+       setPlayers(prev => prev.map(p => 
+         p.id === loan.lenderId ? { ...p, money: p.money + amount } : p
+       ));
+       addTransaction(loan.lenderId, "income", `Hitel törlesztés érkezett (${currentPlayer.name})`, amount);
+    }
+
+    if (newRemaining <= 0) {
+      setLoans(prev => prev.filter(l => l.id !== loanId));
+      showSuccess("Hitel teljes egészében törlesztve!");
+      addTransaction(currentPlayerId, "expense", `Hitel visszafizetése (${loan.lenderName})`, amount);
+    } else {
+      setLoans(prev => prev.map(l => l.id === loanId ? { ...l, remainingRepayment: newRemaining } : l));
+      showSuccess(`Törlesztés sikeres! Hátralék: ${newRemaining} Ft`);
+      addTransaction(currentPlayerId, "expense", `Hitel törlesztése (${loan.lenderName})`, amount);
+    }
+  };
+
+  const handleUpdateBankConfig = (interestRate: number, maxLoanAmount: number) => {
+    if (selectedBankBuilding) {
+      setBankConfigs(prev => ({
+        ...prev,
+        [selectedBankBuilding.id]: { interestRate, maxLoanAmount }
+      }));
+      showSuccess("Bank beállításai frissítve!");
+    }
+  };
+
   const handleBuildingClick = (buildingId: string) => {
     if (isPlacementMode) return;
     const building = buildings.find(b => b.id === buildingId);
+    
+    if (building?.type === 'shop') {
+      setSelectedShopBuilding(building);
+      setIsShopMenuOpen(true);
+      return;
+    }
+
+    if (building?.type === 'bank') {
+       setSelectedBankBuilding(building);
+       setIsBankMenuOpen(true);
+       return;
+    }
+    
     setSelectedBuilding(building || null);
     
     if (building?.type === 'office' && building.name === 'Piac') {
@@ -1322,8 +1590,47 @@ const Game = () => {
           startTime: Date.now(),
           duration: CHOP_DURATION_MS,
         });
+        setAxeAnimation({ x: tree.x + 1, y: tree.y + 1, active: true }); // Center of 3x3 tree
         showSuccess("Fa kivágása megkezdve...");
         setIsSelectingTree(false);
+      });
+    } else if (isSelectingStone) {
+      const idx = stones.findIndex(s => s.x === gridX && s.y === gridY);
+      if (idx === -1) {
+        showError("Nem kőre kattintottál. Próbáld újra.");
+        return;
+      }
+      const stone = stones[idx];
+      const possibleTargets = [
+        { x: stone.x + 1, y: stone.y },
+        { x: stone.x - 1, y: stone.y },
+        { x: stone.x, y: stone.y + 1 },
+        { x: stone.x, y: stone.y - 1 },
+      ];
+      const target = possibleTargets.find(t => 
+        t.x >= 0 && t.x < MAP_GRID_SIZE && t.y >= 0 && t.y < MAP_GRID_SIZE &&
+        !stones.some(s => s.x === t.x && s.y === t.y) &&
+        !isCellOccupied(t.x, t.y, buildings)
+      ) || possibleTargets[0];
+
+      executeAtTile(target.x, target.y, () => {
+        if ((currentPlayer.inventory[ProductType.Pickaxe] || 0) < 1) {
+          showError("Nincs csákányod a bányászathoz!");
+          setIsSelectingStone(false);
+          return;
+        }
+        setStoneMineProcess({
+          id: `mine-${Date.now()}-${Math.random()}`,
+          playerId: currentPlayerId,
+          stoneIndex: idx,
+          stoneX: stone.x,
+          stoneY: stone.y,
+          startTime: Date.now(),
+          duration: 5000, 
+        });
+        setPickaxeAnimation({ x: stone.x, y: stone.y, active: true }); 
+        showSuccess("Kőbányászat megkezdve...");
+        setIsSelectingStone(false);
       });
     } else if (!isPlacementMode) {
       executeAtTile(gridX, gridY, () => {});
@@ -2181,7 +2488,21 @@ const Game = () => {
         </Button>
       </div>
       
-      <MusicPlayer tracks={musicTracks} />
+      <BankMenu 
+        isOpen={isBankMenuOpen}
+        onClose={() => setIsBankMenuOpen(false)}
+        bankId={selectedBankBuilding?.id || ""}
+        ownerId={selectedBankBuilding?.ownerId}
+        isOwner={selectedBankBuilding?.ownerId === currentPlayerId}
+        currentPlayerId={currentPlayerId}
+        currentPlayerMoney={currentPlayer.money}
+        activeLoans={loans.filter(l => l.borrowerId === currentPlayerId)}
+        onTakeLoan={handleTakeLoan}
+        onRepayLoan={handleRepayLoan}
+        onUpdateConfig={handleUpdateBankConfig}
+        bankConfig={selectedBankBuilding ? bankConfigs[selectedBankBuilding.id] : undefined}
+      />
+      <MusicPlayer tracks={musicTracks} initialDelay={3000} />
       <SfxPlayer ref={sfxPlayerRef} sfxUrls={sfxUrls} />
     </>
   );
@@ -2236,7 +2557,14 @@ const Game = () => {
           isTreeChoppingMode={!!chopProcess}
           activeChopTree={chopProcess ? { x: chopProcess.treeX, y: chopProcess.treeY } : null}
           treeChopProgress={chopProgressPct}
+          isSelectingStone={isSelectingStone}
+          isStoneMiningMode={!!stoneMineProcess}
+          activeMineStone={stoneMineProcess ? { x: stoneMineProcess.stoneX, y: stoneMineProcess.stoneY } : null}
+          stoneMineProgress={stoneMineProgressPct}
+          pickaxeAnimation={pickaxeAnimation}
+          stones={stones}
           avatarSize={avatarSize}
+          axeAnimation={axeAnimation}
           playerAvatars={players.map(p => ({
             id: p.id,
             name: p.name,
@@ -2247,7 +2575,16 @@ const Game = () => {
             dir: playerPositions[p.id]?.dir || "down",
             frame: playerPositions[p.id]?.frame || 0,
           }))}
+          shopInventories={shopInventories}
+          bankConfigs={bankConfigs}
           />
+
+          {(isSelectingTree || isSelectingStone) && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-xl z-50 flex gap-4 items-center border border-gray-200 dark:border-gray-700">
+               <span className="font-semibold">{isSelectingTree ? "Válassz ki egy fát a kivágáshoz!" : "Válassz ki egy követ a bányászáshoz!"}</span>
+               <Button variant="destructive" size="sm" onClick={() => { setIsSelectingTree(false); setIsSelectingStone(false); }}>Mégsem</Button>
+            </div>
+          )}
           
           {chopProcess && (
             <div className="absolute bottom-4 left-4 bg-muted/70 dark:bg-black/50 backdrop-blur-sm border rounded p-3 w-64">
@@ -2256,6 +2593,16 @@ const Game = () => {
                 <span>Fa kivágása...</span>
               </div>
               <Progress value={chopProgressPct} className="h-2 mt-2" />
+            </div>
+          )}
+
+          {stoneMineProcess && (
+            <div className="absolute bottom-4 left-4 bg-muted/70 dark:bg-black/50 backdrop-blur-sm border rounded p-3 w-64">
+              <div className="text-sm font-medium flex items-center gap-2">
+                <span>⛏️</span>
+                <span>Kő bányászata...</span>
+              </div>
+              <Progress value={stoneMineProgressPct} className="h-2 mt-2" />
             </div>
           )}
           
@@ -2347,6 +2694,41 @@ const Game = () => {
                         disabled={(currentPlayer.inventory[ProductType.Axe] || 0) < 1}
                       >
                         Fa kivágása (kattints fára)
+                      </Button>
+                    </div>
+                  )}
+                  {selectedBuilding.type === "quarry" && (
+                    <div className="space-y-3 p-3 border rounded-md bg-stone-50/50 dark:bg-stone-900/20">
+                      <div className="flex items-center gap-2">
+                        <Hammer className="h-4 w-4 text-stone-700" />
+                        <span className="font-semibold">Kőfejtő műveletek</span>
+                      </div>
+                      <p className="text-xs">Kövek bányászása a pályáról. Szükséges eszköz: Csákány ⛏️</p>
+                      <p className="text-xs">Csákány készlet: {currentPlayer.inventory[ProductType.Pickaxe] || 0} db</p>
+                      <Button 
+                        className="bg-stone-600 w-full mb-2"
+                        onClick={() => handleMineStone(selectedBuilding.id)}
+                        disabled={(currentPlayer.inventory[ProductType.Pickaxe] || 0) < 1}
+                      >
+                        Kőfejtés (kattints kőre)
+                      </Button>
+                      <Button 
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => {
+                          if (confirm("Biztosan le akarod bontani ezt az épületet?")) {
+                             const refund = Math.floor(selectedBuilding.cost * DEMOLISH_REFUND_PERCENTAGE);
+                             setPlayers(prev => prev.map(p => 
+                               p.id === currentPlayerId ? { ...p, money: p.money + refund } : p
+                             ));
+                             addTransaction(currentPlayerId, "income", `Bontás visszatérítés: ${selectedBuilding.name}`, refund);
+                             setBuildings(prev => prev.filter(b => b.id !== selectedBuilding.id));
+                             setSelectedBuilding(null);
+                             showSuccess(`Épület lebontva. +${refund} pénz visszatérítve.`);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Lebontás
                       </Button>
                     </div>
                   )}
