@@ -20,8 +20,8 @@ export const availableBuildingOptions: BuildingOption[] = [
     cost: 1200, 
     woodCost: 10, 
     duration: 25000, 
-    width: 2, 
-    height: 2, 
+    width: 3, 
+    height: 3, 
     salary: 18, 
     capacity: 1,
     productionConfig: {

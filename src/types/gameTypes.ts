@@ -25,6 +25,7 @@ export interface Player {
   workplace: string;
   workplaceSalary: number;
   carryingStone?: number;
+  carryingWood?: number;
   miningTarget?: { x: number; y: number; stoneIndex: number };
 }
 

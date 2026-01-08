@@ -15,7 +15,7 @@ interface MiniMapProps {
   exploredTiles: Set<string>;
 }
 
-const MiniMap: React.FC<MiniMapProps> = ({
+const MiniMap = React.memo<MiniMapProps>(({
   buildings,
   trees,
   stones,
@@ -132,6 +132,6 @@ const MiniMap: React.FC<MiniMapProps> = ({
       />
     </div>
   );
-};
+});
 
 export default MiniMap;

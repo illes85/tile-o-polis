@@ -36,7 +36,8 @@ import {
   MILL_CORNFLOUR_PRODUCTION_PER_PROCESS,
   POPCORN_CORN_CONSUMPTION,
   POPCORN_PRODUCTION,
-  POPCORN_PROCESSING_TIME_MS
+  POPCORN_PROCESSING_TIME_MS,
+  CHOP_DURATION_MS
 } from "@/utils/constants";
 import { allProducts, ProductType, getProductByType } from "@/utils/products";
 import { Player, ShopItem, MarketOffer, MillProcess, PopcornProcess, CustomProcess, CropType, FarmlandTile } from "@/types/gameTypes";
@@ -275,6 +276,7 @@ const Game = () => {
   }, []);
 
   const [msUntilNextTick, setMsUntilNextTick] = useState(RENT_INTERVAL_MS);
+  const [sourceBuildingId, setSourceBuildingId] = useState<string | null>(null);
   const [isPlacingBuilding, setIsPlacingBuilding] = useState(false);
   const [buildingToPlace, setBuildingToPlace] = useState<BuildingOption | null>(null);
   const [ghostBuildingCoords, setGhostBuildingCoords] = useState<{ x: number; y: number } | null>(null);
@@ -347,19 +349,29 @@ const Game = () => {
       const isOnRoad = buildings.some(b => b.type === 'road' && b.x === player.x && b.y === player.y);
       const currentSpeed = isOnRoad ? AVATAR_SPEED_PX * 2 : AVATAR_SPEED_PX;
 
-      // Move towards target
+      // Move towards target (Diagonal supported)
       if (currentRenderX < targetRenderX) {
         newRenderX = Math.min(currentRenderX + currentSpeed, targetRenderX);
         newDir = "right";
       } else if (currentRenderX > targetRenderX) {
         newRenderX = Math.max(currentRenderX - currentSpeed, targetRenderX);
         newDir = "left";
-      } else if (currentRenderY < targetRenderY) {
+      }
+      
+      if (currentRenderY < targetRenderY) {
         newRenderY = Math.min(currentRenderY + currentSpeed, targetRenderY);
-        newDir = "down";
+        newDir = "down"; 
       } else if (currentRenderY > targetRenderY) {
         newRenderY = Math.max(currentRenderY - currentSpeed, targetRenderY);
         newDir = "up";
+      }
+
+      // Update direction based on dominant movement
+      if (Math.abs(newRenderX - currentRenderX) > Math.abs(newRenderY - currentRenderY)) {
+          // Horizontal dominant (already set above)
+      } else if (Math.abs(newRenderY - currentRenderY) > 0) {
+          // Vertical dominant
+          newDir = newRenderY > currentRenderY ? "down" : "up";
       }
 
       if (newRenderX !== currentRenderX || newRenderY !== currentRenderY) {
@@ -426,6 +438,7 @@ const Game = () => {
     treeY: number;
     startTime: number;
     duration: number;
+    sourceBuildingId?: string;
   } | null>(null);
   const [isChopping, setIsChopping] = useState(false); // New state
   const [chopProgressPct, setChopProgressPct] = useState(0);
@@ -439,6 +452,7 @@ const Game = () => {
     stoneY: number;
     startTime: number;
     duration: number;
+    sourceBuildingId?: string;
   } | null>(null);
   const [isMining, setIsMining] = useState(false); // New state
   const [stoneMineProgressPct, setStoneMineProgressPct] = useState(0);
@@ -512,7 +526,7 @@ const Game = () => {
 
 
   const generateInitialTrees = (gridSize: number, initialBuildings: BuildingData[]) => {
-    const positions: { x: number; y: number }[] = [];
+    const positions: { x: number; y: number; woodQuantity: number }[] = [];
     const occ = new Set<string>();
     (initialBuildings || []).forEach(b => {
       const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
@@ -532,7 +546,7 @@ const Game = () => {
         `${x},${y+2}`, `${x+1},${y+2}`, `${x+2},${y+2}`,
       ];
       if (cells.every(c => !occ.has(c))) {
-        positions.push({ x, y });
+        positions.push({ x, y, woodQuantity: 30 });
         cells.forEach(c => occ.add(c));
       }
     }
@@ -573,7 +587,7 @@ const Game = () => {
     return positions;
   };
 
-  const [trees, setTrees] = useState<{ x: number; y: number }[]>(() => generateInitialTrees(mapGridSize, initialBuildingsState || []));
+  const [trees, setTrees] = useState<{ x: number; y: number; woodQuantity: number }[]>(() => generateInitialTrees(mapGridSize, initialBuildingsState || []));
   const [stones, setStones] = useState<{ x: number; y: number; stoneQuantity: number }[]>(() => generateInitialStones(mapGridSize, initialBuildingsState || [], trees));
   
   const isCellOccupied = useCallback((x: number, y: number, ignoreRoads: boolean = false): boolean => {
@@ -643,7 +657,10 @@ const Game = () => {
     const came = new Map<string, { x: number; y: number }>();
     const costs = new Map<string, number>([[key(start.x, start.y), 0]]);
     const visited = new Set<string>();
-    const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+    const dirs = [
+        [1,0,1],[-1,0,1],[0,1,1],[0,-1,1], // Orthogonal
+        [1,1,1.41],[1,-1,1.41],[-1,1,1.41],[-1,-1,1.41] // Diagonal
+    ];
     while (open.length) {
       open.sort((a,b)=>a.f-b.f);
       const current = open.shift()!;
@@ -662,16 +679,19 @@ const Game = () => {
         }
         return path;
       }
-      dirs.forEach(([dx,dy]) => {
+      dirs.forEach(([dx,dy,cost]) => {
         const nx = current.x + dx, ny = current.y + dy;
         const nkey = key(nx, ny);
         if (!inBounds(nx, ny)) return;
         if (blocked.has(nkey)) return;
-        const ng = current.g + 1;
+        const ng = current.g + cost;
         const cg = costs.get(nkey);
         if (cg === undefined || ng < cg) {
           costs.set(nkey, ng);
-          const h = Math.abs(nx - goal.x) + Math.abs(ny - goal.y);
+          const h = Math.abs(nx - goal.x) + Math.abs(ny - goal.y); // Heuristic remains Manhattan (or replace with Euclidean for better diagonal?)
+          // Manhattan is admissible but maybe underestimates diagonal too much. 
+          // Let's use Octile distance or Euclidean? 
+          // Manhattan is fine, A* finds path.
           open.push({ x: nx, y: ny, g: ng, f: ng + h });
           came.set(nkey, { x: current.x, y: current.y });
         }
@@ -706,17 +726,15 @@ const Game = () => {
     const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
     const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
     const perimeter: { x: number; y: number }[] = [];
-    for (let dx = 0; dx < w; dx++) {
-      const top = { x: b.x + dx, y: b.y - 1 };
-      const bottom = { x: b.x + dx, y: b.y + h };
-      if (inBounds(top.x, top.y)) perimeter.push(top);
-      if (inBounds(bottom.x, bottom.y)) perimeter.push(bottom);
-    }
-    for (let dy = 0; dy < h; dy++) {
-      const left = { x: b.x - 1, y: b.y + dy };
-      const right = { x: b.x + w, y: b.y + dy };
-      if (inBounds(left.x, left.y)) perimeter.push(left);
-      if (inBounds(right.x, right.y)) perimeter.push(right);
+    for (let px = b.x - 1; px <= b.x + w; px++) {
+      for (let py = b.y - 1; py <= b.y + h; py++) {
+        // Skip if inside the building (occupied)
+        if (px >= b.x && px < b.x + w && py >= b.y && py < b.y + h) continue;
+        
+        if (inBounds(px, py)) {
+            perimeter.push({ x: px, y: py });
+        }
+      }
     }
     const uniquePerimeter = Array.from(new Set(perimeter.map(p => `${p.x},${p.y}`))).map(k => {
       const [x, y] = k.split(",").map(Number);
@@ -865,36 +883,187 @@ const Game = () => {
     setChopProgressPct(pct);
     if (elapsed >= chopProcessRef.current.duration) {
       const idx = chopProcessRef.current.treeIndex;
+      const sourceId = chopProcessRef.current.sourceBuildingId;
       const tx = chopProcessRef.current.treeX;
       const ty = chopProcessRef.current.treeY;
-      setTrees(prev => prev.filter((_, i) => i !== idx));
-      setStumps(prev => [...prev, { x: tx + 1, y: ty + 1 }]);
-      const gain = 12;
+      const gain = 5;
+
+      const tree = trees[idx];
+      // Verify tree integrity (check coords)
+      if (!tree || tree.x !== tx || tree.y !== ty) {
+          // Try to find tree by coords if index shifted
+          const foundIdx = trees.findIndex(t => t.x === tx && t.y === ty);
+          if (foundIdx === -1) {
+             chopProcessRef.current = null; 
+             return; 
+          }
+          // Found it, continue with foundIdx if needed, but for now we have the 'tree' object from 'trees' state? 
+          // No, 'trees' state might be fresh. 'tree' var above is from current render scope.
+          // Let's use foundIdx.
+      }
+      
+      // Actually, let's just find by coords to be safe.
+      const currentTreeIndex = trees.findIndex(t => t.x === tx && t.y === ty);
+      if (currentTreeIndex === -1) { chopProcessRef.current = null; return; }
+      const currentTree = trees[currentTreeIndex];
+      
+      const currentQty = currentTree.woodQuantity !== undefined ? currentTree.woodQuantity : 30;
+      const newQty = Math.max(0, currentQty - gain);
+      const willRemain = newQty > 0;
+
+      setTrees(prev => {
+         const newTrees = [...prev];
+         const i = newTrees.findIndex(t => t.x === tx && t.y === ty);
+         if (i === -1) return prev;
+         
+         if (newQty <= 0) {
+           newTrees.splice(i, 1);
+           return newTrees;
+         } else {
+           newTrees[i] = { ...newTrees[i], woodQuantity: newQty };
+           return newTrees;
+         }
+      });
+      
+      if (!willRemain) {
+          setStumps(prev => [...prev, { x: tx + 1, y: ty + 1 }]);
+      }
+
       const prevCnt = axeWoodCounter[currentPlayerId] || 0;
       const newCnt = prevCnt + gain;
       let axeDec = 0;
       let remain = newCnt;
-      while (remain >= 40) {
+      while (remain >= 90) {
         axeDec += 1;
-        remain -= 40;
+        remain -= 90;
       }
       setAxeWoodCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
+      
       setPlayers(prev => prev.map(p => 
         p.id === currentPlayerId ? {
           ...p,
+          carryingWood: gain,
           inventory: {
             ...p.inventory,
-            wood: (p.inventory.wood || 0) + gain,
             [ProductType.Axe]: Math.max(0, (p.inventory[ProductType.Axe] || 0) - axeDec)
           }
         } : p
       ));
-      addTransaction(currentPlayerId, "income", `Fa kivágása (nyers fa)`, 0);
-      showSuccess(`Fa kivágva. +${gain} fa. ${axeDec > 0 ? "A fejsze elhasználódott." : "A fejsze kopott."}`);
+
       chopProcessRef.current = null;
       setIsChopping(false);
+
+      const forestry = (sourceId ? buildings.find(b => b.id === sourceId) : null) || 
+                       buildings.find(b => b.type === 'forestry' && b.ownerId === currentPlayerId);
+
+      if (forestry) {
+          showSuccess(`Fa kivágva (+${gain}). Szállítás az Erdészházhoz...`);
+          executeAtBuilding(forestry.id, () => {
+              setPlayers(prev => prev.map(p => {
+                  if (p.id === currentPlayerId) {
+                      const amount = p.carryingWood || 0;
+                      return {
+                          ...p,
+                          carryingWood: 0,
+                          inventory: {
+                              ...p.inventory,
+                              wood: (p.inventory.wood || 0) + amount
+                          }
+                      };
+                  }
+                  return p;
+              }));
+              showSuccess(`Fa leszállítva.`);
+              addTransaction(currentPlayerId, "income", `Fa kivágása (nyers fa)`, 0);
+
+              setTimeout(() => {
+                if (willRemain) {
+                    // Find target adjacent to tree (Full perimeter)
+                    const perimeter: { x: number; y: number }[] = [];
+                    for (let px = tx - 1; px <= tx + 3; px++) {
+                      for (let py = ty - 1; py <= ty + 3; py++) {
+                         if (px >= tx && px < tx + 3 && py >= ty && py < ty + 3) continue;
+                         perimeter.push({ x: px, y: py });
+                      }
+                    }
+
+                    const pPos = playerPositions[currentPlayerId]; // Note: This might be stale in callback? 
+                    // But we only need approx location for sorting. Or use last known pos.
+                    // Or just pick first valid.
+                    
+                    const validTargets = perimeter.filter(t => 
+                        t.x >= 0 && t.x < mapGridSize && t.y >= 0 && t.y < mapGridSize &&
+                        !isCellOccupied(t.x, t.y, true)
+                    );
+                    
+                    // Simple sort by distance to current pos (which is at Forestry)
+                    // If pPos is stale, it might be weird, but better than nothing.
+                    // Actually, let's just pick the first valid one if pPos is risky.
+                    // But pPos is from state, updated via closure dependency? 
+                    // runChopProcess is recreated when playerPositions changes? 
+                    // No, dependency is [..., currentPlayer]. playerPositions is missing!
+                    // Let's add playerPositions to dependency or just pick first valid.
+                    // Picking any valid neighbor is fine.
+                    
+                    const target = validTargets[0];
+                    
+                    executeAtTile(target.x, target.y, () => {
+                        const currentAxe = (currentPlayer.inventory[ProductType.Axe] || 0); 
+                        if (currentAxe < 1) {
+                            showError("A fejszéd elhasználódott.");
+                            return;
+                        }
+                        
+                        // Re-find tree index as array might have changed
+                        // We need the index for chopProcessRef
+                        // We can't access 'trees' state directly here in callback if closure is stale?
+                        // Actually we can but it might be stale.
+                        // However, finding by coordinates is safer in the next run.
+                        // But wait, chopProcessRef needs index?
+                        // Let's store coords in ref and find index in runChopProcess (done above).
+                        // So we just need to pass SOMETHING as index, but better to find it now if possible.
+                        // Or just pass 0 and let runChopProcess find it by coords (which I implemented above!).
+                        
+                        chopProcessRef.current = {
+                          id: `chop-${Date.now()}`,
+                          playerId: currentPlayerId,
+                          treeIndex: 0, // Placeholder, runChopProcess will find by x,y
+                          treeX: tx,
+                          treeY: ty,
+                          startTime: Date.now(),
+                          duration: CHOP_DURATION_MS,
+                          sourceBuildingId: sourceId
+                        };
+                        setIsChopping(true);
+                        setAxeAnimation({ x: tx + 1, y: ty + 1, active: true });
+                        showSuccess("Folytatódik a vágás...");
+                    });
+                }
+              }, 1000);
+          });
+      } else {
+          setPlayers(prev => prev.map(p => 
+            p.id === currentPlayerId ? {
+              ...p,
+              carryingWood: 0,
+              inventory: {
+                ...p.inventory,
+                wood: (p.inventory.wood || 0) + gain
+              }
+            } : p
+          ));
+          addTransaction(currentPlayerId, "income", `Fa kivágása (nyers fa)`, 0);
+          showSuccess(`Fa kivágva. +${gain} fa. (Nincs erdészház, azonnal jóváírva)`);
+          
+          if (willRemain) {
+             // Logic for continuing without building... maybe just wait?
+             // Or repeat logic.
+             // For now let's stop or simple repeat.
+             // Let's stop to encourage building use.
+          }
+      }
     }
-  }, [axeWoodCounter, currentPlayerId, addTransaction]);
+  }, [axeWoodCounter, currentPlayerId, addTransaction, trees, buildings, executeAtBuilding, executeAtTile, mapGridSize, isCellOccupied, currentPlayer]);
 
   const stoneMineProcessTimer = useRef(0);
   const runStoneMineProcess = useCallback(() => {
@@ -907,6 +1076,7 @@ const Game = () => {
     setStoneMineProgressPct(pct);
     if (elapsed >= stoneMineProcessRef.current.duration) {
       const idx = stoneMineProcessRef.current.stoneIndex;
+      const sourceId = stoneMineProcessRef.current.sourceBuildingId;
       const gain = 5; 
       
       const stone = stones[idx];
@@ -931,9 +1101,9 @@ const Game = () => {
       const newCnt = prevCnt + gain;
       let pickaxeDec = 0;
       let remain = newCnt;
-      while (remain >= 40) { 
+      while (remain >= 200) { 
         pickaxeDec += 1;
-        remain -= 40;
+        remain -= 200;
       }
       setPickaxeStoneCounter(prev => ({ ...prev, [currentPlayerId]: remain }));
       
@@ -952,7 +1122,8 @@ const Game = () => {
       stoneMineProcessRef.current = null;
       setIsMining(false);
 
-      const quarry = buildings.find(b => b.type === 'quarry' && b.ownerId === currentPlayerId);
+      const quarry = (sourceId ? buildings.find(b => b.id === sourceId) : null) || 
+                     buildings.find(b => b.type === 'quarry' && b.ownerId === currentPlayerId);
       
       if (quarry) {
           showSuccess(`Kő kibányászva (+${gain}). Szállítás a kőfejtőhöz...`);
@@ -974,28 +1145,48 @@ const Game = () => {
               showSuccess(`Kő leszállítva.`);
               addTransaction(currentPlayerId, "income", `Kőbányászat (kő)`, 0);
 
-              if (willRemain) {
-                  executeAtTile(stone.x, stone.y, () => {
-                       const currentPickaxe = (currentPlayer.inventory[ProductType.Pickaxe] || 0) - pickaxeDec;
-                       if (currentPickaxe < 1) {
-                           showError("A csákányod elhasználódott, nem tudod folytatni a bányászatot.");
-                           return;
-                       }
+              // Pause for 1 second at the quarry for realism
+              setTimeout(() => {
+                if (willRemain) {
+                    // Find valid target adjacent to stone (Full Perimeter)
+                    const perimeter: { x: number; y: number }[] = [];
+                    for (let px = stone.x - 1; px <= stone.x + 2; px++) {
+                      for (let py = stone.y - 1; py <= stone.y + 2; py++) {
+                         if (px >= stone.x && px < stone.x + 2 && py >= stone.y && py < stone.y + 2) continue;
+                         perimeter.push({ x: px, y: py });
+                      }
+                    }
+                    
+                    const validTargets = perimeter.filter(t => 
+                        t.x >= 0 && t.x < mapGridSize && t.y >= 0 && t.y < mapGridSize &&
+                        !isCellOccupied(t.x, t.y, true)
+                    );
+                    
+                    const target = validTargets[0];
 
-                       stoneMineProcessRef.current = {
-                        id: `mine-${Date.now()}-${Math.random()}`,
-                        playerId: currentPlayerId,
-                        stoneIndex: idx,
-                        stoneX: stone.x,
-                        stoneY: stone.y,
-                        startTime: Date.now(),
-                        duration: 5000, 
-                      };
-                      setIsMining(true);
-                      setPickaxeAnimation({ x: stone.x, y: stone.y, active: true }); 
-                      showSuccess("Visszatértél a bányához, folytatás...");
-                  });
-              }
+                    executeAtTile(target.x, target.y, () => {
+                        const currentPickaxe = (currentPlayer.inventory[ProductType.Pickaxe] || 0); 
+                        if (currentPickaxe < 1) {
+                            showError("A csákányod elhasználódott, nem tudod folytatni a bányászatot.");
+                            return;
+                        }
+
+                        stoneMineProcessRef.current = {
+                          id: `mine-${Date.now()}-${Math.random()}`,
+                          playerId: currentPlayerId,
+                          stoneIndex: idx,
+                          stoneX: stone.x,
+                          stoneY: stone.y,
+                          startTime: Date.now(),
+                          duration: 5000, 
+                          sourceBuildingId: sourceId,
+                        };
+                        setIsMining(true);
+                        setPickaxeAnimation({ x: stone.x, y: stone.y, active: true }); 
+                        showSuccess("Visszatértél a bányához, folytatás...");
+                    });
+                }
+              }, 1000);
           });
       } else {
           setPlayers(prev => prev.map(p => 
@@ -1034,7 +1225,7 @@ const Game = () => {
           }
       }
     }
-  }, [pickaxeStoneCounter, currentPlayerId, stones, buildings, executeAtBuilding, executeAtTile, currentPlayer, addTransaction]);
+  }, [pickaxeStoneCounter, currentPlayerId, stones, buildings, executeAtBuilding, executeAtTile, currentPlayer, addTransaction, mapGridSize, isCellOccupied]);
 
   // Építkezés befejezése és feldolgozási időzítők
   // NOTE: Process logic has been moved to useProcessLogic hook
@@ -1957,20 +2148,27 @@ const Game = () => {
       // Find a valid adjacent tile to the tree (3x3 area)
       // We'll try a few positions around the tree and pick the first valid one
       // Tree is 3x3 at tree.x, tree.y
-      // Positions to try: bottom-center (x+1, y+3), top-center (x+1, y-1), left-center (x-1, y+1), right-center (x+3, y+1)
-      const possibleTargets = [
-        { x: tree.x + 1, y: tree.y + 3 }, // Bottom
-        { x: tree.x + 1, y: tree.y - 1 }, // Top
-        { x: tree.x - 1, y: tree.y + 1 }, // Left
-        { x: tree.x + 3, y: tree.y + 1 }, // Right
-      ];
-      
-      const target = possibleTargets.find(t => {
+      // Generate full perimeter for 3x3 tree
+      const perimeter: { x: number; y: number }[] = [];
+      for (let px = tree.x - 1; px <= tree.x + 3; px++) {
+        for (let py = tree.y - 1; py <= tree.y + 3; py++) {
+           if (px >= tree.x && px < tree.x + 3 && py >= tree.y && py < tree.y + 3) continue;
+           perimeter.push({ x: px, y: py });
+        }
+      }
+
+      const pPos = playerPositions[currentPlayerId];
+      const validTargets = perimeter.filter(t => {
         const isOutOfBounds = t.x < 0 || t.x >= mapGridSize || t.y < 0 || t.y >= mapGridSize;
         if (isOutOfBounds) return false;
-        
         return !isCellOccupied(t.x, t.y, true);
+      }).sort((a, b) => {
+          const distA = Math.abs(a.x - pPos.x) + Math.abs(a.y - pPos.y);
+          const distB = Math.abs(b.x - pPos.x) + Math.abs(b.y - pPos.y);
+          return distA - distB;
       });
+      
+      const target = validTargets[0];
 
       if (!target) {
         showError("Nincs szabad hely a fa körül a vágáshoz.");
@@ -1991,7 +2189,9 @@ const Game = () => {
           treeY: tree.y,
           startTime: Date.now(),
           duration: CHOP_DURATION_MS,
+          sourceBuildingId: sourceBuildingId || undefined,
         };
+        setSourceBuildingId(null);
         setIsChopping(true);
         setAxeAnimation({ x: tree.x + 1, y: tree.y + 1, active: true }); // Center of 3x3 tree
         showSuccess("Fa kivágása megkezdve...");
@@ -2004,20 +2204,27 @@ const Game = () => {
         return;
       }
       const stone = stones[idx];
-      const possibleTargets = [
-        { x: stone.x + 2, y: stone.y }, // Right side
-        { x: stone.x - 1, y: stone.y }, // Left side
-        { x: stone.x, y: stone.y + 2 }, // Bottom side
-        { x: stone.x, y: stone.y - 1 }, // Top side
-        { x: stone.x + 1, y: stone.y + 2 }, // Bottom side (2nd tile)
-        { x: stone.x + 1, y: stone.y - 1 }, // Top side (2nd tile)
-        { x: stone.x + 2, y: stone.y + 1 }, // Right side (2nd tile)
-        { x: stone.x - 1, y: stone.y + 1 }, // Left side (2nd tile)
-      ];
-      const target = possibleTargets.find(t => 
-        t.x >= 0 && t.x < mapGridSize && t.y >= 0 && t.y < mapGridSize &&
-        !isCellOccupied(t.x, t.y, true)
-      ) || possibleTargets[0];
+      // Generate full perimeter for 2x2 stone
+      const perimeter: { x: number; y: number }[] = [];
+      for (let px = stone.x - 1; px <= stone.x + 2; px++) {
+        for (let py = stone.y - 1; py <= stone.y + 2; py++) {
+           if (px >= stone.x && px < stone.x + 2 && py >= stone.y && py < stone.y + 2) continue;
+           perimeter.push({ x: px, y: py });
+        }
+      }
+
+      const pPos = playerPositions[currentPlayerId];
+      const validTargets = perimeter.filter(t => {
+        const isOutOfBounds = t.x < 0 || t.x >= mapGridSize || t.y < 0 || t.y >= mapGridSize;
+        if (isOutOfBounds) return false;
+        return !isCellOccupied(t.x, t.y, true);
+      }).sort((a, b) => {
+          const distA = Math.abs(a.x - pPos.x) + Math.abs(a.y - pPos.y);
+          const distB = Math.abs(b.x - pPos.x) + Math.abs(b.y - pPos.y);
+          return distA - distB;
+      });
+      
+      const target = validTargets[0];
 
       executeAtTile(target.x, target.y, () => {
         if ((currentPlayer.inventory[ProductType.Pickaxe] || 0) < 1) {
@@ -2033,7 +2240,9 @@ const Game = () => {
           stoneY: stone.y,
           startTime: Date.now(),
           duration: 5000, 
+          sourceBuildingId: sourceBuildingId || undefined,
         };
+        setSourceBuildingId(null);
         setIsMining(true);
         setPickaxeAnimation({ x: stone.x, y: stone.y, active: true }); 
         showSuccess("Kőbányászat megkezdve...");
@@ -2989,7 +3198,8 @@ const Game = () => {
             renderY: playerPositions[p.id]?.renderY,
             dir: playerPositions[p.id]?.dir || "down",
             frame: playerPositions[p.id]?.frame || 0,
-            carryingStone: p.carryingStone
+            carryingStone: p.carryingStone,
+            carryingWood: p.carryingWood
           }))}
           shopInventories={shopInventories}
           bankConfigs={bankConfigs}
@@ -3051,7 +3261,18 @@ const Game = () => {
             setIsPlacingFarmland={setIsPlacingFarmland}
             setSelectedFarmId={setSelectedFarmId}
             setIsSelectingTree={setIsSelectingTree}
-            setIsSelectingStone={setIsSelectingStone}
+            onStartChopping={(id) => {
+              setSourceBuildingId(id);
+              setIsSelectingTree(true);
+              setSelectedBuilding(null);
+              showSuccess("Válassz ki egy fát a térképen kivágáshoz!");
+            }}
+            onStartMining={(id) => {
+              setSourceBuildingId(id);
+              setIsSelectingStone(true);
+              setSelectedBuilding(null);
+              showSuccess("Válassz ki egy követ a térképen bányászáshoz!");
+            }}
             handleStartRoadPlacement={handleStartRoadPlacement}
             setIsMarketplaceOpen={setIsMarketplaceOpen}
             handleDemolishBuilding={handleDemolishBuilding}

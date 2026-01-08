@@ -37,7 +37,7 @@ interface MapProps {
   trees: { x: number; y: number }[];
   stumps?: { x: number; y: number }[];
   stones?: { x: number; y: number; stoneQuantity?: number }[];
-  playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number; carryingStone?: number }[];
+  playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number; carryingStone?: number; carryingWood?: number }[];
   isSelectingTree?: boolean;
   isSelectingStone?: boolean;
   isTreeChoppingMode: boolean;
@@ -55,7 +55,7 @@ interface MapProps {
 }
 
 
-const Map: React.FC<MapProps> = ({
+const Map = React.memo<MapProps>(({
   buildings,
   gridSize,
   cellSizePx,
@@ -572,6 +572,9 @@ const Map: React.FC<MapProps> = ({
             {p.carryingStone && p.carryingStone > 0 && (
                <div style={{ position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)", zIndex: 20, fontSize: "12px", animation: "bounce 1s infinite" }}>🪨</div>
             )}
+            {p.carryingWood && p.carryingWood > 0 && (
+               <div style={{ position: "absolute", top: -32, left: "50%", transform: "translateX(-50%)", zIndex: 20, fontSize: "12px", animation: "bounce 1s infinite" }}>🪵</div>
+            )}
           </div>
         );
       })}
@@ -591,6 +594,6 @@ const Map: React.FC<MapProps> = ({
       />
     </div>
   );
-};
+});
 
 export default Map;

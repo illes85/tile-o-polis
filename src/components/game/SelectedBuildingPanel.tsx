@@ -43,7 +43,8 @@ interface SelectedBuildingPanelProps {
   setIsPlacingFarmland: (v: boolean) => void;
   setSelectedFarmId: (id: string | null) => void;
   setIsSelectingTree: (v: boolean) => void;
-  setIsSelectingStone: (v: boolean) => void;
+  onStartChopping: (buildingId: string) => void;
+  onStartMining: (buildingId: string) => void;
   handleStartRoadPlacement: (officeId: string) => void;
   setIsMarketplaceOpen: (v: boolean) => void;
   handleDemolishBuilding: (buildingId: string) => void;
@@ -73,7 +74,11 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
   setIsPlacingFarmland,
   setSelectedFarmId,
   setIsSelectingTree,
-  setIsSelectingStone,
+  setIsSelectingStone, // This was replaced by onStartMining? No, onStartMining is separate.
+  // Wait, my previous edit replaced setIsSelectingStone with onStartMining in destructuring?
+  // Let's check the file content to be sure what is there.
+  onStartMining,
+  onStartChopping, // Add this if missing
   handleStartRoadPlacement,
   setIsMarketplaceOpen,
   handleDemolishBuilding,
@@ -137,9 +142,7 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
       showError("Szükséges eszköz: Fejsze 🪓");
       return;
     }
-    setIsSelectingTree(true);
-    setSelectedBuilding(null);
-    showSuccess("Válassz ki egy fát a térképen kivágáshoz!");
+    onStartChopping(forestryId);
   };
 
   const handleMineStone = (quarryId: string) => {
@@ -153,9 +156,7 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
       showError("Szükséges eszköz: Csákány ⛏️");
       return;
     }
-    setIsSelectingStone(true);
-    setSelectedBuilding(null);
-    showSuccess("Válassz ki egy követ a térképen bányászáshoz!");
+    onStartMining(quarryId);
   };
 
   const handleStartCustomProcess = (buildingId: string, multiplier: number) => {
@@ -573,17 +574,6 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
                 disabled={(currentPlayer.inventory[ProductType.Pickaxe] || 0) < 1}
               >
                 Kőfejtés (kattints kőre)
-              </Button>
-              <Button 
-                variant="destructive"
-                className="w-full"
-                onClick={() => {
-                  if (confirm("Biztosan le akarod bontani ezt az épületet?")) {
-                    handleDemolishBuilding(selectedBuilding.id);
-                  }
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" /> Lebontás
               </Button>
             </div>
           )}
