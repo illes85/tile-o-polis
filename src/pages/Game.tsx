@@ -16,7 +16,7 @@ import BuildMenu, { BuildingOption } from "@/components/BuildMenu";
 import SfxPlayer, { SfxPlayerRef } from "@/components/SfxPlayer";
 import { sfxUrls } from "@/utils/sfxFiles";
 import PlayerSettings from "@/components/PlayerSettings";
-import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock, DollarSign, Popcorn, Briefcase as BriefcaseIcon, Home as HomeIcon, Leaf, Hammer } from "lucide-react";
+import { RotateCw, ChevronLeft, ChevronRight, Sprout, Coins, Building as BuildingIcon, Route, Wrench, Trash2, ChevronUp, ChevronDown, X, Users, Wheat, Factory, Clock, DollarSign, Popcorn, Briefcase as BriefcaseIcon, Home as HomeIcon, Leaf, Hammer, Maximize, Minimize } from "lucide-react";
 import { availableBuildingOptions, BUILD_HOUSE_COST, OFFICE_SALARY_PER_INTERVAL } from "@/utils/gameData";
 import { 
   DEMOLISH_REFUND_PERCENTAGE,
@@ -123,6 +123,34 @@ const DEFAULT_PLAYERS: Player[] = [
 
 const Game = () => {
   const navigate = useNavigate();
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+  const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    
+    // Offer fullscreen on mount if not active
+    if (!document.fullscreenElement) {
+        // Small delay to ensure render
+        setTimeout(() => setShowFullscreenPrompt(true), 1000);
+    }
+
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+    setShowFullscreenPrompt(false);
+  };
   const location = useLocation();
   const state = (location.state || {}) as Partial<{
     allPlayers: Player[];
@@ -176,6 +204,49 @@ const Game = () => {
     const saved = localStorage.getItem("mapGridSize");
     return saved ? parseInt(saved, 10) : 200;
   });
+
+  const [exploredTiles, setExploredTiles] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem("exploredTiles");
+    if (saved) {
+      try {
+        return new Set(JSON.parse(saved));
+      } catch (e) {
+        return new Set();
+      }
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem("exploredTiles", JSON.stringify(Array.from(exploredTiles)));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [exploredTiles]);
+
+  const revealArea = useCallback((centerX: number, centerY: number, radius: number) => {
+    setExploredTiles(prev => {
+      const next = new Set(prev);
+      let changed = false;
+      const r = radius;
+      for (let dx = -r; dx <= r; dx++) {
+        for (let dy = -r; dy <= r; dy++) {
+          if (dx*dx + dy*dy <= r*r) {
+             const x = centerX + dx;
+             const y = centerY + dy;
+             if (x >= 0 && x < mapGridSize && y >= 0 && y < mapGridSize) {
+               const key = `${x},${y}`;
+               if (!next.has(key)) {
+                 next.add(key);
+                 changed = true;
+               }
+             }
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [mapGridSize]);
 
   useEffect(() => {
     localStorage.setItem("customBuildings", JSON.stringify(customBuildings));
@@ -303,6 +374,12 @@ const Game = () => {
         player.x = nextTile.x; // Update grid X coordinate
         player.y = nextTile.y; // Update grid Y coordinate
         player.path.shift(); // Remove the current tile
+        
+        // Reveal area
+        if (newPlayerPositions[currentPlayerId]) {
+             revealArea(player.x, player.y, 6);
+        }
+
         // If path is empty and there's a pending action, execute it
         if (player.path.length === 0 && pendingActions[currentPlayerId]) {
           pendingActions[currentPlayerId]!();
@@ -320,7 +397,7 @@ const Game = () => {
 
       return newPlayerPositions;
     });
-  }, [currentPlayerId, pendingActions, CELL_SIZE_PX, AVATAR_SPEED_PX, buildings]);
+  }, [currentPlayerId, pendingActions, CELL_SIZE_PX, AVATAR_SPEED_PX, buildings, revealArea]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -328,6 +405,14 @@ const Game = () => {
     }, AVATAR_TICK_MS);
     return () => clearInterval(timer);
   }, [runPlayerMovement]);
+
+  // Initial reveal
+  useEffect(() => {
+    const p = playerPositions[currentPlayerId];
+    if (p) {
+        revealArea(p.x, p.y, 6);
+    }
+  }, [currentPlayerId, revealArea]);
 
   const [isSelectingTree, setIsSelectingTree] = useState(false);
   const [stumps, setStumps] = useState<{ x: number; y: number; cyclesRemaining?: number }[]>([]);
@@ -1532,6 +1617,16 @@ const Game = () => {
     if (gridX + effectiveWidth > mapGridSize || gridY + effectiveHeight > mapGridSize) {
       showError("Az épület kilógna a pályáról!");
       return;
+    }
+
+    // Check if area is explored
+    for (let x = 0; x < effectiveWidth; x++) {
+      for (let y = 0; y < effectiveHeight; y++) {
+        if (!exploredTiles.has(`${gridX + x},${gridY + y}`)) {
+          showError("Csak felfedezett területre építhetsz!");
+          return;
+        }
+      }
     }
 
     // Check road adjacency if Town Hall exists
@@ -2898,6 +2993,7 @@ const Game = () => {
           }))}
           shopInventories={shopInventories}
           bankConfigs={bankConfigs}
+          exploredTiles={exploredTiles}
           />
 
           {(isSelectingTree || isSelectingStone || isPlacingBuilding) && (
@@ -3083,6 +3179,25 @@ const Game = () => {
             onMoveOut={handleMoveOut}
           />
 
+          <div className="absolute top-4 right-4 z-50 flex gap-2">
+             <Button variant="secondary" size="icon" onClick={toggleFullscreen} className="bg-black/50 hover:bg-black/70 text-white border border-white/20" title={isFullscreen ? "Kilépés a teljes képernyőből" : "Teljes képernyő"}>
+                {isFullscreen ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+             </Button>
+          </div>
+
+          <Dialog open={showFullscreenPrompt} onOpenChange={setShowFullscreenPrompt}>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Teljes képernyő</DialogTitle>
+                    <DialogDescription>Szeretnél átváltani teljes képernyős módra a jobb játékélményért?</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" onClick={() => setShowFullscreenPrompt(false)}>Nem, kösz</Button>
+                    <Button onClick={toggleFullscreen}>Igen, legyen!</Button>
+                </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <MiniMap
             buildings={buildings}
             trees={trees}
@@ -3101,6 +3216,7 @@ const Game = () => {
               height: mainContentRef.current?.clientHeight || window.innerHeight
             }}
             cellSizePx={CELL_SIZE_PX}
+            exploredTiles={exploredTiles}
             onJumpTo={(targetGridX, targetGridY) => {
               const viewportWidth = mainContentRef.current?.clientWidth || window.innerWidth;
               const viewportHeight = mainContentRef.current?.clientHeight || window.innerHeight;

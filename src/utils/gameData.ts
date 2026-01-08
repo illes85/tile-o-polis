@@ -13,31 +13,7 @@ export const availableBuildingOptions: BuildingOption[] = [
   { type: "house", category: "residential", name: "Villa (kétszintes)", cost: 2500, duration: 45000, width: 3, height: 3, rentalPrice: 50, capacity: 6 },
   { type: "house", category: "residential", name: "Nagy Villa", cost: 3500, duration: 60000, width: 4, height: 4, rentalPrice: 70, capacity: 8 },
   { type: "office", category: "business", name: "Közszolgálati Iroda", cost: 1000, duration: 20000, width: 3, height: 8, salary: OFFICE_SALARY_PER_INTERVAL, capacity: 4 },
-  { 
-    type: "forestry", 
-    category: "business", 
-    name: "Erdészház", 
-    cost: 850, 
-    woodCost: 5, 
-    duration: 15000, 
-    width: 4, 
-    height: 4, 
-    salary: 8, 
-    capacity: 1,
-    customGraphics: {
-      tileset: "buildings",
-      customUrl: "src/assets/vectoraith_tileset_farming_sim_essentials/32x32/Tilesets (Compact)/vectoraith_tileset_farmingsims_buildings_32x32.png",
-      x: 5,
-      y: 12,
-      tileSize: 32
-    },
-    productionConfig: {
-      produces: ProductType.Wood,
-      quantity: 5,
-      duration: 15000,
-    }
-  },
-  { 
+    { type: "forestry", category: "business", name: "Erdészház", cost: 850, woodCost: 5, duration: 15000, width: 4, height: 4, salary: 16, capacity: 1 },  { 
     type: "quarry", 
     category: "business", 
     name: "Kőfejtő", 
@@ -46,14 +22,8 @@ export const availableBuildingOptions: BuildingOption[] = [
     duration: 25000, 
     width: 2, 
     height: 2, 
-    salary: 12, 
+    salary: 18, 
     capacity: 1,
-    customGraphics: {
-      tileset: "quarry",
-      customUrl: "src/assets/BUILDINGS/quarry - open.png",
-      x: 0,
-      y: 0,
-    },
     productionConfig: {
       produces: ProductType.Stone,
       quantity: 5,

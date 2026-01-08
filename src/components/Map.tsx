@@ -17,16 +17,16 @@ interface MapProps {
   isPlacingBuilding: boolean;
   buildingToPlace: BuildingOption | null;
   ghostBuildingCoords: { x: number; y: number } | null;
-  onGridMouseMove: (gridX: number, gridY: number) => void; // Módosítva, hogy ne adja át az eseményt
-  onMapClick: (x: number, y: number) => void; // Módosítva, hogy ne adja át az eseményt
-  onMapMouseDown: (x: number, y: number) => void; // Új prop
-  onMapMouseUp: (x: number, y: number) => void; // Új prop
+  onGridMouseMove: (gridX: number, gridY: number) => void;
+  onMapClick: (x: number, y: number) => void;
+  onMapMouseDown: (x: number, y: number) => void;
+  onMapMouseUp: (x: number, y: number) => void;
   currentPlayerId: string;
   currentBuildingRotation: number;
   isPlacingFarmland: boolean;
   selectedFarmId: string | null;
   onFarmlandClick: (farmId: string, x: number, y: number) => void;
-  ghostFarmlandTiles: { x: number; y: number }[]; // Új prop a húzott szellem csempékhez
+  ghostFarmlandTiles: { x: number; y: number }[];
   isPlacingRoad: boolean;
   ghostRoadTiles: { x: number; y: number }[];
   isDemolishingRoad: boolean;
@@ -36,21 +36,22 @@ interface MapProps {
   isDragging: boolean;
   trees: { x: number; y: number }[];
   stumps?: { x: number; y: number }[];
-  stones?: { x: number; y: number; stoneQuantity?: number }[]; // Új prop a kövekhez
-  playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number }[];
+  stones?: { x: number; y: number; stoneQuantity?: number }[];
+  playerAvatars?: { id: string; name: string; x: number; y: number; renderX?: number; renderY?: number; dir: "down" | "left" | "right" | "up"; frame: number; carryingStone?: number }[];
   isSelectingTree?: boolean;
-  isSelectingStone?: boolean; // Új prop kő kiválasztáshoz
-  isTreeChoppingMode: boolean; // Updated to be non-optional
-  isStoneMiningMode: boolean; // Updated to be non-optional
+  isSelectingStone?: boolean;
+  isTreeChoppingMode: boolean;
+  isStoneMiningMode: boolean;
   treeChopProgress?: number;
-  stoneMineProgress?: number; // Új prop kőbányászat folyamathoz
+  stoneMineProgress?: number;
   activeChopTree?: { x: number; y: number } | null;
-  activeMineStone?: { x: number; y: number } | null; // Új prop aktív kőhöz
+  activeMineStone?: { x: number; y: number } | null;
   avatarSize?: number;
   axeAnimation?: { x: number; y: number; active: boolean } | null;
-  pickaxeAnimation?: { x: number; y: number; active: boolean } | null; // Új prop csákány animációhoz
-  shopInventories?: Record<string, any[]>; // Shop inventory data
-  bankConfigs?: Record<string, { interestRate: number; maxLoanAmount: number }>; // Bank configs
+  pickaxeAnimation?: { x: number; y: number; active: boolean } | null;
+  shopInventories?: Record<string, any[]>;
+  bankConfigs?: Record<string, { interestRate: number; maxLoanAmount: number }>;
+  exploredTiles: Set<string>;
 }
 
 
@@ -63,15 +64,15 @@ const Map: React.FC<MapProps> = ({
   buildingToPlace,
   ghostBuildingCoords,
   onGridMouseMove,
-  onMapClick, // Ezt már nem használjuk közvetlenül a lerakáshoz
-  onMapMouseDown, // Új
-  onMapMouseUp, // Új
+  onMapClick,
+  onMapMouseDown,
+  onMapMouseUp,
   currentPlayerId,
   currentBuildingRotation,
   isPlacingFarmland,
   selectedFarmId,
   onFarmlandClick,
-  ghostFarmlandTiles, // Új
+  ghostFarmlandTiles,
   isPlacingRoad,
   ghostRoadTiles,
   isDemolishingRoad,
@@ -81,53 +82,34 @@ const Map: React.FC<MapProps> = ({
   isDragging,
   trees,
   stumps = [],
-  stones = [], // Új
+  stones = [],
   playerAvatars,
   isSelectingTree,
-  isSelectingStone, // Új
+  isSelectingStone,
   isTreeChoppingMode,
-  isStoneMiningMode, // Új
+  isStoneMiningMode,
   treeChopProgress = 0,
-  stoneMineProgress = 0, // Új
+  stoneMineProgress = 0,
   activeChopTree,
-  activeMineStone, // Új
+  activeMineStone,
   avatarSize = 100,
   axeAnimation,
-  pickaxeAnimation, // Új
+  pickaxeAnimation,
   shopInventories = {},
   bankConfigs = {},
+  exploredTiles,
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
   const mapHeightPx = gridSize * cellSizePx;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const terrainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fogCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const occupiedCells = useMemo(() => {
-    const occ = new Set<string>();
-    buildings.forEach(b => {
-      const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
-      const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
-      for (let dx = 0; dx < w; dx++) {
-        for (let dy = 0; dy < h; dy++) {
-          occ.add(`${b.x + dx},${b.y + dy}`);
-        }
-      }
-      if (b.farmlandTiles) {
-        b.farmlandTiles.forEach(ft => occ.add(`${ft.x},${ft.y}`));
-      }
-    });
-    return occ;
-  }, [buildings]);
-
-  const treePositions = trees;
-
-  // Háttér textúra térkép generálása (csak egyszer, vagy ha változik a gridSize)
   const backgroundMap = useMemo(() => {
     const map = [];
     for (let x = 0; x < gridSize; x++) {
       const row = [];
       for (let y = 0; y < gridSize; y++) {
-        // Véletlenszerűen választunk a 2. (index 1) és 3. (index 2) csempe közül
-        // A 3. csempe (index 2) ritkább legyen (pl. 20% esély)
         const isRare = Math.random() < 0.2;
         row.push(isRare ? 2 : 1);
       }
@@ -136,11 +118,10 @@ const Map: React.FC<MapProps> = ({
     return map;
   }, [gridSize]);
 
-  // Canvas kirajzolása
+  // Draw Terrain & Objects (Background Layer)
   useEffect(() => {
-    const canvas = canvasRef.current;
+    const canvas = terrainCanvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -149,9 +130,11 @@ const Map: React.FC<MapProps> = ({
     const detailsImg = new Image();
     detailsImg.src = detailsImage;
 
-    const drawAll = () => {
+    const drawTerrain = () => {
       if (!terrainImg.complete || !detailsImg.complete) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw Terrain
       for (let x = 0; x < gridSize; x++) {
         for (let y = 0; y < gridSize; y++) {
           const tileType = backgroundMap[x][y];
@@ -163,36 +146,29 @@ const Map: React.FC<MapProps> = ({
         }
       }
       
-      // Tönkök kirajzolása
-      // A felhasználó szerint: 4. oszlop (index 3), 6. sor (index 5)
+      // Draw Stumps
       const STUMP_SRC_X = 3 * 32; 
       const STUMP_SRC_Y = 5 * 32;
-      
       stumps.forEach(s => {
         const destX = s.x * cellSizePx;
         const destY = s.y * cellSizePx;
         ctx.drawImage(detailsImg, STUMP_SRC_X, STUMP_SRC_Y, 32, 32, destX, destY, cellSizePx, cellSizePx);
       });
 
-      // Kövek kirajzolása
-      // A felhasználó szerint: 2-3. oszlop (index 1-2), 5-6. sor (index 4-5) -> 2x2 blokk
+      // Draw Stones
       const STONE_SRC_X = 1 * 32;
       const STONE_SRC_Y = 4 * 32;
-
       stones.forEach(s => {
         const qty = s.stoneQuantity !== undefined ? s.stoneQuantity : 100;
-        const scale = Math.max(0.3, qty / 100); // Minimum 30% size, max 100%
-        
+        const scale = Math.max(0.3, qty / 100);
         const size = cellSizePx * 2 * scale;
-        const offset = (cellSizePx * 2 - size) / 2; // Center it
-
+        const offset = (cellSizePx * 2 - size) / 2;
         const destX = s.x * cellSizePx + offset;
         const destY = s.y * cellSizePx + offset;
-        
-        // 2x2-es méret (64x64 forrás, 2x cella cél, skálázva)
         ctx.drawImage(detailsImg, STONE_SRC_X, STONE_SRC_Y, 64, 64, destX, destY, size, size);
       });
 
+      // Draw Trees
       const TREE_SRC_X = 32 * 1;
       const TREE_SRC_Y = 32 * 6;
       treePositions.forEach(pos => {
@@ -200,47 +176,91 @@ const Map: React.FC<MapProps> = ({
         const destY = pos.y * cellSizePx;
         ctx.drawImage(detailsImg, TREE_SRC_X, TREE_SRC_Y, 32 * 3, 32 * 3, destX, destY, cellSizePx * 3, cellSizePx * 3);
       });
-
-      if (isTreeChoppingMode && treeChopProgress > 0 && activeChopTree) {
-        const progressBarX = activeChopTree.x * cellSizePx;
-        const progressBarY = activeChopTree.y * cellSizePx;
-        
-        // Draw background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
-        
-        // Draw progress
-        ctx.fillStyle = '#00cc00';
-        ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, (cellSizePx * 2) * (treeChopProgress / 100), 8);
-        
-        // Draw border
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
-      }
-
-      if (isStoneMiningMode && stoneMineProgress > 0 && activeMineStone) {
-        const progressBarX = activeMineStone.x * cellSizePx;
-        const progressBarY = activeMineStone.y * cellSizePx;
-        
-        // Draw background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx, 6);
-        
-        // Draw progress
-        ctx.fillStyle = '#888888'; // Grey for stone
-        ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx * (stoneMineProgress / 100), 6);
-        
-        // Draw border
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(progressBarX, progressBarY - 10, cellSizePx, 6);
-      }
     };
-    terrainImg.onload = drawAll;
-    detailsImg.onload = drawAll;
-    if (terrainImg.complete && detailsImg.complete) drawAll();
-  }, [backgroundMap, gridSize, cellSizePx, treePositions, stumps, stones, isTreeChoppingMode, treeChopProgress, activeChopTree, isStoneMiningMode, stoneMineProgress, activeMineStone]);
+
+    terrainImg.onload = drawTerrain;
+    detailsImg.onload = drawTerrain;
+    if (terrainImg.complete && detailsImg.complete) drawTerrain();
+  }, [backgroundMap, gridSize, cellSizePx, trees, stumps, stones]);
+
+  // Draw Fog of War (Overlay Layer)
+  useEffect(() => {
+    const canvas = fogCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Create a "brush" for soft edges (Radial Gradient)
+    // This avoids the expensive ctx.filter = 'blur()' operation
+    const brushSize = cellSizePx * 2; // Overlap for smoothness
+    const brush = document.createElement('canvas');
+    brush.width = brushSize;
+    brush.height = brushSize;
+    const bCtx = brush.getContext('2d');
+    if (bCtx) {
+        const gradient = bCtx.createRadialGradient(
+            brushSize / 2, brushSize / 2, 0, 
+            brushSize / 2, brushSize / 2, brushSize / 2
+        );
+        // Alpha 1 removes fog (destination-out), Alpha 0 keeps fog
+        gradient.addColorStop(0, 'rgba(0,0,0,1)');   // Solid clear center
+        gradient.addColorStop(0.5, 'rgba(0,0,0,1)'); // Extend solid area to cover tile fully
+        gradient.addColorStop(1, 'rgba(0,0,0,0)');   // Fade out
+        bCtx.fillStyle = gradient;
+        bCtx.fillRect(0, 0, brushSize, brushSize);
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Fill with black fog
+    ctx.save();
+    ctx.fillStyle = "black";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Cut holes using the brush
+    ctx.globalCompositeOperation = "destination-out";
+    
+    const offset = (brushSize - cellSizePx) / 2;
+
+    exploredTiles.forEach(key => {
+        const [x, y] = key.split(',').map(Number);
+        ctx.drawImage(brush, x * cellSizePx - offset, y * cellSizePx - offset);
+    });
+    
+    ctx.restore();
+
+    // Draw UI Overlays on top of Fog (Progress Bars)
+    if (isTreeChoppingMode && treeChopProgress > 0 && activeChopTree) {
+        if (exploredTiles.has(`${activeChopTree.x},${activeChopTree.y}`)) {
+            const progressBarX = activeChopTree.x * cellSizePx;
+            const progressBarY = activeChopTree.y * cellSizePx;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
+            ctx.fillStyle = '#00cc00';
+            ctx.fillRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, (cellSizePx * 2) * (treeChopProgress / 100), 8);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(progressBarX + cellSizePx * 0.5, progressBarY + cellSizePx * 1.5, cellSizePx * 2, 8);
+        }
+    }
+
+    if (isStoneMiningMode && stoneMineProgress > 0 && activeMineStone) {
+        if (exploredTiles.has(`${activeMineStone.x},${activeMineStone.y}`)) {
+            const progressBarX = activeMineStone.x * cellSizePx;
+            const progressBarY = activeMineStone.y * cellSizePx;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx, 6);
+            ctx.fillStyle = '#888888';
+            ctx.fillRect(progressBarX, progressBarY - 10, cellSizePx * (stoneMineProgress / 100), 6);
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(progressBarX, progressBarY - 10, cellSizePx, 6);
+        }
+    }
+
+  }, [exploredTiles, gridSize, cellSizePx, isTreeChoppingMode, treeChopProgress, activeChopTree, isStoneMiningMode, stoneMineProgress, activeMineStone]);
+
+  const treePositions = trees;
 
   const getGridCoordsFromMouseEvent = (event: React.MouseEvent<HTMLDivElement>) => {
     const mapRect = event.currentTarget.getBoundingClientRect();
@@ -261,6 +281,12 @@ const Map: React.FC<MapProps> = ({
 
     const mapRect = event.currentTarget.getBoundingClientRect();
     setMousePos({ x: event.clientX - mapRect.left, y: event.clientY - mapRect.top });
+
+    // Fog of War Check for Hover
+    if (!exploredTiles.has(`${gridX},${gridY}`)) {
+        setHoveredAsset(null);
+        return;
+    }
 
     let found = null;
 
@@ -285,7 +311,7 @@ const Map: React.FC<MapProps> = ({
     // Check buildings and farmlands
     if (!found) {
       for (const b of buildings) {
-        // Check farmland tiles first (more specific)
+        // Check farmland tiles
         if (b.farmlandTiles) {
            const ft = b.farmlandTiles.find(t => t.x === gridX && t.y === gridY);
            if (ft) {
@@ -294,7 +320,6 @@ const Map: React.FC<MapProps> = ({
               if (ft.cropType && ft.cropType !== "none") {
                  const cropNames: Record<string, string> = { "wheat": "Búza", "corn": "Kukorica", "none": "Nincs" };
                  name = cropNames[ft.cropType] || ft.cropType;
-                 
                  if (ft.isUnderConstruction) {
                      info = "Művelés alatt...";
                  } else {
@@ -308,7 +333,6 @@ const Map: React.FC<MapProps> = ({
            }
         }
 
-        // Check main building body
         const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
         const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
         if (gridX >= b.x && gridX < b.x + w && gridY >= b.y && gridY < b.y + h) {
@@ -324,9 +348,7 @@ const Map: React.FC<MapProps> = ({
                 info = `Lakók: ${b.residentIds.length}/${b.capacity}`;
              } else if (b.type === 'shop') {
                 const items = shopInventories[b.id] || [];
-                // Check if any item has stock > 0
                 const hasStock = items.some((item: any) => item.stock > 0);
-                
                 info = (
                     <div className="flex flex-col gap-0.5 mt-1">
                         <div className="font-bold underline mb-0.5">Kínálat:</div>
@@ -390,21 +412,10 @@ const Map: React.FC<MapProps> = ({
   });
 
   const getCursorStyle = () => {
-    if (isPlacingBuilding) {
-      return "none";
-    }
-    if (isPlacingFarmland || isPlacingRoad) {
-      return "crosshair";
-    }
-    if (isDemolishingRoad) {
-      return "cell";
-    }
-    if (isSelectingTree) {
-      return "none";
-    }
-    if (isSelectingStone) {
-      return "none";
-    }
+    if (isPlacingBuilding) return "none";
+    if (isPlacingFarmland || isPlacingRoad) return "crosshair";
+    if (isDemolishingRoad) return "cell";
+    if (isSelectingTree || isSelectingStone) return "none";
     return "default";
   };
 
@@ -416,18 +427,9 @@ const Map: React.FC<MapProps> = ({
     return `${abbreviatedParts.join(" ")} ${lastName}`;
   };
 
-  const getHouseNumber = (id: string) => {
-    const parts = id.split('-');
-    const lastPart = parts[parts.length - 1];
-    if (lastPart && lastPart.length > 4) {
-      return lastPart.slice(-4);
-    }
-    return lastPart;
-  };
-
   return (
     <div
-      className="relative border border-gray-300 dark:border-gray-700 bg-green-200 dark:bg-green-800 overflow-hidden"
+      className="relative border border-gray-300 dark:border-gray-700 bg-black overflow-hidden"
       style={{
         width: mapWidthPx,
         height: mapHeightPx,
@@ -435,132 +437,72 @@ const Map: React.FC<MapProps> = ({
         cursor: getCursorStyle(),
       }}
       onMouseMove={handleMapMouseMoveInternal}
-      onMouseDown={handleMapMouseDownInternal} // Hozzáadva
-      onMouseUp={handleMapMouseUpInternal}     // Hozzáadva
-      onClick={(e) => { // Az onMapClick most már csak az egyedi épület lerakásához kell, ha nincs húzás
+      onMouseDown={handleMapMouseDownInternal}
+      onMouseUp={handleMapMouseUpInternal}
+      onClick={(e) => {
         if (isPlacingBuilding && buildingToPlace && ghostBuildingCoords && !isDragging) {
           const { gridX, gridY } = getGridCoordsFromMouseEvent(e);
           onMapClick(gridX, gridY);
         }
       }}
     >
-      {/* Háttér Canvas */}
+      {/* Terrain Layer (Z-0) */}
       <canvas
-        ref={canvasRef}
+        ref={terrainCanvasRef}
         width={mapWidthPx}
-        height={mapHeightPx} // Csak a látható területre rajzolunk, vagy a teljes térképre?
-        // A mapHeightPx jelenleg 1.5x a grid-nek (scrollozáshoz?), de a grid csak gridSize * cellSizePx
-        // Javítsuk a canvas méretét, hogy pontosan fedje a rácsot.
+        height={mapHeightPx}
         style={{
           position: "absolute",
           top: 0,
           left: 0,
-          pointerEvents: "none", // Ne zavarja az egéreseményeket
-          width: mapWidthPx,
-          height: mapHeightPx, // Itt marad a container mérete
+          pointerEvents: "none",
+          zIndex: 0, 
         }}
       />
 
+      {/* Buildings & React Components Layer (Z-10) */}
+      {/* Note: React components are rendered in DOM order, so they are naturally above Z-0 canvas if no z-index is set, 
+          but let's be explicit if possible. Actually, children of this div are stacked. 
+          Canvas is first child. Following elements are on top.
+      */}
+
+      {/* Ghost & Cursor Overlays */}
       {isPlacingBuilding && ghostBuildingCoords && (
-        <div
-          style={{
-            position: "absolute",
-            left: ghostBuildingCoords.x * cellSizePx,
-            top: ghostBuildingCoords.y * cellSizePx,
-            pointerEvents: "none",
-            zIndex: 100,
-            fontSize: "24px",
-          }}
-        >
-          🔨
-        </div>
+        <div style={{ position: "absolute", left: ghostBuildingCoords.x * cellSizePx, top: ghostBuildingCoords.y * cellSizePx, pointerEvents: "none", zIndex: 100, fontSize: "24px" }}>🔨</div>
       )}
-
       {isSelectingTree && ghostBuildingCoords && (
-        <div
-          style={{
-            position: "absolute",
-            left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.4,
-            top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.4,
-            pointerEvents: "none",
-            zIndex: 10,
-            fontSize: Math.max(14, Math.floor(cellSizePx * 0.6)),
-            lineHeight: 1,
-          }}
-          aria-label="axe-cursor"
-        >
-          🪓
-        </div>
+        <div style={{ position: "absolute", left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.4, top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.4, pointerEvents: "none", zIndex: 100, fontSize: "14px" }}>🪓</div>
       )}
-
       {isSelectingStone && ghostBuildingCoords && (
-        <div
-          style={{
-            position: "absolute",
-            left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.2,
-            top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.2,
-            pointerEvents: "none",
-            zIndex: 10,
-            fontSize: Math.max(14, Math.floor(cellSizePx * 0.6)),
-            lineHeight: 1,
-          }}
-          aria-label="pickaxe-cursor"
-        >
-          ⛏️
-        </div>
+        <div style={{ position: "absolute", left: ghostBuildingCoords.x * cellSizePx + cellSizePx * 0.2, top: ghostBuildingCoords.y * cellSizePx + cellSizePx * 0.2, pointerEvents: "none", zIndex: 100, fontSize: "14px" }}>⛏️</div>
       )}
 
+      {/* Tooltip */}
       {hoveredAsset && mousePos && (
-        <div
-          style={{
-            position: "absolute",
-            left: mousePos.x + 15,
-            top: mousePos.y + 15,
-            backgroundColor: "rgba(0, 0, 0, 0.8)",
-            color: "white",
-            padding: "4px 8px",
-            borderRadius: "4px",
-            fontSize: "12px",
-            zIndex: 100,
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <div style={{ position: "absolute", left: mousePos.x + 15, top: mousePos.y + 15, backgroundColor: "rgba(0, 0, 0, 0.8)", color: "white", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", zIndex: 100, pointerEvents: "none", whiteSpace: "nowrap" }}>
           <div className="font-bold">{hoveredAsset.name}</div>
           <div>{hoveredAsset.quantity}</div>
         </div>
       )}
 
+      {/* Farmlands */}
       {allFarmlandTiles.map((tile, index) => (
         <Building
           key={`farmland-${tile.farmId}-${tile.x}-${tile.y}`}
           id={`farmland-${tile.farmId}-${tile.x}-${tile.y}`}
           name="Szántóföld"
-          x={tile.x}
-          y={tile.y}
-          width={1}
-          height={1}
-          type="farmland"
-          cellSizePx={cellSizePx}
+          x={tile.x} y={tile.y} width={1} height={1} type="farmland" cellSizePx={cellSizePx}
           onClick={() => onFarmlandClick(tile.farmId, tile.x, tile.y)}
-          capacity={0}
-          ownerId={tile.ownerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={false}
-          isUnderConstruction={tile.isUnderConstruction}
-          buildProgress={tile.buildProgress}
-          currentPlayerId={currentPlayerId}
-          rotation={0}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad}
-          cropType={tile.cropType}
-          cropProgress={tile.cropProgress}
-          constructionEta={tile.constructionEta} // Átadjuk az új prop-ot
-          originalDuration={tile.originalDuration} // Átadjuk az új prop-ot
+          capacity={0} ownerId={tile.ownerId} residentIds={[]} employeeIds={[]}
+          isGhost={false} isUnderConstruction={tile.isUnderConstruction} buildProgress={tile.buildProgress}
+          currentPlayerId={currentPlayerId} rotation={0}
+          isPlacementMode={isPlacementMode} isDemolishingRoad={isDemolishingRoad}
+          cropType={tile.cropType} cropProgress={tile.cropProgress}
+          constructionEta={tile.constructionEta} originalDuration={tile.originalDuration}
         />
       ))}
 
+      {/* Buildings */}
       {buildings.map((building) => {
         const commonProps = {
           ...building,
@@ -570,7 +512,6 @@ const Map: React.FC<MapProps> = ({
           isPlacementMode: isPlacementMode,
           isDemolishingRoad: isDemolishingRoad,
         };
-
         if (building.type === "road") {
           return (
             <Building
@@ -583,120 +524,36 @@ const Map: React.FC<MapProps> = ({
             />
           );
         }
-        
         return <Building key={building.id} {...commonProps} />;
       })}
       
+      {/* Ghosts */}
       {isPlacingBuilding && buildingToPlace && ghostBuildingCoords && (
         <Building
-          id="ghost-building"
-          key="ghost-building"
-          name={buildingToPlace.name}
-          x={ghostBuildingCoords.x}
-          y={ghostBuildingCoords.y}
-          width={buildingToPlace.width}
-          height={buildingToPlace.height}
-          type={buildingToPlace.type}
-          customGraphics={buildingToPlace.customGraphics}
-          cellSizePx={cellSizePx}
-          onClick={() => {}}
-          capacity={buildingToPlace.capacity}
-          ownerId={currentPlayerId}
-          residentIds={[]}
-          employeeIds={[]}
-          isGhost={true}
-          isUnderConstruction={false}
-          buildProgress={0}
-          currentPlayerId={currentPlayerId}
-          rotation={currentBuildingRotation}
-          isPlacementMode={isPlacementMode}
-          isDemolishingRoad={isDemolishingRoad}
+          id="ghost-building" key="ghost-building" name={buildingToPlace.name}
+          x={ghostBuildingCoords.x} y={ghostBuildingCoords.y} width={buildingToPlace.width} height={buildingToPlace.height}
+          type={buildingToPlace.type} customGraphics={buildingToPlace.customGraphics}
+          cellSizePx={cellSizePx} onClick={() => {}} capacity={buildingToPlace.capacity} ownerId={currentPlayerId} residentIds={[]} employeeIds={[]}
+          isGhost={true} isUnderConstruction={false} buildProgress={0} currentPlayerId={currentPlayerId} rotation={currentBuildingRotation}
+          isPlacementMode={isPlacementMode} isDemolishingRoad={isDemolishingRoad}
         />
       )}
       {isPlacingFarmland && selectedFarmId && ghostBuildingCoords && (
-        // Ha húzunk, akkor a draggedTiles alapján rajzoljuk a szellem csempéket
         ghostFarmlandTiles.map((tile, index) => (
-          <Building
-            id={`ghost-farmland-${index}`}
-            key={`ghost-farmland-${index}`}
-            name="Szántóföld"
-            x={tile.x}
-            y={tile.y}
-            width={1}
-            height={1}
-            type="farmland"
-            cellSizePx={cellSizePx}
-            onClick={() => {}}
-            capacity={0}
-            ownerId={currentPlayerId}
-            residentIds={[]}
-            employeeIds={[]}
-            isGhost={true}
-            isUnderConstruction={false}
-            buildProgress={0}
-            currentPlayerId={currentPlayerId}
-            rotation={0}
-            isPlacementMode={isPlacementMode}
-            isDemolishingRoad={isDemolishingRoad}
-            cropType={CropType.None}
-            cropProgress={0}
-          />
+          <Building id={`ghost-farmland-${index}`} key={`ghost-farmland-${index}`} name="Szántóföld" x={tile.x} y={tile.y} width={1} height={1} type="farmland" cellSizePx={cellSizePx} onClick={() => {}} capacity={0} ownerId={currentPlayerId} residentIds={[]} employeeIds={[]} isGhost={true} isUnderConstruction={false} buildProgress={0} currentPlayerId={currentPlayerId} rotation={0} isPlacementMode={isPlacementMode} isDemolishingRoad={isDemolishingRoad} cropType={CropType.None} cropProgress={0} />
         ))
       )}
-
       {isPlacingRoad && ghostBuildingCoords && (
         ghostRoadTiles.length > 0 ? (
           ghostRoadTiles.map((tile, index) => (
-            <Building
-              id={`ghost-road-${index}`}
-              key={`ghost-road-${index}`}
-              name="Út"
-              x={tile.x}
-              y={tile.y}
-              width={1}
-              height={1}
-              type="road"
-              cellSizePx={cellSizePx}
-              onClick={() => {}}
-              capacity={0}
-              ownerId={currentPlayerId}
-              residentIds={[]}
-              employeeIds={[]}
-              isGhost={true}
-              isUnderConstruction={false}
-              buildProgress={0}
-              currentPlayerId={currentPlayerId}
-              rotation={0}
-              isPlacementMode={isPlacementMode}
-              isDemolishingRoad={isDemolishingRoad}
-            />
+            <Building id={`ghost-road-${index}`} key={`ghost-road-${index}`} name="Út" x={tile.x} y={tile.y} width={1} height={1} type="road" cellSizePx={cellSizePx} onClick={() => {}} capacity={0} ownerId={currentPlayerId} residentIds={[]} employeeIds={[]} isGhost={true} isUnderConstruction={false} buildProgress={0} currentPlayerId={currentPlayerId} rotation={0} isPlacementMode={isPlacementMode} isDemolishingRoad={isDemolishingRoad} />
           ))
         ) : (
-          <Building
-              id={`ghost-road-single`}
-              name="Út"
-              x={ghostBuildingCoords.x}
-              y={ghostBuildingCoords.y}
-              width={1}
-              height={1}
-              type="road"
-              cellSizePx={cellSizePx}
-              onClick={() => {}}
-              capacity={0}
-              ownerId={currentPlayerId}
-              residentIds={[]}
-              employeeIds={[]}
-              isGhost={true}
-              isUnderConstruction={false}
-              buildProgress={0}
-              currentPlayerId={currentPlayerId}
-              rotation={0}
-              isPlacementMode={isPlacementMode}
-              isDemolishingRoad={isDemolishingRoad}
-            />
+          <Building id={`ghost-road-single`} name="Út" x={ghostBuildingCoords.x} y={ghostBuildingCoords.y} width={1} height={1} type="road" cellSizePx={cellSizePx} onClick={() => {}} capacity={0} ownerId={currentPlayerId} residentIds={[]} employeeIds={[]} isGhost={true} isUnderConstruction={false} buildProgress={0} currentPlayerId={currentPlayerId} rotation={0} isPlacementMode={isPlacementMode} isDemolishingRoad={isDemolishingRoad} />
         )
       )}
 
+      {/* Avatars */}
       {Array.isArray(playerAvatars) && playerAvatars.map((p) => {
         const dirRow = p.dir === "down" ? 0 : p.dir === "left" ? 1 : p.dir === "right" ? 2 : 3;
         const frameWidth = cellSizePx;
@@ -709,115 +566,29 @@ const Map: React.FC<MapProps> = ({
         const labelTopOffset = frameHeight * (1 - scale) - 12;
 
         return (
-          <div
-            key={`avatar-${p.id}`}
-            style={{
-              position: "absolute",
-              left,
-              top,
-              width: frameWidth,
-              height: frameHeight,
-              zIndex: 5,
-            }}
-          >
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                backgroundImage: `url(${farmerSprite})`,
-                backgroundPosition: `-${srcX}px -${srcY}px`,
-                backgroundSize: `${frameWidth * 3}px ${frameHeight * 4}px`,
-                backgroundRepeat: "no-repeat",
-                imageRendering: "pixelated",
-                transform: `scale(${scale})`,
-                transformOrigin: "bottom center",
-              }}
-              aria-label="player-avatar"
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: labelTopOffset,
-                left: "50%",
-                transform: "translateX(-50%)",
-                backgroundColor: "rgba(0,0,0,0.5)",
-                color: "white",
-                padding: "1px 4px",
-                borderRadius: "4px",
-                fontSize: "10px",
-                whiteSpace: "nowrap",
-                pointerEvents: "none",
-              }}
-            >
-              {getAbbreviatedName(p.name)}
-            </div>
-            {/* Stone Carrying Icon */}
+          <div key={`avatar-${p.id}`} style={{ position: "absolute", left, top, width: frameWidth, height: frameHeight, zIndex: 5 }}>
+            <div style={{ width: "100%", height: "100%", backgroundImage: `url(${farmerSprite})`, backgroundPosition: `-${srcX}px -${srcY}px`, backgroundSize: `${frameWidth * 3}px ${frameHeight * 4}px`, backgroundRepeat: "no-repeat", imageRendering: "pixelated", transform: `scale(${scale})`, transformOrigin: "bottom center" }} aria-label="player-avatar" />
+            <div style={{ position: "absolute", top: labelTopOffset, left: "50%", transform: "translateX(-50%)", backgroundColor: "rgba(0,0,0,0.5)", color: "white", padding: "1px 4px", borderRadius: "4px", fontSize: "10px", whiteSpace: "nowrap", pointerEvents: "none" }}>{getAbbreviatedName(p.name)}</div>
             {p.carryingStone && p.carryingStone > 0 && (
-               <div
-                style={{
-                  position: "absolute",
-                  top: -20, // Above name tag
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  zIndex: 20,
-                  fontSize: "12px",
-                  animation: "bounce 1s infinite"
-                }}
-               >
-                 🪨
-               </div>
+               <div style={{ position: "absolute", top: -20, left: "50%", transform: "translateX(-50%)", zIndex: 20, fontSize: "12px", animation: "bounce 1s infinite" }}>🪨</div>
             )}
           </div>
         );
       })}
 
-      {/* Axe Animation Overlay */}
-      {/*
-      {axeAnimation && axeAnimation.active && (
-        <div
-          style={{
-            position: "absolute",
-            left: (axeAnimation.x * cellSizePx) + mapOffsetX,
-            top: (axeAnimation.y * cellSizePx) + mapOffsetY,
-            width: cellSizePx,
-            height: cellSizePx,
-            zIndex: 200,
-            pointerEvents: "none",
-            fontSize: "24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "chop 0.5s ease-in-out infinite",
-          }}
-        >
-          🪓
-        </div>
-      )}
-      */}
-
-      {/* Pickaxe Animation Overlay */}
-      {/*
-      {pickaxeAnimation && pickaxeAnimation.active && (
-        <div
-          style={{
-            position: "absolute",
-            left: (pickaxeAnimation.x * cellSizePx) + mapOffsetX,
-            top: (pickaxeAnimation.y * cellSizePx) + mapOffsetY,
-            width: cellSizePx,
-            height: cellSizePx,
-            zIndex: 200,
-            pointerEvents: "none",
-            fontSize: "24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "chop 0.5s ease-in-out infinite", // Reuse chop animation
-          }}
-        >
-          ⛏️
-        </div>
-      )}
-      */}
+      {/* Fog of War Layer (Z-20) */}
+      <canvas
+        ref={fogCanvasRef}
+        width={mapWidthPx}
+        height={mapHeightPx}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          pointerEvents: "none",
+          zIndex: 20, 
+        }}
+      />
     </div>
   );
 };

@@ -12,6 +12,7 @@ interface MiniMapProps {
   onJumpTo: (x: number, y: number) => void;
   viewportSize: { width: number; height: number };
   cellSizePx: number;
+  exploredTiles: Set<string>;
 }
 
 const MiniMap: React.FC<MiniMapProps> = ({
@@ -25,6 +26,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
   onJumpTo,
   viewportSize,
   cellSizePx,
+  exploredTiles,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const size = 150; // MiniMap pixel size (width/height)
@@ -35,14 +37,24 @@ const MiniMap: React.FC<MiniMapProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear background with non-distracting green
-    ctx.fillStyle = '#2d4a22'; 
+    // Clear with BLACK (unexplored)
+    ctx.fillStyle = 'black'; 
     ctx.fillRect(0, 0, size, size);
 
     const scale = size / mapGridSize;
 
+    // Draw Explored Terrain
+    ctx.fillStyle = '#2d4a22'; // Grass color
+    exploredTiles.forEach(key => {
+        const [x, y] = key.split(',').map(Number);
+        // Draw slightly larger to avoid sub-pixel gaps
+        ctx.fillRect(x * scale, y * scale, Math.max(scale, 1), Math.max(scale, 1)); 
+    });
+
     // Draw Buildings
     buildings.forEach(b => {
+      if (!exploredTiles.has(`${b.x},${b.y}`)) return;
+
       if (b.type === 'road') {
         ctx.fillStyle = '#ccc';
       } else if (b.type === 'house') {
@@ -57,7 +69,6 @@ const MiniMap: React.FC<MiniMapProps> = ({
         ctx.fillStyle = '#888';
       }
       
-      // Handle rotation for correct dimension
       const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
       const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
       ctx.fillRect(b.x * scale, b.y * scale, w * scale, h * scale);
@@ -66,17 +77,20 @@ const MiniMap: React.FC<MiniMapProps> = ({
     // Draw Trees
     ctx.fillStyle = '#2d6a4f';
     trees.forEach(t => {
+      if (!exploredTiles.has(`${t.x},${t.y}`)) return;
       ctx.fillRect(t.x * scale, t.y * scale, 3 * scale, 3 * scale);
     });
 
     // Draw Stones
     ctx.fillStyle = '#555';
     stones.forEach(s => {
+      if (!exploredTiles.has(`${s.x},${s.y}`)) return;
       ctx.fillRect(s.x * scale, s.y * scale, 2 * scale, 2 * scale);
     });
 
     // Draw Players
     players.forEach(p => {
+      if (!exploredTiles.has(`${p.x},${p.y}`)) return;
       ctx.fillStyle = p.id === currentPlayerId ? '#00f' : '#f00';
       const playerSize = Math.max(2, 1 * scale);
       ctx.beginPath();
@@ -85,8 +99,6 @@ const MiniMap: React.FC<MiniMapProps> = ({
     });
 
     // Draw Viewport Rect
-    // cameraOffset is usually negative (scrolling moves map left/up)
-    // mapOffsetX = -100 means we see starting from x=100.
     const viewX = -cameraOffset.x / cellSizePx;
     const viewY = -cameraOffset.y / cellSizePx;
     const viewW = viewportSize.width / cellSizePx;
@@ -96,7 +108,7 @@ const MiniMap: React.FC<MiniMapProps> = ({
     ctx.lineWidth = 1;
     ctx.strokeRect(viewX * scale, viewY * scale, viewW * scale, viewH * scale);
 
-  }, [buildings, trees, stones, players, currentPlayerId, mapGridSize, cameraOffset, viewportSize, cellSizePx]);
+  }, [buildings, trees, stones, players, currentPlayerId, mapGridSize, cameraOffset, viewportSize, cellSizePx, exploredTiles]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();

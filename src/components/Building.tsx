@@ -244,6 +244,17 @@ const Building: React.FC<BuildingProps> = ({
           </>
         );
         break;
+      case "quarry":
+        visualClasses += " bg-stone-700 border border-stone-600 hover:bg-stone-800";
+        baseClasses += " p-1";
+        content = (
+          <>
+            <Hammer className="h-4 w-4 mb-1 text-stone-300" />
+            <span className="text-white text-[0.65rem] text-center">{name}</span>
+            {isOwnedByPlayer && <Home className="absolute top-1 right-1 h-3 w-3 text-yellow-400" />}
+          </>
+        );
+        break;
       case "farm":
         // Farm képének használata
         visualClasses = "cursor-pointer transition-colors"; 

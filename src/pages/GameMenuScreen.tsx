@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError, showLoading, dismissToast } from "@/utils/toast";
 import { saveGame, loadGame } from "@/utils/saveLoad";
-import { Building, Trees, Wheat, Settings, ArrowLeft } from "lucide-react";
+import { Building, Trees, Wheat, Settings, ArrowLeft, Maximize, Minimize } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -22,6 +22,25 @@ const GameMenuScreen: React.FC = () => {
   const [lastGameState, setLastGameState] = useState<SavedGameState | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(!!document.fullscreenElement);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
   const [playerSwitchEnabled, setPlayerSwitchEnabled] = useState(() => {
     return localStorage.getItem("playerSwitchEnabled") !== "false";
   });
@@ -120,6 +139,13 @@ const GameMenuScreen: React.FC = () => {
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent" />
       <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:32px_32px]" />
       
+      {/* Fullscreen Toggle */}
+      <div className="absolute top-4 right-4 z-50">
+        <Button variant="ghost" size="icon" onClick={toggleFullscreen} className="text-white hover:bg-white/10" title={isFullscreen ? "Kilépés a teljes képernyőből" : "Teljes képernyő"}>
+          {isFullscreen ? <Minimize className="h-6 w-6" /> : <Maximize className="h-6 w-6" />}
+        </Button>
+      </div>
+      
       <div className="relative z-10 w-full max-w-md mx-4">
         {showSettings ? (
           <Card className="bg-black/40 backdrop-blur-md border-white/10 shadow-2xl text-white">
@@ -132,6 +158,18 @@ const GameMenuScreen: React.FC = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium text-white">Teljes képernyő</Label>
+                  <p className="text-sm text-gray-400">Játék megjelenítése teljes képernyőn</p>
+                </div>
+                <Switch
+                  checked={isFullscreen}
+                  onCheckedChange={toggleFullscreen}
+                  className="data-[state=checked]:bg-green-500"
+                />
+              </div>
+
               <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
                 <div className="space-y-1">
                   <Label className="text-base font-medium text-white">Játékos váltása</Label>
