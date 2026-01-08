@@ -29,6 +29,10 @@ const GameMenuScreen: React.FC = () => {
     const saved = localStorage.getItem("avatarSize");
     return saved ? parseInt(saved, 10) : 100;
   });
+  const [mapGridSize, setMapGridSize] = useState(() => {
+    const saved = localStorage.getItem("mapGridSize");
+    return saved ? parseInt(saved, 10) : 200;
+  });
 
   useEffect(() => {
     localStorage.setItem("playerSwitchEnabled", String(playerSwitchEnabled));
@@ -37,6 +41,10 @@ const GameMenuScreen: React.FC = () => {
   useEffect(() => {
     localStorage.setItem("avatarSize", String(avatarSize));
   }, [avatarSize]);
+
+  useEffect(() => {
+    localStorage.setItem("mapGridSize", String(mapGridSize));
+  }, [mapGridSize]);
 
   useEffect(() => {
     // Ha a játékból jövünk vissza, elmentjük az állapotot a memóriába
@@ -151,6 +159,30 @@ const GameMenuScreen: React.FC = () => {
                       className={avatarSize === size ? "bg-green-600 hover:bg-green-700 border-none" : "bg-transparent text-white border-white/20 hover:bg-white/10"}
                     >
                       {size}%
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="space-y-1">
+                  <Label className="text-base font-medium text-white">Új pálya mérete</Label>
+                  <p className="text-sm text-gray-400">Hatással van az új játékokra ({mapGridSize}x{mapGridSize})</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  {[
+                    { label: "Kicsi", val: 50 },
+                    { label: "Közép", val: 100 },
+                    { label: "Nagy", val: 200 }
+                  ].map((s) => (
+                    <Button
+                      key={s.val}
+                      size="sm"
+                      variant={mapGridSize === s.val ? "default" : "outline"}
+                      onClick={() => setMapGridSize(s.val)}
+                      className={mapGridSize === s.val ? "bg-green-600 hover:bg-green-700 border-none" : "bg-transparent text-white border-white/20 hover:bg-white/10"}
+                    >
+                      {s.label}
                     </Button>
                   ))}
                 </div>

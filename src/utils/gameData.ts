@@ -2,7 +2,7 @@ import { BuildingOption } from "@/components/BuildMenu";
 import { ProductType } from "@/utils/products";
 
 export const BUILD_HOUSE_COST = 500;
-export const OFFICE_SALARY_PER_INTERVAL = 10;
+export const OFFICE_SALARY_PER_INTERVAL = 21;
 
 export const availableBuildingOptions: BuildingOption[] = [
   { type: "house", category: "residential", name: "Sátor", cost: 200, duration: 5000, width: 2, height: 1, rentalPrice: 0, capacity: 1 },

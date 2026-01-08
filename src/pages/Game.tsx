@@ -48,6 +48,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import MoneyHistory, { Transaction } from "@/components/MoneyHistory";
 import JobHousingFinder from "@/components/JobHousingFinder";
 import { SelectedBuildingPanel } from "@/components/game/SelectedBuildingPanel";
+import MiniMap from "@/components/MiniMap";
 import { useGameEconomy } from "@/hooks/useGameEconomy";
 import { useProcessLogic } from "@/hooks/useProcessLogic";
 import { useAutoSave, loadFromStorage } from "@/hooks/useAutoSave";
@@ -171,6 +172,11 @@ const Game = () => {
   });
   const [gameoverState, setGameoverState] = useState<"win" | "loss" | null>(null);
 
+  const [mapGridSize, setMapGridSize] = useState(() => {
+    const saved = localStorage.getItem("mapGridSize");
+    return saved ? parseInt(saved, 10) : 200;
+  });
+
   useEffect(() => {
     localStorage.setItem("customBuildings", JSON.stringify(customBuildings));
   }, [customBuildings]);
@@ -266,18 +272,22 @@ const Game = () => {
       let newDir = player.dir;
       let newFrame = player.frame;
 
+      // Determine speed based on terrain
+      const isOnRoad = buildings.some(b => b.type === 'road' && b.x === player.x && b.y === player.y);
+      const currentSpeed = isOnRoad ? AVATAR_SPEED_PX * 2 : AVATAR_SPEED_PX;
+
       // Move towards target
       if (currentRenderX < targetRenderX) {
-        newRenderX = Math.min(currentRenderX + AVATAR_SPEED_PX, targetRenderX);
+        newRenderX = Math.min(currentRenderX + currentSpeed, targetRenderX);
         newDir = "right";
       } else if (currentRenderX > targetRenderX) {
-        newRenderX = Math.max(currentRenderX - AVATAR_SPEED_PX, targetRenderX);
+        newRenderX = Math.max(currentRenderX - currentSpeed, targetRenderX);
         newDir = "left";
       } else if (currentRenderY < targetRenderY) {
-        newRenderY = Math.min(currentRenderY + AVATAR_SPEED_PX, targetRenderY);
+        newRenderY = Math.min(currentRenderY + currentSpeed, targetRenderY);
         newDir = "down";
       } else if (currentRenderY > targetRenderY) {
-        newRenderY = Math.max(currentRenderY - AVATAR_SPEED_PX, targetRenderY);
+        newRenderY = Math.max(currentRenderY - currentSpeed, targetRenderY);
         newDir = "up";
       }
 
@@ -310,7 +320,14 @@ const Game = () => {
 
       return newPlayerPositions;
     });
-  }, [currentPlayerId, pendingActions, CELL_SIZE_PX, AVATAR_SPEED_PX]);
+  }, [currentPlayerId, pendingActions, CELL_SIZE_PX, AVATAR_SPEED_PX, buildings]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+        runPlayerMovement();
+    }, AVATAR_TICK_MS);
+    return () => clearInterval(timer);
+  }, [runPlayerMovement]);
 
   const [isSelectingTree, setIsSelectingTree] = useState(false);
   const [stumps, setStumps] = useState<{ x: number; y: number; cyclesRemaining?: number }[]>([]);
@@ -418,7 +435,7 @@ const Game = () => {
       for (let dx = 0; dx < w; dx++) for (let dy = 0; dy < h; dy++) occ.add(`${b.x+dx},${b.y+dy}`);
       b.farmlandTiles?.forEach(ft => occ.add(`${ft.x},${ft.y}`));
     });
-    const maxTrees = Math.max(3, Math.floor(gridSize / 6));
+    const maxTrees = Math.max(6, Math.floor(gridSize / 3));
     let attempts = 0;
     while (positions.length < maxTrees && attempts < gridSize * gridSize) {
       attempts++;
@@ -451,7 +468,7 @@ const Game = () => {
       for (let dx = 0; dx < 3; dx++) for (let dy = 0; dy < 3; dy++) occ.add(`${t.x+dx},${t.y+dy}`);
     });
 
-    const maxStones = Math.max(5, Math.floor(gridSize / 1.5)); // More stones for gameplay
+    const maxStones = Math.max(3, Math.floor(gridSize / 6)); // Less stones for balanced gameplay
     let attempts = 0;
     while (positions.length < maxStones && attempts < gridSize * gridSize) {
       attempts++;
@@ -471,11 +488,47 @@ const Game = () => {
     return positions;
   };
 
-  const [trees, setTrees] = useState<{ x: number; y: number }[]>(() => generateInitialTrees(MAP_GRID_SIZE, initialBuildingsState || []));
-  const [stones, setStones] = useState<{ x: number; y: number; stoneQuantity: number }[]>(() => generateInitialStones(MAP_GRID_SIZE, initialBuildingsState || [], trees));
+  const [trees, setTrees] = useState<{ x: number; y: number }[]>(() => generateInitialTrees(mapGridSize, initialBuildingsState || []));
+  const [stones, setStones] = useState<{ x: number; y: number; stoneQuantity: number }[]>(() => generateInitialStones(mapGridSize, initialBuildingsState || [], trees));
   
+  const isCellOccupied = useCallback((x: number, y: number, ignoreRoads: boolean = false): boolean => {
+    // Check buildings
+    for (const b of buildings) {
+      if (ignoreRoads && b.type === 'road') continue;
+      const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
+      const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
+      if (x >= b.x && x < b.x + w && y >= b.y && y < b.y + h) {
+        return true;
+      }
+      if (b.farmlandTiles?.some(ft => ft.x === x && ft.y === y)) {
+        return true;
+      }
+    }
+
+    // Check trees (3x3)
+    for (const t of trees) {
+      if (x >= t.x && x < t.x + 3 && y >= t.y && y < t.y + 3) {
+        return true;
+      }
+    }
+
+    // Check stones (2x2)
+    for (const s of stones) {
+        if (x >= s.x && x < s.x + 2 && y >= s.y && y < s.y + 2) {
+            return true;
+        }
+    }
+    
+    // Check stumps
+    if (stumps.some(s => s.x === x && s.y === y)) {
+      return true;
+    }
+
+    return false;
+  }, [buildings, trees, stones, stumps]);
+
   const findPath = useCallback((start: { x: number; y: number }, goal: { x: number; y: number }, ignore: Set<string> = new Set()) => {
-    const inBounds = (x: number, y: number) => x >= 0 && x < MAP_GRID_SIZE && y >= 0 && y < MAP_GRID_SIZE;
+    const inBounds = (x: number, y: number) => x >= 0 && x < mapGridSize && y >= 0 && y < mapGridSize;
     const blocked = new Set<string>();
     buildings.forEach(b => {
       if (b.type === "road") return;
@@ -540,7 +593,7 @@ const Game = () => {
       });
     }
     return [] as { x: number; y: number }[];
-  }, [buildings, trees, stumps, playerPositions, currentPlayerId]);
+  }, [buildings, trees, stumps, playerPositions, currentPlayerId, mapGridSize]);
 
   const findPathWithFallbacks = useCallback((start: { x: number; y: number }, goal: { x: number; y: number }) => {
     let path = findPath(start, goal);
@@ -564,7 +617,7 @@ const Game = () => {
     const b = buildings.find(bb => bb.id === buildingId);
     if (!b) return;
     const pos = playerPositions[currentPlayerId] || { x: 0, y: 0, dir: "down" as const, frame: 0, path: [] };
-    const inBounds = (x: number, y: number) => x >= 0 && x < MAP_GRID_SIZE && y >= 0 && y < MAP_GRID_SIZE;
+    const inBounds = (x: number, y: number) => x >= 0 && x < mapGridSize && y >= 0 && y < mapGridSize;
     const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
     const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
     const perimeter: { x: number; y: number }[] = [];
@@ -584,7 +637,14 @@ const Game = () => {
       const [x, y] = k.split(",").map(Number);
       return { x, y };
     });
-    const sortedByDistance = uniquePerimeter.sort((a, b2) => {
+
+    // Filter out occupied cells, unless the player is currently on that cell
+    const validTargets = uniquePerimeter.filter(t => {
+      if (t.x === pos.x && t.y === pos.y) return true;
+      return !isCellOccupied(t.x, t.y, true);
+    });
+
+    const sortedByDistance = validTargets.sort((a, b2) => {
       const da = Math.abs(a.x - pos.x) + Math.abs(a.y - pos.y);
       const db = Math.abs(b2.x - pos.x) + Math.abs(b2.y - pos.y);
       return da - db;
@@ -603,13 +663,13 @@ const Game = () => {
       }
     }
     if (chosenPath.length === 0) {
-      showError("Nem találtam útvonalat a célhoz.");
+      showError("Nem találtam útvonalat a célhoz (lehet, hogy blokkolva van).");
       return;
     }
     setPlayerPositions(prev => ({ ...prev, [currentPlayerId]: { ...pos, path: chosenPath } }));
     setPendingActions(prev => ({ ...prev, [currentPlayerId]: action }));
     showSuccess("Elindultál a célhoz.");
-  }, [buildings, playerPositions, currentPlayerId, findPath]);
+  }, [buildings, playerPositions, currentPlayerId, findPath, findPathWithFallbacks, isCellOccupied, mapGridSize]);
 
   const executeAtTile = useCallback((tileX: number, tileY: number, action: () => void) => {
     const pos = playerPositions[currentPlayerId] || { x: 0, y: 0, dir: "down" as const, frame: 0, path: [] };
@@ -673,35 +733,7 @@ const Game = () => {
   // --- Event Listeners ---
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      const moveSpeed = 20;
-      let offsetHandled = false;
-
-      switch (event.key) {
-        case "ArrowUp":
-        case "w":
-          setMapOffsetY(prev => prev + moveSpeed);
-          offsetHandled = true;
-          break;
-        case "ArrowDown":
-        case "s":
-          setMapOffsetY(prev => prev - moveSpeed);
-          offsetHandled = true;
-          break;
-        case "ArrowLeft":
-        case "a":
-          setMapOffsetX(prev => prev + moveSpeed);
-          offsetHandled = true;
-          break;
-        case "ArrowRight":
-        case "d":
-          setMapOffsetX(prev => prev - moveSpeed);
-          offsetHandled = true;
-          break;
-      }
-
-      if (offsetHandled) {
-        event.preventDefault();
-      }
+      keysPressed.current[event.key] = true;
       
       if (event.key === 'Shift') {
         setIsShiftPressed(true);
@@ -719,6 +751,7 @@ const Game = () => {
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
+      keysPressed.current[event.key] = false;
       if (event.key === 'Shift') {
         setIsShiftPressed(false);
       }
@@ -955,11 +988,14 @@ const Game = () => {
     players.forEach(p => playerBalanceChanges[p.id] = 0);
 
     buildings.forEach(building => {
-      if (building.type === "house" && building.renterId && building.ownerId && building.rentalPrice) {
-        playerBalanceChanges[building.renterId] -= building.rentalPrice;
-        playerBalanceChanges[building.ownerId] += building.rentalPrice;
-        newTransactions.push({ playerId: building.renterId, type: "expense", description: `Bérleti díj: ${building.name}`, amount: building.rentalPrice });
-        newTransactions.push({ playerId: building.ownerId, type: "income", description: `Lakbér: ${building.name}`, amount: building.rentalPrice });
+      if (building.type === "house" && building.ownerId && building.rentalPrice && building.residentIds.length > 0) {
+        building.residentIds.forEach(residentId => {
+          if (residentId === building.ownerId) return; // Tulajdonos nem fizet magának
+          playerBalanceChanges[residentId] -= building.rentalPrice!;
+          playerBalanceChanges[building.ownerId!] += building.rentalPrice!;
+          newTransactions.push({ playerId: residentId, type: "expense", description: `Bérleti díj: ${building.name}`, amount: building.rentalPrice! });
+          newTransactions.push({ playerId: building.ownerId!, type: "income", description: `Lakbér: ${building.name}`, amount: building.rentalPrice! });
+        });
       }
 
       if (building.salary && building.employeeIds.length > 0) {
@@ -1084,6 +1120,9 @@ const Game = () => {
       });
     });
   }, [shopInventories, handleRestock]);
+
+  const keysPressed = useRef<Record<string, boolean>>({});
+  const cameraVelocity = useRef({ x: 0, y: 0 });
 
   const constructionTimer = useRef(0);
   const runConstructionCheck = useCallback(() => {
@@ -1230,8 +1269,54 @@ const Game = () => {
   }, [currentPlayerId, demolishProcesses, customBuildings, addTransaction, sfxPlayerRef, setPlayers, setBuildings, setSelectedBuilding]);
 
   useGameLoop((deltaTime) => {
+    // Camera movement physics
+    const ACCEL = 1.5;
+    const FRICTION = 0.90;
+    const MAX_SPEED = 25;
+
+    let ax = 0;
+    let ay = 0;
+    
+    if (keysPressed.current["ArrowUp"] || keysPressed.current["w"]) ay += ACCEL;
+    if (keysPressed.current["ArrowDown"] || keysPressed.current["s"]) ay -= ACCEL;
+    if (keysPressed.current["ArrowLeft"] || keysPressed.current["a"]) ax += ACCEL;
+    if (keysPressed.current["ArrowRight"] || keysPressed.current["d"]) ax -= ACCEL;
+
+    // Apply acceleration
+    cameraVelocity.current.x += ax;
+    cameraVelocity.current.y += ay;
+
+    // Apply friction
+    cameraVelocity.current.x *= FRICTION;
+    cameraVelocity.current.y *= FRICTION;
+
+    // Cap velocity
+    cameraVelocity.current.x = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, cameraVelocity.current.x));
+    cameraVelocity.current.y = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, cameraVelocity.current.y));
+
+    if (Math.abs(cameraVelocity.current.x) < 0.1) cameraVelocity.current.x = 0;
+    if (Math.abs(cameraVelocity.current.y) < 0.1) cameraVelocity.current.y = 0;
+
+    if (cameraVelocity.current.x !== 0 || cameraVelocity.current.y !== 0) {
+        const viewportWidth = mainContentRef.current?.clientWidth || window.innerWidth;
+        const viewportHeight = mainContentRef.current?.clientHeight || window.innerHeight;
+
+        const mapWidth = mapGridSize * CELL_SIZE_PX;
+        const mapHeight = mapGridSize * CELL_SIZE_PX;
+        
+        setMapOffsetX(prev => {
+            const minX = Math.min(0, -(mapWidth - viewportWidth));
+            // Velocity X positive -> move map right (show left part)
+            // Velocity X negative -> move map left (show right part)
+            return Math.max(minX, Math.min(0, prev + cameraVelocity.current.x));
+        });
+        setMapOffsetY(prev => {
+            const minY = Math.min(0, -(mapHeight - viewportHeight));
+            return Math.max(minY, Math.min(0, prev + cameraVelocity.current.y));
+        });
+    }
+
     constructionTimer.current += deltaTime;
-    playerMovementTimer.current += deltaTime;
     chopProcessTimer.current += deltaTime;
     stoneMineProcessTimer.current += deltaTime;
     stumpDecayTimer.current += deltaTime;
@@ -1239,17 +1324,9 @@ const Game = () => {
     cropGrowthTimer.current += deltaTime;
     shopRestockTimer.current += deltaTime;
 
-    if (constructionTimer.current >= 100) {
+    if (constructionTimer.current >= 500) {
       runConstructionCheck();
-      constructionTimer.current -= 100;
-    }
-
-    if (playerMovementTimer.current >= AVATAR_TICK_MS) {
-        const ticks = Math.floor(playerMovementTimer.current / AVATAR_TICK_MS);
-        for (let i = 0; i < ticks; i++) {
-            runPlayerMovement();
-        }
-        playerMovementTimer.current %= AVATAR_TICK_MS;
+      constructionTimer.current -= 500;
     }
 
     if (chopProcessTimer.current >= 100) {
@@ -1301,42 +1378,7 @@ const Game = () => {
   const tickProgress = 100 - ((msUntilNextTick / RENT_INTERVAL_MS) * 100); 
   const secondsRemaining = Math.ceil(msUntilNextTick / 1000);
 
-  const isCellOccupied = (x: number, y: number): boolean => {
-    const key = `${x},${y}`;
 
-    // Check buildings
-    for (const b of buildings) {
-      const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
-      const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
-      if (x >= b.x && x < b.x + w && y >= b.y && y < b.y + h) {
-        return true;
-      }
-      if (b.farmlandTiles?.some(ft => ft.x === x && ft.y === y)) {
-        return true;
-      }
-    }
-
-    // Check trees (3x3)
-    for (const t of trees) {
-      if (x >= t.x && x < t.x + 3 && y >= t.y && y < t.y + 3) {
-        return true;
-      }
-    }
-
-    // Check stones (2x2)
-    for (const s of stones) {
-        if (x >= s.x && x < s.x + 2 && y >= s.y && y < s.y + 2) {
-            return true;
-        }
-    }
-    
-    // Check stumps
-    if (stumps.some(s => s.x === x && s.y === y)) {
-      return true;
-    }
-
-    return false;
-  };
 
   const isFarmlandPlaceable = (gridX: number, gridY: number, farmId: string) => {
     const farm = buildings.find(b => b.id === farmId);
@@ -1487,7 +1529,7 @@ const Game = () => {
     const effectiveHeight = (currentBuildingRotation === 90 || currentBuildingRotation === 270) ? buildingToPlace.width : buildingToPlace.height;
 
     // Check map boundaries
-    if (gridX + effectiveWidth > MAP_GRID_SIZE || gridY + effectiveHeight > MAP_GRID_SIZE) {
+    if (gridX + effectiveWidth > mapGridSize || gridY + effectiveHeight > mapGridSize) {
       showError("Az épület kilógna a pályáról!");
       return;
     }
@@ -1604,6 +1646,7 @@ const Game = () => {
         width: buildingToPlace.width,
         height: buildingToPlace.height,
         type: buildingToPlace.type,
+        category: buildingToPlace.category,
         rentalPrice: buildingToPlace.rentalPrice,
         salary: buildingToPlace.salary,
         capacity: buildingToPlace.capacity,
@@ -1828,23 +1871,10 @@ const Game = () => {
       ];
       
       const target = possibleTargets.find(t => {
-        const isOutOfBounds = t.x < 0 || t.x >= MAP_GRID_SIZE || t.y < 0 || t.y >= MAP_GRID_SIZE;
+        const isOutOfBounds = t.x < 0 || t.x >= mapGridSize || t.y < 0 || t.y >= mapGridSize;
         if (isOutOfBounds) return false;
         
-        const isOccupiedByTree = trees.some(otherT => otherT !== tree && t.x >= otherT.x && t.x < otherT.x + 3 && t.y >= otherT.y && t.y < otherT.y + 3);
-        if (isOccupiedByTree) return false;
-
-        const isOccupiedByStump = stumps.some(s => s.x === t.x && s.y === t.y);
-        if (isOccupiedByStump) return false;
-
-        const isOccupiedByBuilding = buildings.some(b => {
-           const w = (b.rotation === 90 || b.rotation === 270) ? b.height : b.width;
-           const h = (b.rotation === 90 || b.rotation === 270) ? b.width : b.height;
-           return t.x >= b.x && t.x < b.x + w && t.y >= b.y && t.y < b.y + h;
-        });
-        if (isOccupiedByBuilding) return false;
-
-        return true;
+        return !isCellOccupied(t.x, t.y, true);
       });
 
       if (!target) {
@@ -1890,11 +1920,8 @@ const Game = () => {
         { x: stone.x - 1, y: stone.y + 1 }, // Left side (2nd tile)
       ];
       const target = possibleTargets.find(t => 
-        t.x >= 0 && t.x < MAP_GRID_SIZE && t.y >= 0 && t.y < MAP_GRID_SIZE &&
-        !stones.some(s => s.x === t.x && s.y === t.y) && // Should not overlap with stones, but stones are 2x2...
-        // Stones are stored as top-left x,y. A stone at sx,sy occupies sx,sy, sx+1,sy, sx,sy+1, sx+1,sy+1.
-        !stones.some(s => t.x >= s.x && t.x < s.x + 2 && t.y >= s.y && t.y < s.y + 2) &&
-        !isCellOccupied(t.x, t.y)
+        t.x >= 0 && t.x < mapGridSize && t.y >= 0 && t.y < mapGridSize &&
+        !isCellOccupied(t.x, t.y, true)
       ) || possibleTargets[0];
 
       executeAtTile(target.x, target.y, () => {
@@ -2761,6 +2788,17 @@ const Game = () => {
         <Button onClick={() => navigate('/')} className="w-full bg-gray-600">
           Főmenü
         </Button>
+        <Button 
+          onClick={() => {
+            if (confirm("Biztosan törölni akarod a játékállást és újrakezdeni? Minden elveszik!")) {
+              localStorage.clear();
+              window.location.reload();
+            }
+          }} 
+          className="w-full bg-red-800 font-bold mt-4"
+        >
+          ⚠️ Pálya Törlése (Reset)
+        </Button>
       </div>
       
       <BankMenu 
@@ -2793,17 +2831,15 @@ const Game = () => {
           }}
         />
       )}
-      <MainLayout 
-        sidebarContent={sidebarContent} 
-      mainContent={
-      <div ref={mainContentRef} className="flex flex-col h-full items-center justify-center relative overflow-hidden">
-          <GameMap 
-            avatarSize={avatarSize}
-            buildings={buildings}  
-            gridSize={MAP_GRID_SIZE} 
-            cellSizePx={CELL_SIZE_PX} 
-            onBuildingClick={handleBuildingClick} 
-            isPlacingBuilding={isPlacingBuilding} 
+            <MainLayout 
+              sidebarContent={sidebarContent} 
+            mainContent={
+            <div ref={mainContentRef} className="block w-full h-full relative overflow-hidden bg-black">
+                <GameMap 
+                  avatarSize={avatarSize}
+                  buildings={buildings}                      gridSize={mapGridSize} 
+                      cellSizePx={CELL_SIZE_PX} 
+                      onBuildingClick={handleBuildingClick}            isPlacingBuilding={isPlacingBuilding} 
             buildingToPlace={buildingToPlace} 
             ghostBuildingCoords={ghostBuildingCoords} 
             onGridMouseMove={handleMapMouseMove} 
@@ -2925,6 +2961,7 @@ const Game = () => {
             handleDemolishBuilding={handleDemolishBuilding}
             handleResignFromJob={handleResignFromJob}
             handleMoveOut={handleMoveOut}
+            handleApplyForJob={handleApplyForJob}
           />
           
           {selectedShopBuilding && (
@@ -3044,6 +3081,49 @@ const Game = () => {
             onRentHouse={handleRentHouse}
             onResignFromJob={handleResignFromJob}
             onMoveOut={handleMoveOut}
+          />
+
+          <MiniMap
+            buildings={buildings}
+            trees={trees}
+            stones={stones}
+            players={players.map(p => ({
+              id: p.id,
+              x: playerPositions[p.id]?.x || 0,
+              y: playerPositions[p.id]?.y || 0,
+              color: p.id === currentPlayerId ? 'blue' : 'red'
+            }))}
+            currentPlayerId={currentPlayerId}
+            mapGridSize={mapGridSize}
+            cameraOffset={{ x: mapOffsetX, y: mapOffsetY }}
+            viewportSize={{
+              width: mainContentRef.current?.clientWidth || window.innerWidth,
+              height: mainContentRef.current?.clientHeight || window.innerHeight
+            }}
+            cellSizePx={CELL_SIZE_PX}
+            onJumpTo={(targetGridX, targetGridY) => {
+              const viewportWidth = mainContentRef.current?.clientWidth || window.innerWidth;
+              const viewportHeight = mainContentRef.current?.clientHeight || window.innerHeight;
+              
+              const targetPixelX = targetGridX * CELL_SIZE_PX;
+              const targetPixelY = targetGridY * CELL_SIZE_PX;
+              
+              let newOffsetX = -(targetPixelX - viewportWidth / 2);
+              let newOffsetY = -(targetPixelY - viewportHeight / 2);
+              
+              const mapWidth = mapGridSize * CELL_SIZE_PX;
+              const mapHeight = mapGridSize * CELL_SIZE_PX; // Matches content height
+              
+              const minX = Math.min(0, -(mapWidth - viewportWidth));
+              const minY = Math.min(0, -(mapHeight - viewportHeight));
+              
+              newOffsetX = Math.max(minX, Math.min(0, newOffsetX));
+              newOffsetY = Math.max(minY, Math.min(0, newOffsetY));
+              
+              setMapOffsetX(newOffsetX);
+              setMapOffsetY(newOffsetY);
+              cameraVelocity.current = { x: 0, y: 0 };
+            }}
           />
         </div>
       } 

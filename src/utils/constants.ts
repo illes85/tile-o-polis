@@ -1,11 +1,11 @@
-export const MAP_GRID_SIZE = 64;
+export const MAP_GRID_SIZE = 100;
 export const CELL_SIZE_PX = 32; 
 export const RENT_INTERVAL_MS = 30000;
 export const AVATAR_TICK_MS = 50;
 export const AVATAR_SPEED_PX = 2;
 export const BUILD_HOUSE_COST = 500;
 export const BUILD_HOUSE_DURATION_MS = 10000;
-export const OFFICE_SALARY_PER_INTERVAL = 10;
+export const OFFICE_SALARY_PER_INTERVAL = 21;
 export const DEMOLISH_REFUND_PERCENTAGE = 0.5;
 export const WHEAT_GROW_TIME_MS = 60000;
 export const WHEAT_HARVEST_YIELD = 10; 

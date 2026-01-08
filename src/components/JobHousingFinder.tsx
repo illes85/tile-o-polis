@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card"; // HIÁNYZÓ IMPORT HOZZÁADVA
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Briefcase, Home, Coins, Users, Factory, Leaf, ShoppingBag, Popcorn, Warehouse, CheckCircle, XCircle } from "lucide-react";
+import { Briefcase, Home, Coins, Users, Factory, Leaf, ShoppingBag, Popcorn, Warehouse, CheckCircle, XCircle, Gem } from "lucide-react";
 import { BuildingData } from "@/components/Map";
 import { showSuccess, showError } from "@/utils/toast";
 
@@ -65,7 +65,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
     };
 
     const renderJobCard = (job: BuildingData) => {
-        const isCurrentWorkplace = currentPlayer.workplace === job.name;
+        const isCurrentWorkplace = job.employeeIds.includes(currentPlayer.id);
         const disabled = isEmployed && !isCurrentWorkplace;
         const tooltip = disabled ? "Már van munkahelyed. Előbb mondj fel!" : "";
 
@@ -74,7 +74,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
                 <div className="flex items-center space-x-3">
                     {getBuildingIcon(job.type)}
                     <div>
-                        <h4 className="font-semibold text-sm">{job.name}</h4>
+                        <h4 className="font-semibold text-sm">{job.name} #{job.houseNumber}</h4>
                         <p className="text-xs text-muted-foreground flex items-center">
                             <Coins className="h-3 w-3 mr-1 text-green-500" /> Fizetés: {job.salary} pénz/ciklus
                         </p>
@@ -126,7 +126,7 @@ const JobHousingFinder: React.FC<JobHousingFinderProps> = ({
                 <div className="flex items-center space-x-3">
                     <Home className="h-4 w-4 text-indigo-500" />
                     <div>
-                        <h4 className="font-semibold text-sm">{house.name}</h4>
+                        <h4 className="font-semibold text-sm">{house.name} #{house.houseNumber}</h4>
                         <p className="text-xs text-muted-foreground flex items-center">
                             <Coins className="h-3 w-3 mr-1 text-red-500" /> Bérleti díj: {house.rentalPrice} pénz/ciklus
                         </p>

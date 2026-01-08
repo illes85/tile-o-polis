@@ -98,7 +98,7 @@ const Map: React.FC<MapProps> = ({
   bankConfigs = {},
 }) => {
   const mapWidthPx = gridSize * cellSizePx;
-  const mapHeightPx = gridSize * cellSizePx * 1.5;
+  const mapHeightPx = gridSize * cellSizePx;
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const occupiedCells = useMemo(() => {
@@ -247,8 +247,8 @@ const Map: React.FC<MapProps> = ({
     const mouseXRelativeToMap = event.clientX - mapRect.left;
     const mouseYRelativeToMap = event.clientY - mapRect.top;
 
-    const gridX = Math.floor((mouseXRelativeToMap - mapOffsetX) / cellSizePx);
-    const gridY = Math.floor((mouseYRelativeToMap - mapOffsetY) / cellSizePx);
+    const gridX = Math.floor(mouseXRelativeToMap / cellSizePx);
+    const gridY = Math.floor(mouseYRelativeToMap / cellSizePx);
     return { gridX, gridY };
   };
 

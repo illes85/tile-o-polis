@@ -49,6 +49,7 @@ interface SelectedBuildingPanelProps {
   handleDemolishBuilding: (buildingId: string) => void;
   handleResignFromJob: (buildingId: string) => void;
   handleMoveOut: (buildingId: string) => void;
+  handleApplyForJob: (buildingId: string) => void;
 }
 
 export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
@@ -78,6 +79,7 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
   handleDemolishBuilding,
   handleResignFromJob,
   handleMoveOut,
+  handleApplyForJob,
 }) => {
   if (!selectedBuilding) return null;
 
@@ -85,9 +87,6 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
   if (!currentPlayer) return null;
 
   // --- Handlers ---
-
-  const handleApplyForJob = (buildingId: string) => {
-  };
 
   const handleRentHouse = (buildingId: string) => {
     const building = buildings.find(b => b.id === buildingId);
@@ -491,7 +490,7 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
             }
           </div>
 
-          {selectedBuilding.category === "business" && (
+          {(selectedBuilding.category === "business" || ["office", "forestry", "farm", "shop", "mill", "popcorn_stand", "quarry", "bank"].includes(selectedBuilding.type)) && (
             <div className="mt-2">
               {selectedBuilding.employeeIds.includes(currentPlayerId) ? (
                 <Button 
@@ -513,42 +512,7 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
             </div>
           )}
 
-          {selectedBuilding.category === "residential" && (
-            <div className="mt-2">
-              {selectedBuilding.residentIds.includes(currentPlayerId) ? (
-                <Button 
-                  variant="destructive" 
-                  className="w-full"
-                  onClick={() => handleMoveOut(selectedBuilding.id)}
-                >
-                  Kiköltözés
-                </Button>
-              ) : (
-                (() => {
-                  const alreadyRenting = buildings.some(b => b.residentIds.includes(currentPlayerId));
-                  const isFull = selectedBuilding.residentIds.length >= selectedBuilding.capacity;
-                  const cannotAfford = selectedBuilding.ownerId !== currentPlayerId && selectedBuilding.rentalPrice ? currentPlayer.money < (selectedBuilding.rentalPrice || 0) : false;
-                  const disabled = alreadyRenting || isFull || cannotAfford;
-                  
-                  let tooltip = "";
-                  if (alreadyRenting) tooltip = "Már bérelsz egy másik ingatlant.";
-                  else if (isFull) tooltip = "Ez a lakás már betelt.";
-                  else if (cannotAfford) tooltip = "Nincs elég pénzed a bérléshez.";
 
-                  return (
-                    <Button 
-                      className="w-full bg-green-600 hover:bg-green-700"
-                      onClick={() => handleRentHouse(selectedBuilding.id)}
-                      disabled={disabled}
-                      title={tooltip}
-                    >
-                      {selectedBuilding.ownerId === currentPlayerId ? "Beköltözés (Saját)" : "Kibérlés / Beköltözés"}
-                    </Button>
-                  );
-                })()
-              )}
-            </div>
-          )}
 
           {selectedBuilding.type === "shop" && (
             <Button 
@@ -1026,6 +990,40 @@ export const SelectedBuildingPanel: React.FC<SelectedBuildingPanelProps> = ({
         <DialogFooter>
             {!selectedBuilding.isDemolishing && (
             <>
+                {(selectedBuilding.category === "residential" || selectedBuilding.type === "house") && (
+                  selectedBuilding.residentIds.includes(currentPlayerId) ? (
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => handleMoveOut(selectedBuilding.id)}
+                    >
+                      Kiköltözés
+                    </Button>
+                  ) : (
+                    (() => {
+                      const alreadyRenting = buildings.some(b => b.residentIds.includes(currentPlayerId));
+                      const isFull = selectedBuilding.residentIds.length >= selectedBuilding.capacity;
+                      const cannotAfford = selectedBuilding.ownerId !== currentPlayerId && selectedBuilding.rentalPrice ? currentPlayer.money < (selectedBuilding.rentalPrice || 0) : false;
+                      const disabled = alreadyRenting || isFull || cannotAfford;
+                      
+                      let tooltip = "";
+                      if (alreadyRenting) tooltip = "Már bérelsz egy másik ingatlant.";
+                      else if (isFull) tooltip = "Ez a lakás már betelt.";
+                      else if (cannotAfford) tooltip = "Nincs elég pénzed a bérléshez.";
+
+                      return (
+                        <Button 
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleRentHouse(selectedBuilding.id)}
+                          disabled={disabled}
+                          title={tooltip}
+                        >
+                          {selectedBuilding.ownerId === currentPlayerId ? "Beköltözés (Saját)" : "Kibérlés / Beköltözés"}
+                        </Button>
+                      );
+                    })()
+                  )
+                )}
+
                 {selectedBuilding.ownerId === currentPlayerId && (
                 <Button variant="destructive" onClick={() => {
                     if (confirm("Biztosan le akarod bontani ezt az épületet?")) {

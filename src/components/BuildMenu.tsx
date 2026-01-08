@@ -75,24 +75,24 @@ const BuildMenu: React.FC<BuildMenuProps> = ({
       <Card key={building.name} className="flex items-center justify-between p-4">
         <div>
           <CardTitle className="text-lg">{building.name}</CardTitle>
-          <p className="text-sm text-muted-foreground flex items-center">
+          <p className={`text-sm flex items-center ${canAffordMoney ? "text-muted-foreground" : "text-red-500 font-bold"}`}>
             <Coins className="h-4 w-4 mr-1 text-green-500" />
             {building.cost === 0 ? "Ingyenes" : `${building.cost} pénz`}
           </p>
           {building.woodCost !== undefined && (
-            <p className="text-sm text-muted-foreground flex items-center">
+            <p className={`text-sm flex items-center ${canAffordWood ? "text-muted-foreground" : "text-red-500 font-bold"}`}>
               <Leaf className="h-4 w-4 mr-1 text-yellow-700" />
               {building.woodCost} fa
             </p>
           )}
           {building.brickCost !== undefined && (
-            <p className="text-sm text-muted-foreground flex items-center">
+            <p className={`text-sm flex items-center ${canAffordBrick ? "text-muted-foreground" : "text-red-500 font-bold"}`}>
               <BrickIcon className="h-4 w-4 mr-1 text-orange-500" />
               {building.brickCost} tégla
             </p>
           )}
           {building.stoneCost !== undefined && (
-            <p className="text-sm text-muted-foreground flex items-center">
+            <p className={`text-sm flex items-center ${canAffordStone ? "text-muted-foreground" : "text-red-500 font-bold"}`}>
               <Gem className="h-4 w-4 mr-1 text-gray-500" />
               {building.stoneCost} kő
             </p>
